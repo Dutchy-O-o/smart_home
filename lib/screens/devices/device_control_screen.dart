@@ -29,13 +29,57 @@ class _DeviceControlScreenState extends State<DeviceControlScreen> {
   int _targetTemp = 20;
   String _climateMode = "Cool";
 
-  // --- API VE DEBOUNCE (ZAMANLAYICI) DEĞİŞKENLERİ ---
+  // --- GERÇEK SENSÖR DEĞERLERİ ---
+  String _insideTemp = "--";
+  String _insideHumidity = "--";
+
+  // --- ZAMANLAYICI (TIMER) DEĞİŞKENLERİ ---
   Timer? _tempDebounceTimer;
   Timer? _curtainDebounceTimer;
+  Timer? _dataPollingTimer;
 
-  // --- API GÖNDERME FONKSİYONU ---
+  @override
+  void initState() {
+    super.initState();
+    // Sayfa açılır açılmaz ilk veriyi çek
+    _fetchLatestSensorData();
+    
+    // Her 5 saniyede bir arka planda sessizce veriyi güncelle
+    _dataPollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      _fetchLatestSensorData();
+    });
+  }
+
+  @override
+  void dispose() {
+    // Sayfa kapatıldığında arka planda çalışan tüm timer'ları temizle
+    _dataPollingTimer?.cancel();
+    _tempDebounceTimer?.cancel();
+    _curtainDebounceTimer?.cancel();
+    super.dispose();
+  }
+
+  // --- API: SENSÖR VERİSİ ÇEKME (GET) ---
+  Future<void> _fetchLatestSensorData() async {
+    final url = Uri.parse("https://zz3kr12z0f.execute-api.us-east-1.amazonaws.com/prod/sensor");
+    
+    try {
+      final response = await http.get(url);
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        setState(() {
+          _insideTemp = data['temperature'].toString();
+          _insideHumidity = data['humidity'].toString();
+        });
+      }
+    } catch (e) {
+      print("Sensör verisi çekilemedi: $e");
+    }
+  }
+
+  // --- API: KOMUT GÖNDERME (POST) ---
   Future<void> _sendApiCommand(String deviceId, String action, dynamic value) async {
-    // DİKKAT: BURAYI KENDİ API GATEWAY URL'İN İLE DEĞİŞTİR:
     final url = Uri.parse("https://zz3kr12z0f.execute-api.us-east-1.amazonaws.com/prod/command");
     
     // Ekranda komutun gittiğini görmek için ufak bir bildirim (Debug için)
@@ -361,7 +405,6 @@ class _DeviceControlScreenState extends State<DeviceControlScreen> {
                             decoration: BoxDecoration(color: Colors.grey[900], borderRadius: BorderRadius.circular(12)),
                             child: Row(
                               children: [
-                                // Flex değeri 0 olursa uygulama çöker, bunu engellemek için kontrol ekledik.
                                 Expanded(
                                   flex: (100 - _curtainPosition) <= 0 ? 1 : (100 - _curtainPosition),
                                   child: Container(color: Colors.blueGrey.withOpacity(0.3)),
@@ -418,16 +461,16 @@ class _DeviceControlScreenState extends State<DeviceControlScreen> {
                       children: [
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
-                            Text("Inside Temp", style: TextStyle(color: Colors.grey, fontSize: 12)),
-                            Text("22°C", style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
+                          children: [
+                            const Text("Inside Temp", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                            Text("$_insideTemp°C", style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
                           ],
                         ),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
-                          children: const [
-                            Text("Humidity", style: TextStyle(color: Colors.grey, fontSize: 12)),
-                            Text("45%", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                          children: [
+                            const Text("Humidity", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                            Text("$_insideHumidity%", style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                           ],
                         ),
                       ],
