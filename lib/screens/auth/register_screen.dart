@@ -2,14 +2,18 @@ import 'package:flutter/material.dart';
 import '../../constants/app_colors.dart';
 import '../dashboard/dashboard_screen.dart';
 
-class RegisterScreen extends StatefulWidget {
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/auth_provider.dart';
+import 'otp_verification_screen.dart';
+
+class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
 
   @override
-  State<RegisterScreen> createState() => _RegisterScreenState();
+  ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> {
+class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   // Form Kontrolcüleri
   final TextEditingController _fullNameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
@@ -48,7 +52,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   // --- 2. Kayıt Olma İşlemi (VALIDASYONLAR) ---
-  void _handleRegister() {
+  Future<void> _handleRegister() async {
     String fullName = _fullNameController.text.trim();
     String email = _emailController.text.trim();
     String password = _passwordController.text;
@@ -78,12 +82,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
-    // Başarılı -> Dashboard'a yönlendir
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => const DashboardScreen()),
-      (route) => false,
-    );
+    try {
+      final success = await ref.read(authProvider.notifier).signUp(
+        email: email,
+        password: password,
+      );
+
+      if (success && mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => OtpVerificationScreen(email: email)),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        // Hatanın aslını gösteriyoruz ki AWS neye kızdığını bilelim
+        _showError("Registration failed: \${e.toString()}");
+      }
+    }
   }
 
   // Hata gösterme yardımcısı
@@ -173,6 +189,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   // --- 4. ARAYÜZ (UI) ---
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authProvider);
+    final isLoading = authState == AuthState.loading;
+
     // Şifre rengini belirle
     Color strengthColor = _passwordStrength <= 0.25 
         ? AppColors.accentRed 
@@ -346,7 +365,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: _agreedToTerms ? _handleRegister : null, // Checkbox seçili değilse buton pasif
+                  onPressed: (_agreedToTerms && !isLoading) ? _handleRegister : null, // Checkbox seçili değilse buton pasif
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryBlue,
                     disabledBackgroundColor: AppColors.primaryBlue.withOpacity(0.3),
@@ -357,16 +376,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
-                        "Initialize System",
-                        style: TextStyle(
-                          color: _agreedToTerms ? Colors.white : Colors.white54,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                      if (isLoading)
+                        const SizedBox(
+                          height: 24,
+                          width: 24,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        )
+                      else ...[
+                        Text(
+                          "Initialize System",
+                          style: TextStyle(
+                            color: _agreedToTerms ? Colors.white : Colors.white54,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Icon(Icons.arrow_forward, color: _agreedToTerms ? Colors.white : Colors.white54),
+                        const SizedBox(width: 8),
+                        Icon(Icons.arrow_forward, color: _agreedToTerms ? Colors.white : Colors.white54),
+                      ]
                     ],
                   ),
                 ),

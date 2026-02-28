@@ -1,10 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:amplify_flutter/amplify_flutter.dart';
+import 'package:amplify_auth_cognito/amplify_auth_cognito.dart';
+import 'amplifyconfiguration.dart';
 import 'constants/app_colors.dart';
-import 'screens/auth/login_screen.dart';
 import 'screens/onboarding/onboarding_screen.dart'; // Yeni ekranı tanıttık
 
-void main() {
-  runApp(const AkilliEvApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await _configureAmplify();
+  runApp(const ProviderScope(child: AkilliEvApp()));
+}
+
+Future<void> _configureAmplify() async {
+  try {
+    final authPlugin = AmplifyAuthCognito();
+    await Amplify.addPlugin(authPlugin);
+    await Amplify.configure(amplifyconfig);
+  } catch (e) {
+    safePrint('An error occurred configuring Amplify: \$e');
+  }
 }
 
 class AkilliEvApp extends StatelessWidget {
