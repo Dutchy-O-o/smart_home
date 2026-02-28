@@ -5,14 +5,17 @@ import 'register_screen.dart'; // Kayıt ekranına gitmek için import ettik
 import 'forgot_password_screen.dart';
 
 
-class LoginScreen extends StatefulWidget {
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/auth_provider.dart';
+
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   // Form kontrolcüleri
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -20,7 +23,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isObscured = true; // Şifre gizli mi?
 
   // Giriş yapma fonksiyonu
-  void _handleLogin() {
+  Future<void> _handleLogin() async {
     String email = _emailController.text.trim();
     String password = _passwordController.text.trim();
 
@@ -35,15 +38,35 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    // Başarılı giriş simülasyonu -> Dashboard'a git
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const DashboardScreen()),
-    );
+    try {
+      final success = await ref.read(authProvider.notifier).signIn(
+        email: email,
+        password: password,
+      );
+
+      if (success && mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const DashboardScreen()),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Invalid username or password."),
+            backgroundColor: AppColors.accentRed,
+          ),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authProvider);
+    final isLoading = authState == AuthState.loading;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -153,7 +176,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: _handleLogin,
+                  onPressed: isLoading ? null : _handleLogin,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryBlue,
                     shape: RoundedRectangleBorder(
@@ -162,19 +185,27 @@ class _LoginScreenState extends State<LoginScreen> {
                     elevation: 5,
                     shadowColor: AppColors.primaryBlue.withOpacity(0.4),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.bolt, color: Colors.white),
-                      SizedBox(width: 8),
-                      Text(
-                        "Secure Login",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                      if (isLoading)
+                        const SizedBox(
+                          height: 24,
+                          width: 24,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        )
+                      else ...[
+                        const Icon(Icons.bolt, color: Colors.white),
+                        const SizedBox(width: 8),
+                        const Text(
+                          "Secure Login",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
+                      ]
                     ],
                   ),
                 ),
