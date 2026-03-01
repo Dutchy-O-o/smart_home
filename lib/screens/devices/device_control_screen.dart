@@ -9,6 +9,7 @@ import '../ai_hub/emotion_hub_screen.dart';
 import '../security/monitoring_screen.dart';
 import '../notifications/notification_screen.dart';
 import '../profile/profile_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class DeviceControlScreen extends StatefulWidget {
   const DeviceControlScreen({super.key});
@@ -64,7 +65,18 @@ class _DeviceControlScreenState extends State<DeviceControlScreen> {
     final url = Uri.parse("https://zz3kr12z0f.execute-api.us-east-1.amazonaws.com/prod/sensor");
     
     try {
-      final response = await http.get(url);
+      // 1. Hafızadaki Token'ı al
+      final prefs = await SharedPreferences.getInstance();
+      final String? token = prefs.getString('jwt_token');
+
+      // 2. Token'ı Header içine yerleştirip isteği at
+      final response = await http.get(
+        url,
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": token ?? "" // Token yoksa boş string yolla, API reddetsin
+        },
+      );
       
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -72,25 +84,33 @@ class _DeviceControlScreenState extends State<DeviceControlScreen> {
           _insideTemp = data['temperature'].toString();
           _insideHumidity = data['humidity'].toString();
         });
+      } else {
+        print("Sensör verisi reddedildi. Hata: ${response.statusCode}");
       }
     } catch (e) {
       print("Sensör verisi çekilemedi: $e");
     }
   }
 
-  // --- API: KOMUT GÖNDERME (POST) ---
   Future<void> _sendApiCommand(String deviceId, String action, dynamic value) async {
     final url = Uri.parse("https://zz3kr12z0f.execute-api.us-east-1.amazonaws.com/prod/command");
     
-    // Ekranda komutun gittiğini görmek için ufak bir bildirim (Debug için)
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text("Komut Gidiyor: $action -> $value"), duration: const Duration(milliseconds: 500)),
     );
 
     try {
+      // 1. Hafızadaki Token'ı al
+      final prefs = await SharedPreferences.getInstance();
+      final String? token = prefs.getString('jwt_token');
+
+      // 2. Token'ı Header'a ekle ve Body'yi gönder
       final response = await http.post(
         url,
-        headers: {"Content-Type": "application/json"},
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": token ?? ""
+        },
         body: jsonEncode({
           "device_id": deviceId,
           "action": action,
@@ -101,7 +121,7 @@ class _DeviceControlScreenState extends State<DeviceControlScreen> {
       if (response.statusCode == 200) {
         print("BAŞARILI: $action -> $value");
       } else {
-        print("HATA: Sunucu ${response.statusCode} döndürdü.");
+        print("Komut reddedildi. Hata: ${response.statusCode}");
       }
     } catch (e) {
       print("BAĞLANTI HATASI: $e");

@@ -7,14 +7,17 @@ import '../devices/device_control_screen.dart';
 import '../notifications/notification_screen.dart';
 import '../auth/login_screen.dart';
 
-class ProfileScreen extends StatefulWidget {
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/auth_provider.dart';
+
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool _pushNotifications = true;
 
   // Alt Menü Navigasyonu (6. Eleman: Profile)
@@ -51,7 +54,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
+              // perform actual sign out via provider before leaving
+              await ref.read(authProvider.notifier).signOut();
               Navigator.pushAndRemoveUntil(
                 context,
                 MaterialPageRoute(builder: (context) => const LoginScreen()),

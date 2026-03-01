@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../constants/app_colors.dart';
 import 'reset_confirmation_screen.dart';
-import 'login_screen.dart';
+// import 'login_screen.dart'; // no longer needed
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});

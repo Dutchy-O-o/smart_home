@@ -39,6 +39,7 @@ dependencies:
   amplify_flutter: ^2.6.5
   amplify_auth_cognito: ^2.6.5
   flutter_riverpod: ^3.2.1
+  shared_preferences: ^2.5.4
 
 dev_dependencies:
   flutter_test:
