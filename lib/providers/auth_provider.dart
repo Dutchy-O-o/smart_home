@@ -92,11 +92,16 @@ class AuthNotifier extends Notifier<AuthState> {
   Future<void> signOut() async {
     state = AuthState.loading;
     try {
-      await Amplify.Auth.signOut();
+      // Sign out globally from all devices
+      await Amplify.Auth.signOut(
+        options: const SignOutOptions(
+          globalSignOut: true,
+        ),
+      );
       state = AuthState.unauthenticated;
     } catch (e) {
       safePrint('Error signing out: $e');
-      // Even if there's an error, we might want to drop them to unauthenticated
+      // Even if there's an error, we force state to unauthenticated
       state = AuthState.unauthenticated;
     }
   }

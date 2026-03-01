@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../constants/app_colors.dart';
+import 'package:amplify_flutter/amplify_flutter.dart';
 import '../dashboard/dashboard_screen.dart';
 import 'register_screen.dart'; // Kayıt ekranına gitmek için import ettik
 import 'forgot_password_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:amplify_auth_cognito/amplify_auth_cognito.dart';
 
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,6 +26,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _isObscured = true; // Şifre gizli mi?
 
   // Giriş yapma fonksiyonu
+ // Giriş yapma fonksiyonu
   Future<void> _handleLogin() async {
     String email = _emailController.text.trim();
     String password = _passwordController.text.trim();
@@ -39,29 +43,58 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
 
     try {
+      // 1. Riverpod üzerinden giriş işlemini tetikle
       final success = await ref.read(authProvider.notifier).signIn(
         email: email,
         password: password,
       );
 
       if (success && mounted) {
+        // --- YENİ EKLENEN KISIM: TOKEN'I AL VE HAFIZAYA YAZ ---
+        try {
+          // Amplify'den mevcut aktif oturumu çekiyoruz
+          final session = await Amplify.Auth.fetchAuthSession();
+          
+          // Eğer bu bir Cognito oturumuysa Token'ı içinden alıyoruz
+          if (session is CognitoAuthSession) {
+            // Bize API Gateway fedaisini geçmek için "ID Token" lazım
+            final idToken = session.userPoolTokensResult.value.idToken.raw;
+            
+            // Telefonun hafızasına 'jwt_token' adıyla kazıyoruz
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString('jwt_token', idToken);
+            
+            safePrint("Token başarıyla hafızaya kaydedildi! Token: ${idToken.substring(0, 10)}...");
+          }
+        } catch (tokenError) {
+          safePrint("Oturum açıldı ama Token alınamadı: $tokenError");
+        }
+        // --------------------------------------------------------
+
+        // 2. İşlem bitince kullanıcıyı ana sayfaya yönlendir
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const DashboardScreen()),
         );
       }
     } catch (e) {
+      // log the real error
+      safePrint('Login error: $e');
       if (mounted) {
+        String message = "Invalid username or password.";
+        if (e.toString().toLowerCase().contains('already signed in')) {
+          message = "A user is already signed in. Please log out first.";
+        }
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Invalid username or password."),
+          SnackBar(
+            content: Text(message),
             backgroundColor: AppColors.accentRed,
           ),
         );
       }
     }
   }
-
+  
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
