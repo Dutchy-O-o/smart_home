@@ -18,7 +18,7 @@ class DeviceControlScreen extends StatefulWidget {
   State<DeviceControlScreen> createState() => _DeviceControlScreenState();
 }
 
-class _DeviceControlScreenState extends State<DeviceControlScreen> {
+class _DeviceControlScreenState extends State<DeviceControlScreen> with WidgetsBindingObserver {
   // --- STATE DEĞİŞKENLERİ ---
   bool _isLightOn = true;
   double _brightness = 58.0;
@@ -42,17 +42,18 @@ class _DeviceControlScreenState extends State<DeviceControlScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+
     // Sayfa açılır açılmaz ilk veriyi çek
     _fetchLatestSensorData();
     
     // Her 5 saniyede bir arka planda sessizce veriyi güncelle
-    _dataPollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
-      _fetchLatestSensorData();
-    });
+    _startPollingTimer();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     // Sayfa kapatıldığında arka planda çalışan tüm timer'ları temizle
     _dataPollingTimer?.cancel();
     _tempDebounceTimer?.cancel();
@@ -60,43 +61,69 @@ class _DeviceControlScreenState extends State<DeviceControlScreen> {
     super.dispose();
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Uygulama ekrana geldiğinde timer'ı tekrar başlat
+      if (_dataPollingTimer == null || !_dataPollingTimer!.isActive) {
+        _startPollingTimer();
+      }
+    } else {
+      // Uygulama arka plana geçtiğinde (paused, inactive, detached vs.) timer'ı durdur
+      _dataPollingTimer?.cancel();
+    }
+  }
+
+  void _startPollingTimer() {
+    _dataPollingTimer?.cancel();
+    _dataPollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      _fetchLatestSensorData();
+    });
+  }
+
   // --- API: SENSÖR VERİSİ ÇEKME (GET) ---
   Future<void> _fetchLatestSensorData() async {
     final url = Uri.parse("https://zz3kr12z0f.execute-api.us-east-1.amazonaws.com/prod/sensor");
     
     try {
-
-
       final session = await Amplify.Auth.fetchAuthSession();
-          
-          // Eğer bu bir Cognito oturumuysa Token'ı içinden alıyoruz
-      if (session is CognitoAuthSession) {
-            // Bize API Gateway fedaisini geçmek için "ID Token" lazım
-          final token = session.userPoolTokensResult.value.idToken.raw;
-          
-                // 2. Token'ı Header içine yerleştirip isteği at
-      final response = await http.get(
-        url,
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": token ?? "" // Token yoksa boş string yolla, API reddetsin
-        },
-      );
       
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        setState(() {
-          _insideTemp = data['temperature'].toString();
-          _insideHumidity = data['humidity'].toString();
-        });
-      } else {
-        print("Sensör verisi reddedildi. Hata: ${response.statusCode}");
+      // Eğer bu bir Cognito oturumuysa Token'ı içinden alıyoruz
+      if (session is CognitoAuthSession) {
+        // Bize API Gateway fedaisini geçmek için "ID Token" lazım
+        final token = session.userPoolTokensResult.value.idToken.raw;
+        
+        // 2. Token'ı Bearer formatında Header içine yerleştirip isteği at
+        final response = await http.get(
+          url,
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer $token"
+          },
+        );
+        
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          setState(() {
+            _insideTemp = data['temperature'].toString();
+            _insideHumidity = data['humidity'].toString();
+          });
+        } else {
+          print("Sensör verisi reddedildi. Hata: ${response.statusCode}");
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("Sensör verileri alınamadı! (Hata: ${response.statusCode})"), duration: const Duration(seconds: 2), backgroundColor: Colors.redAccent),
+            );
+          }
+        }
       }
-      }
-
-
     } catch (e) {
       print("Sensör verisi çekilemedi: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Sensörlere bağlanılamadı. İnternetinizi kontrol edin."), duration: Duration(seconds: 3), backgroundColor: Colors.redAccent),
+        );
+      }
     }
   }
 
@@ -108,37 +135,45 @@ class _DeviceControlScreenState extends State<DeviceControlScreen> {
     );
 
     try {
-
-       final session = await Amplify.Auth.fetchAuthSession();
-          
-          // Eğer bu bir Cognito oturumuysa Token'ı içinden alıyoruz
+      final session = await Amplify.Auth.fetchAuthSession();
+      
+      // Eğer bu bir Cognito oturumuysa Token'ı içinden alıyoruz
       if (session is CognitoAuthSession) {
-            // Bize API Gateway fedaisini geçmek için "ID Token" lazım
-          final token = session.userPoolTokensResult.value.idToken.raw;
-      
-      
-
-      // 2. Token'ı Header'a ekle ve Body'yi gönder
-      final response = await http.post(
-        url,
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": token ?? ""
-        },
-        body: jsonEncode({
-          "device_id": deviceId,
-          "action": action,
-          "value": value,
-        }),
-      );
-      
-      if (response.statusCode == 200) {
-        print("BAŞARILI: $action -> $value");
-      } else {
-        print("Komut reddedildi. Hata: ${response.statusCode}");
-      }}
+        // Bize API Gateway fedaisini geçmek için "ID Token" lazım
+        final token = session.userPoolTokensResult.value.idToken.raw;
+  
+        // 2. Token'ı Bearer formatında Header'a ekle ve Body'yi gönder
+        final response = await http.post(
+          url,
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer $token"
+          },
+          body: jsonEncode({
+            "device_id": deviceId,
+            "action": action,
+            "value": value,
+          }),
+        );
+        
+        if (response.statusCode == 200) {
+          print("BAŞARILI: $action -> $value");
+        } else {
+          print("Komut reddedildi. Hata: ${response.statusCode}");
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("Komut reddedildi! (Hata: ${response.statusCode})"), duration: const Duration(seconds: 2), backgroundColor: Colors.redAccent),
+            );
+          }
+        }
+      }
     } catch (e) {
       print("BAĞLANTI HATASI: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Ağ bağlantı hatası! Komut iletilemedi."), duration: Duration(seconds: 3), backgroundColor: Colors.redAccent),
+        );
+      }
     }
   }
 
