@@ -4,7 +4,11 @@ import 'package:amplify_flutter/amplify_flutter.dart';
 import 'package:amplify_auth_cognito/amplify_auth_cognito.dart';
 import 'amplifyconfiguration.dart';
 import 'constants/app_colors.dart';
-import 'screens/onboarding/onboarding_screen.dart'; // Yeni ekranı tanıttık
+
+// Ekranları ve Provider'ı import ettiğinden emin ol
+import 'providers/auth_provider.dart'; // authProvider'ın olduğu dosya
+import 'screens/dashboard/dashboard_screen.dart';
+import 'screens/onboarding/onboarding_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,19 +22,41 @@ Future<void> _configureAmplify() async {
     await Amplify.addPlugin(authPlugin);
     await Amplify.configure(amplifyconfig);
   } catch (e) {
-    safePrint('An error occurred configuring Amplify: \$e');
+    safePrint('An error occurred configuring Amplify: $e');
   }
 }
 
-class AkilliEvApp extends StatelessWidget {
+// 1. ConsumerWidget yaptık ki authProvider'ı dinleyebilelim
+class AkilliEvApp extends ConsumerWidget {
   const AkilliEvApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // 2. Auth state'i anlık olarak dinliyoruz
+    final authState = ref.watch(authProvider);
+
+    // 3. Duruma göre hangi sayfanın açılacağına karar veren sihirli fonksiyon
+    Widget getHomeWidget() {
+      switch (authState) {
+        case AuthState.initial:
+        case AuthState.loading:
+          // Uygulama ilk açıldığında Amplify kontrol yaparken dönecek ekran
+          return const Scaffold(
+            backgroundColor: AppColors.background,
+            body: Center(child: CircularProgressIndicator(color: AppColors.primaryBlue)),
+          );
+        case AuthState.authenticated:
+          // Kasa dolu! Doğrudan eve gir.
+          return const DashboardScreen();
+        case AuthState.unauthenticated:
+          // Kasa boş veya oturum bitmiş. Onboarding/Login'e gönder.
+          return const OnboardingScreen();
+      }
+    }
+
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Akıllı Ev',
-      // Tema Ayarları (Burası aynı kaldı)
       theme: ThemeData.dark().copyWith(
         scaffoldBackgroundColor: AppColors.background,
         primaryColor: AppColors.primaryBlue,
@@ -39,11 +65,8 @@ class AkilliEvApp extends StatelessWidget {
           secondary: AppColors.accentGreen,
         ),
       ),
-      // ÖNEMLİ DEĞİŞİKLİK BURADA:
-      // Artık LoginScreen değil, OnboardingScreen ile başlıyoruz.
-      home: const OnboardingScreen(),
+      // 4. Ana sayfayı dinamik olarak belirliyoruz
+      home: getHomeWidget(),
     );
   }
 }
-
-/// aaa
