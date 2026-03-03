@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../constants/app_colors.dart';
-import 'package:amplify_flutter/amplify_flutter.dart';
 import '../dashboard/dashboard_screen.dart';
 import 'register_screen.dart'; // Kayıt ekranına gitmek için import ettik
 import 'forgot_password_screen.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:amplify_auth_cognito/amplify_auth_cognito.dart';
-
-
+import 'package:amplify_flutter/amplify_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
 
@@ -50,28 +47,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       );
 
       if (success && mounted) {
-        // --- YENİ EKLENEN KISIM: TOKEN'I AL VE HAFIZAYA YAZ ---
-        try {
-          // Amplify'den mevcut aktif oturumu çekiyoruz
-          final session = await Amplify.Auth.fetchAuthSession();
-          
-          // Eğer bu bir Cognito oturumuysa Token'ı içinden alıyoruz
-          if (session is CognitoAuthSession) {
-            // Bize API Gateway fedaisini geçmek için "ID Token" lazım
-            final idToken = session.userPoolTokensResult.value.idToken.raw;
-            
-            // Telefonun hafızasına 'jwt_token' adıyla kazıyoruz
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.setString('jwt_token', idToken);
-            
-            safePrint("Token başarıyla hafızaya kaydedildi! Token: ${idToken.substring(0, 10)}...");
-          }
-        } catch (tokenError) {
-          safePrint("Oturum açıldı ama Token alınamadı: $tokenError");
-        }
-        // --------------------------------------------------------
-
-        // 2. İşlem bitince kullanıcıyı ana sayfaya yönlendir
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const DashboardScreen()),

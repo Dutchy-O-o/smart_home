@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-
+import 'package:amplify_auth_cognito/amplify_auth_cognito.dart';
+import 'package:amplify_flutter/amplify_flutter.dart';
 import '../../constants/app_colors.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../ai_hub/emotion_hub_screen.dart';
 import '../security/monitoring_screen.dart';
 import '../notifications/notification_screen.dart';
 import '../profile/profile_screen.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class DeviceControlScreen extends StatefulWidget {
   const DeviceControlScreen({super.key});
@@ -65,11 +65,16 @@ class _DeviceControlScreenState extends State<DeviceControlScreen> {
     final url = Uri.parse("https://zz3kr12z0f.execute-api.us-east-1.amazonaws.com/prod/sensor");
     
     try {
-      // 1. Hafızadaki Token'ı al
-      final prefs = await SharedPreferences.getInstance();
-      final String? token = prefs.getString('jwt_token');
 
-      // 2. Token'ı Header içine yerleştirip isteği at
+
+      final session = await Amplify.Auth.fetchAuthSession();
+          
+          // Eğer bu bir Cognito oturumuysa Token'ı içinden alıyoruz
+      if (session is CognitoAuthSession) {
+            // Bize API Gateway fedaisini geçmek için "ID Token" lazım
+          final token = session.userPoolTokensResult.value.idToken.raw;
+          
+                // 2. Token'ı Header içine yerleştirip isteği at
       final response = await http.get(
         url,
         headers: {
@@ -87,6 +92,9 @@ class _DeviceControlScreenState extends State<DeviceControlScreen> {
       } else {
         print("Sensör verisi reddedildi. Hata: ${response.statusCode}");
       }
+      }
+
+
     } catch (e) {
       print("Sensör verisi çekilemedi: $e");
     }
@@ -100,9 +108,15 @@ class _DeviceControlScreenState extends State<DeviceControlScreen> {
     );
 
     try {
-      // 1. Hafızadaki Token'ı al
-      final prefs = await SharedPreferences.getInstance();
-      final String? token = prefs.getString('jwt_token');
+
+       final session = await Amplify.Auth.fetchAuthSession();
+          
+          // Eğer bu bir Cognito oturumuysa Token'ı içinden alıyoruz
+      if (session is CognitoAuthSession) {
+            // Bize API Gateway fedaisini geçmek için "ID Token" lazım
+          final token = session.userPoolTokensResult.value.idToken.raw;
+      
+      
 
       // 2. Token'ı Header'a ekle ve Body'yi gönder
       final response = await http.post(
@@ -122,7 +136,7 @@ class _DeviceControlScreenState extends State<DeviceControlScreen> {
         print("BAŞARILI: $action -> $value");
       } else {
         print("Komut reddedildi. Hata: ${response.statusCode}");
-      }
+      }}
     } catch (e) {
       print("BAĞLANTI HATASI: $e");
     }
