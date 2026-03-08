@@ -7,6 +7,10 @@ import '../security/monitoring_screen.dart';
 import '../devices/device_control_screen.dart'; // Devices ekranı için import
 import '../notifications/notification_screen.dart'; // Alerts ekranı için import
 import '../profile/profile_screen.dart'; // Profile ekranı için import
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:amplify_flutter/amplify_flutter.dart';
+import 'package:amplify_auth_cognito/amplify_auth_cognito.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -18,6 +22,48 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   // Dimmer Switch durumu
   bool isDimmerOn = true;
+
+  List<dynamic> _userHomes = [];
+  bool _isLoadingHomes = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserHomes();
+  }
+
+  Future<void> _fetchUserHomes() async {
+    try {
+      // 1. Get user tokens
+      final session = await Amplify.Auth.fetchAuthSession() as CognitoAuthSession;
+      final token = session.userPoolTokensResult.value.idToken.raw;
+
+      // 2. Fetch from your API Gateway (REPLACE with actual URL)
+      final String apiUrl = 'https://zz3kr12z0f.execute-api.us-east-1.amazonaws.com/prod/homes';
+      
+      final response = await http.get(
+        Uri.parse(apiUrl),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() {
+          _userHomes = data['homes'] ?? [];
+          _isLoadingHomes = false;
+        });
+      } else {
+        safePrint('Failed to load homes: ${response.statusCode}');
+        setState(() => _isLoadingHomes = false);
+      }
+    } catch (e) {
+      safePrint('Fetch homes error: $e');
+      setState(() => _isLoadingHomes = false);
+    }
+  }
 
   void _handleLogout() {
     Navigator.pushAndRemoveUntil(
@@ -140,6 +186,78 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ],
               ),
               
+              const SizedBox(height: 24),
+
+              // --- MY HOMES (NEW API DATA) ---
+              const Text("My Homes", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              _isLoadingHomes 
+                ? const Center(child: CircularProgressIndicator(color: AppColors.primaryBlue))
+                : _userHomes.isEmpty 
+                  ? const Text("No homes found.", style: TextStyle(color: Colors.grey))
+                  : SizedBox(
+                      height: 100,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _userHomes.length,
+                        itemBuilder: (context, index) {
+                          final home = _userHomes[index];
+                          final role = home['role'] ?? 'Unknown Role';
+                          final isGuest = role.toString().toLowerCase() == 'guest';
+                          
+                          return Container(
+                            width: 140,
+                            margin: const EdgeInsets.only(right: 16),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppColors.cardDark,
+                              border: Border.all(color: isGuest ? AppColors.accentOrange.withOpacity(0.5) : AppColors.primaryBlue.withOpacity(0.5)),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      isGuest ? Icons.vpn_key_outlined : Icons.admin_panel_settings,
+                                      color: isGuest ? AppColors.accentOrange : AppColors.primaryBlue,
+                                      size: 18,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        home['home_name'] ?? 'Home $index',
+                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: isGuest ? AppColors.accentOrange.withOpacity(0.2) : AppColors.primaryBlue.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    role.toString().toUpperCase(),
+                                    style: TextStyle(
+                                      color: isGuest ? AppColors.accentOrange : AppColors.primaryBlue,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold
+                                    ),
+                                  ),
+                                )
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+
               const SizedBox(height: 24),
 
               // --- 2. SYSTEM STATUS CARD ---
