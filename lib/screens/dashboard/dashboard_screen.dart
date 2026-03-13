@@ -14,6 +14,7 @@ import 'package:amplify_auth_cognito/amplify_auth_cognito.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/home_provider.dart';
+import '../../providers/auth_provider.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -75,12 +76,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     }
   }
 
-  void _handleLogout() {
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => const LoginScreen()),
-      (route) => false,
-    );
+  Future<void> _handleLogout() async {
+    await ref.read(authProvider.notifier).signOut();
+    if (mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        (route) => false,
+      );
+    }
   }
 
   void _onBottomNavTapped(int index) {

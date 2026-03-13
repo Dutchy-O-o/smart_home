@@ -75,13 +75,15 @@ class _HomeSelectionScreenState extends ConsumerState<HomeSelectionScreen> {
     );
   }
 
-  void _handleLogout() {
-    ref.read(authProvider.notifier).signOut();
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => const LoginScreen()),
-      (route) => false,
-    );
+  Future<void> _handleLogout() async {
+    await ref.read(authProvider.notifier).signOut();
+    if (mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        (route) => false,
+      );
+    }
   }
 
   @override
