@@ -7,7 +7,7 @@ import 'constants/app_colors.dart';
 
 // Ekranları ve Provider'ı import ettiğinden emin ol
 import 'providers/auth_provider.dart'; // authProvider'ın olduğu dosya
-import 'screens/dashboard/dashboard_screen.dart';
+import 'screens/dashboard/home_selection_screen.dart'; // <-- Bunu yeni ekledik
 import 'screens/onboarding/onboarding_screen.dart';
 
 Future<void> main() async {
@@ -46,8 +46,7 @@ class AkilliEvApp extends ConsumerWidget {
             body: Center(child: CircularProgressIndicator(color: AppColors.primaryBlue)),
           );
         case AuthState.authenticated:
-          // Kasa dolu! Doğrudan eve gir.
-          return const DashboardScreen();
+          return const HomeSelectionScreen();
         case AuthState.unauthenticated:
           // Kasa boş veya oturum bitmiş. Onboarding/Login'e gönder.
           return const OnboardingScreen();

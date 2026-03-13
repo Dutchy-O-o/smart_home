@@ -12,19 +12,23 @@ import 'package:http/http.dart' as http;
 import 'package:amplify_flutter/amplify_flutter.dart';
 import 'package:amplify_auth_cognito/amplify_auth_cognito.dart';
 
-class DashboardScreen extends StatefulWidget {
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/home_provider.dart';
+
+class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
   @override
-  State<DashboardScreen> createState() => _DashboardScreenState();
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   // Dimmer Switch durumu
   bool isDimmerOn = true;
 
   List<dynamic> _userHomes = [];
   bool _isLoadingHomes = true;
+  String _errorMessage = '';
 
   @override
   void initState() {
@@ -37,6 +41,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
       // 1. Get user tokens
       final session = await Amplify.Auth.fetchAuthSession() as CognitoAuthSession;
       final token = session.userPoolTokensResult.value.idToken.raw;
+      
+      // LOGLAR - UUID değerini doğru alıyor muyuz kontrolü
+      final userSub = session.userPoolTokensResult.value.idToken.claims.subject;
+      safePrint('--------- DEBUG BILGILERI ---------');
+      safePrint('Aktiv UUID (Sub): $userSub');
+      safePrint('-----------------------------------');
 
       // 2. Fetch from your API Gateway (REPLACE with actual URL)
       final String apiUrl = 'https://zz3kr12z0f.execute-api.us-east-1.amazonaws.com/prod/homes';
@@ -49,6 +59,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         },
       );
 
+      safePrint('API Response Status: ${response.statusCode}');
+      safePrint('API Response Body: ${response.body}');
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         setState(() {
@@ -57,11 +70,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
         });
       } else {
         safePrint('Failed to load homes: ${response.statusCode}');
-        setState(() => _isLoadingHomes = false);
+        setState(() {
+          _errorMessage = "Server error (${response.statusCode}): ${response.body}";
+          _isLoadingHomes = false;
+        });
       }
     } catch (e) {
       safePrint('Fetch homes error: $e');
-      setState(() => _isLoadingHomes = false);
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoadingHomes = false;
+      });
     }
   }
 
@@ -112,6 +131,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final selectedHome = ref.watch(selectedHomeProvider);
+    final homeName = selectedHome?['home_name'] ?? 'Home';
+    final homeRole = selectedHome?['role']?.toString().toUpperCase() ?? '';
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -142,9 +165,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       const SizedBox(width: 12),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          Text("Welcome Back", style: TextStyle(color: AppColors.textGrey, fontSize: 12)),
-                          Text("Dave", style: TextStyle(color: AppColors.textWhite, fontSize: 20, fontWeight: FontWeight.bold)),
+                        children: [
+                          const Text("Welcome Back", style: TextStyle(color: AppColors.textGrey, fontSize: 12)),
+                          Row(
+                            children: [
+                              Text(homeName, style: const TextStyle(color: AppColors.textWhite, fontSize: 20, fontWeight: FontWeight.bold)),
+                              if (homeRole.isNotEmpty) ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(color: AppColors.primaryBlue.withOpacity(0.2), borderRadius: BorderRadius.circular(4)),
+                                  child: Text(homeRole, style: const TextStyle(color: AppColors.primaryBlue, fontSize: 10, fontWeight: FontWeight.bold)),
+                                )
+                              ]
+                            ]
+                          ),
                         ],
                       ),
                     ],
@@ -193,11 +228,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
               const SizedBox(height: 12),
               _isLoadingHomes 
                 ? const Center(child: CircularProgressIndicator(color: AppColors.primaryBlue))
-                : _userHomes.isEmpty 
-                  ? const Text("No homes found.", style: TextStyle(color: Colors.grey))
-                  : SizedBox(
-                      height: 100,
-                      child: ListView.builder(
+                : _errorMessage.isNotEmpty
+                  ? Text(_errorMessage, style: const TextStyle(color: AppColors.accentRed))
+                  : _userHomes.isEmpty 
+                    ? const Text("No homes found.", style: TextStyle(color: Colors.grey))
+                    : SizedBox(
+                        height: 100,
+                        child: ListView.builder(
                         scrollDirection: Axis.horizontal,
                         itemCount: _userHomes.length,
                         itemBuilder: (context, index) {

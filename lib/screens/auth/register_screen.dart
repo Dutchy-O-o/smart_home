@@ -5,6 +5,7 @@ import '../../constants/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
 import 'otp_verification_screen.dart';
+import 'package:amplify_flutter/amplify_flutter.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -94,9 +95,19 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           MaterialPageRoute(builder: (context) => OtpVerificationScreen(email: email)),
         );
       }
+    } on AuthException catch (e) {
+      if (mounted) {
+        String message = e.message;
+        // Şifre politikası hatasını daha anlaşılır bir şekilde göster:
+        if (e.message.toLowerCase().contains("password did not conform")) {
+          message = "Password must be at least 8 characters and contain a special character (e.g. !@#\$%).";
+        } else if (e.message.toLowerCase().contains("already exists")) {
+          message = "An account with this email already exists.";
+        }
+        _showError(message);
+      }
     } catch (e) {
       if (mounted) {
-        // Hatanın aslını gösteriyoruz ki AWS neye kızdığını bilelim
         _showError("Registration failed: \${e.toString()}");
       }
     }

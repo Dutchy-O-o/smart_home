@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../constants/app_colors.dart';
-import '../dashboard/dashboard_screen.dart';
+import '../dashboard/home_selection_screen.dart';
 import 'register_screen.dart'; // Kayıt ekranına gitmek için import ettik
 import 'forgot_password_screen.dart';
 import 'package:amplify_auth_cognito/amplify_auth_cognito.dart';
@@ -49,7 +49,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (success && mounted) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const DashboardScreen()),
+          MaterialPageRoute(builder: (context) => const HomeSelectionScreen()),
         );
       }
     } catch (e) {
