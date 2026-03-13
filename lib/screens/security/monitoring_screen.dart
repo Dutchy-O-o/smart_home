@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import '../../constants/app_colors.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../ai_hub/emotion_hub_screen.dart';
-import '../devices/device_control_screen.dart'; // Devices ekranını import ettik
-import '../notifications/notification_screen.dart'; // Alerts ekranı için import
-import '../profile/profile_screen.dart'; // Profile ekranı için import
+import '../devices/device_control_screen.dart';
+
+import '../notifications/notification_screen.dart';
+
+import '../profile/profile_screen.dart';
+
 
 class MonitoringScreen extends StatefulWidget {
   const MonitoringScreen({super.key});
@@ -14,7 +17,6 @@ class MonitoringScreen extends StatefulWidget {
 }
 
 class _MonitoringScreenState extends State<MonitoringScreen> {
-  // Alt menü navigasyonu
   void _onBottomNavTapped(int index) {
     if (index == 0) {
       Navigator.pushAndRemoveUntil(
@@ -28,21 +30,17 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
         MaterialPageRoute(builder: (context) => const EmotionHubScreen()),
       );
     } else if (index == 2) {
-      // Zaten buradayız (Security)
     } else if (index == 3) {
-      // Devices ekranına git
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const DeviceControlScreen()),
       );
     } else if (index == 4) {
-      // Alerts ekranına git
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const NotificationScreen()),
       );
     } else if (index == 5) {
-      // Profile ekranına git
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const ProfileScreen()),
@@ -261,8 +259,6 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
 
               const SizedBox(height: 30),
 
-              // --- 6. ACTION FOOTER (GÜNCELLENDİ) ---
-              // Burası artık daha büyük, dolgun ve tasarıma uygun
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -279,7 +275,8 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                     children: [
                       // Refresh Butonu (Yuvarlak ve belirgin)
                       Container(
-                        width: 60, // Boyut büyütüldü
+                        width: 60,
+
                         height: 60,
                         decoration: BoxDecoration(
                           color: AppColors.cardDark,
@@ -303,10 +300,10 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                         ),
                       ),
                       const SizedBox(width: 16),
-                      // Trigger Alarm Butonu (Geniş ve Mavi)
                       Expanded(
                         child: SizedBox(
-                          height: 60, // Boyut büyütüldü
+                          height: 60,
+
                           child: ElevatedButton.icon(
                             onPressed: () {
                               // Alarm tetikleme
@@ -329,14 +326,12 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                   ),
                 ],
               ),
-              // Alt tarafta biraz boşluk
               const SizedBox(height: 20),
             ],
           ),
         ),
       ),
       
-      // --- BOTTOM NAVIGATION BAR (DÜZELTİLDİ) ---
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: AppColors.cardDark,
         selectedItemColor: AppColors.accentGreen,
@@ -344,7 +339,6 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
         type: BottomNavigationBarType.fixed,
         currentIndex: 2,
         onTap: _onBottomNavTapped,
-        // İŞTE EKSİK OLAN KISIM BURASIYDI:
         showSelectedLabels: true, 
         showUnselectedLabels: true,
         selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
