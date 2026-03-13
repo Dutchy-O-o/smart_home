@@ -4,9 +4,9 @@ import '../../widgets/sensor_card.dart';
 import '../auth/login_screen.dart';
 import '../ai_hub/emotion_hub_screen.dart'; 
 import '../security/monitoring_screen.dart';
-import '../devices/device_control_screen.dart'; // Devices ekranı için import
-import '../notifications/notification_screen.dart'; // Alerts ekranı için import
-import '../profile/profile_screen.dart'; // Profile ekranı için import
+import '../devices/device_control_screen.dart';
+import '../notifications/notification_screen.dart';
+import '../profile/profile_screen.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:amplify_flutter/amplify_flutter.dart';
@@ -23,7 +23,6 @@ class DashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
-  // Dimmer Switch durumu
   bool isDimmerOn = true;
 
   List<dynamic> _userHomes = [];
@@ -38,17 +37,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   Future<void> _fetchUserHomes() async {
     try {
-      // 1. Get user tokens
       final session = await Amplify.Auth.fetchAuthSession() as CognitoAuthSession;
       final token = session.userPoolTokensResult.value.idToken.raw;
       
-      // LOGLAR - UUID değerini doğru alıyor muyuz kontrolü
-      final userSub = session.userPoolTokensResult.value.idToken.claims.subject;
-      safePrint('--------- DEBUG BILGILERI ---------');
-      safePrint('Aktiv UUID (Sub): $userSub');
-      safePrint('-----------------------------------');
-
-      // 2. Fetch from your API Gateway (REPLACE with actual URL)
       final String apiUrl = 'https://zz3kr12z0f.execute-api.us-east-1.amazonaws.com/prod/homes';
       
       final response = await http.get(
@@ -92,36 +83,29 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  // Alt Menü Navigasyon Fonksiyonu
   void _onBottomNavTapped(int index) {
     if (index == 0) {
-      // Zaten Dashboard'dayız, bir şey yapma
     } else if (index == 1) {
-      // AI Emotion Hub'a git
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const EmotionHubScreen()),
       );
     } else if (index == 2) {
-      // Güvenlik (Monitoring) ekranına git
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const MonitoringScreen()),
       );
     } else if (index == 3) {
-      // Devices ekranına git
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const DeviceControlScreen()),
       );
     } else if (index == 4) {
-      // Alerts ekranına git
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const NotificationScreen()),
       );
     } else if (index == 5) {
-      // Profile ekranına git
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const ProfileScreen()),
@@ -143,7 +127,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // --- 1. HEADER & ÇIKIŞ BUTONU ---
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -223,7 +206,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               
               const SizedBox(height: 24),
 
-              // --- MY HOMES (NEW API DATA) ---
               const Text("My Homes", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
               _isLoadingHomes 
@@ -297,7 +279,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
               const SizedBox(height: 24),
 
-              // --- 2. SYSTEM STATUS CARD ---
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
@@ -363,7 +344,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 children: [
                   Expanded(
                     child: GestureDetector(
-                      onTap: () => _onBottomNavTapped(2), // Security sayfasına yönlendir
+                      onTap: () => _onBottomNavTapped(2),
+
                       child: const SensorCard(
                         title: "Gas Sensor",
                         value: "SAFE",
@@ -377,7 +359,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   const SizedBox(width: 16),
                   Expanded(
                     child: GestureDetector(
-                      onTap: () => _onBottomNavTapped(2), // Security sayfasına yönlendir
+                      onTap: () => _onBottomNavTapped(2),
+
                       child: const SensorCard(
                         title: "Vibration",
                         value: "STABLE",
@@ -403,7 +386,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   _buildQuickAccessBtn(Icons.curtains, "Curtains", Colors.white24),
                   _buildQuickAccessBtn(Icons.ac_unit, "AC On", Colors.white24, iconColor: AppColors.primaryBlue),
                   _buildQuickAccessBtn(Icons.palette, "Mood", Colors.white24, iconColor: Colors.pinkAccent, onTap: () {
-                    _onBottomNavTapped(1); // Mood sayfasına yönlendir
+                    _onBottomNavTapped(1);
+
                   }),
                 ],
               ),
@@ -455,16 +439,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ),
       ),
       
-      // --- BOTTOM NAVIGATION BAR (YENİLENDİ) ---
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: AppColors.cardDark,
-        selectedItemColor: AppColors.primaryBlue, // Dashboard'da olduğumuz için Mavi
+        selectedItemColor: AppColors.primaryBlue,
+
         unselectedItemColor: Colors.grey,
         type: BottomNavigationBarType.fixed,
-        currentIndex: 0, // İlk eleman (Dashboard) seçili
+        currentIndex: 0,
+
         onTap: _onBottomNavTapped,
-        showSelectedLabels: true, // Yazılar görünsün
-        showUnselectedLabels: true, // Yazılar görünsün
+        showSelectedLabels: true,
+
+        showUnselectedLabels: true,
+
         selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
         unselectedLabelStyle: const TextStyle(fontSize: 12),
         items: const [

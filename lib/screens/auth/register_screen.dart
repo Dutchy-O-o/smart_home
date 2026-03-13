@@ -15,18 +15,18 @@ class RegisterScreen extends ConsumerStatefulWidget {
 }
 
 class _RegisterScreenState extends ConsumerState<RegisterScreen> {
-  // Form Kontrolcüleri
   final TextEditingController _fullNameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
 
-  // Durum Değişkenleri
-  bool _isObscured = true; // Şifre gizli mi?
-  bool _agreedToTerms = false; // Sözleşme kabul edildi mi?
-  double _passwordStrength = 0.0; // 0.0 (Zayıf) - 1.0 (Güçlü)
+  bool _isObscured = true;
 
-  // --- 1. Şifre Gücü Hesaplama (GELİŞMİŞ REGEX MANTIĞI) ---
+  bool _agreedToTerms = false;
+
+  double _passwordStrength = 0.0;
+
+
   void _checkPasswordStrength(String value) {
     double score = 0.0;
 
@@ -38,13 +38,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     // Kriter 1: Uzunluk en az 8 karakter mi? (+0.25 Puan)
     if (value.length >= 8) score += 0.25;
 
-    // Kriter 2: Büyük harf içeriyor mu? (+0.25 Puan)
     if (value.contains(RegExp(r'[A-Z]'))) score += 0.25;
 
-    // Kriter 3: Rakam içeriyor mu? (+0.25 Puan)
     if (value.contains(RegExp(r'[0-9]'))) score += 0.25;
 
-    // Kriter 4: Özel karakter içeriyor mu? (+0.25 Puan)
     if (value.contains(RegExp(r'[!@#\$%^&*(),.?":{}|<>]'))) score += 0.25;
 
     setState(() {
@@ -52,32 +49,27 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     });
   }
 
-  // --- 2. Kayıt Olma İşlemi (VALIDASYONLAR) ---
   Future<void> _handleRegister() async {
     String fullName = _fullNameController.text.trim();
     String email = _emailController.text.trim();
     String password = _passwordController.text;
     String confirmPassword = _confirmPasswordController.text;
 
-    // Alanlar boş mu?
     if (fullName.isEmpty || email.isEmpty || password.isEmpty) {
       _showError("All fields are required.");
       return;
     }
 
-    // Email formatı (Basit kontrol)
     if (!email.contains('@')) {
       _showError("Invalid email format.");
       return;
     }
 
-    // Şifreler eşleşiyor mu?
     if (password != confirmPassword) {
       _showError("Passwords do not match.");
       return;
     }
 
-    // Sözleşme kabul edildi mi?
     if (!_agreedToTerms) {
       _showError("You must agree to the Terms of Service.");
       return;
@@ -98,7 +90,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     } on AuthException catch (e) {
       if (mounted) {
         String message = e.message;
-        // Şifre politikası hatasını daha anlaşılır bir şekilde göster:
         if (e.message.toLowerCase().contains("password did not conform")) {
           message = "Password must be at least 8 characters and contain a special character (e.g. !@#\$%).";
         } else if (e.message.toLowerCase().contains("already exists")) {
@@ -113,7 +104,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     }
   }
 
-  // Hata gösterme yardımcısı
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: AppColors.accentRed),
@@ -137,7 +127,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         ),
         child: Column(
           children: [
-            // Tutma Çubuğu
             Center(
               child: Container(
                 margin: const EdgeInsets.only(top: 10, bottom: 20),
@@ -149,7 +138,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ),
               ),
             ),
-            // Başlık
             Text(
               title,
               style: const TextStyle(
@@ -159,7 +147,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            // İçerik
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
@@ -197,13 +184,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     );
   }
 
-  // --- 4. ARAYÜZ (UI) ---
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
     final isLoading = authState == AuthState.loading;
 
-    // Şifre rengini belirle
     Color strengthColor = _passwordStrength <= 0.25 
         ? AppColors.accentRed 
         : (_passwordStrength <= 0.50 
@@ -261,7 +246,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
               const SizedBox(height: 16),
               
-              // Şifre Alanı
               _buildLabel("Password"),
               TextField(
                 controller: _passwordController,
@@ -285,7 +269,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               ),
               const SizedBox(height: 8),
               
-              // Şifre Gücü Çubuğu
               LinearProgressIndicator(
                 value: _passwordStrength,
                 backgroundColor: Colors.grey[800],
@@ -301,7 +284,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
               const SizedBox(height: 16),
 
-              // Şifre Tekrar Alanı
               _buildLabel("Confirm Password"),
               TextField(
                 controller: _confirmPasswordController,
@@ -371,12 +353,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
               const SizedBox(height: 24),
 
-              // ANA BUTON (Initialize System)
               SizedBox(
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: (_agreedToTerms && !isLoading) ? _handleRegister : null, // Checkbox seçili değilse buton pasif
+                  onPressed: (_agreedToTerms && !isLoading) ? _handleRegister : null,
+
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryBlue,
                     disabledBackgroundColor: AppColors.primaryBlue.withOpacity(0.3),
@@ -437,7 +419,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     );
   }
 
-  // Text Alanı oluşturmak için yardımcı fonksiyon
   Widget _buildLabel(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),

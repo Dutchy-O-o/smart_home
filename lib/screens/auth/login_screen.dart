@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../constants/app_colors.dart';
 import '../dashboard/home_selection_screen.dart';
-import 'register_screen.dart'; // Kayıt ekranına gitmek için import ettik
+import 'register_screen.dart';
 import 'forgot_password_screen.dart';
 import 'package:amplify_auth_cognito/amplify_auth_cognito.dart';
 import 'package:amplify_flutter/amplify_flutter.dart';
@@ -16,19 +16,15 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  // Form kontrolcüleri
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   
-  bool _isObscured = true; // Şifre gizli mi?
+  bool _isObscured = true;
 
-  // Giriş yapma fonksiyonu
- // Giriş yapma fonksiyonu
   Future<void> _handleLogin() async {
     String email = _emailController.text.trim();
     String password = _passwordController.text.trim();
 
-    // Basit bir validasyon (Boş mu kontrolü)
     if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -40,7 +36,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
 
     try {
-      // 1. Riverpod üzerinden giriş işlemini tetikle
       final success = await ref.read(authProvider.notifier).signIn(
         email: email,
         password: password,
@@ -53,7 +48,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         );
       }
     } catch (e) {
-      // log the real error
       safePrint('Login error: $e');
       if (mounted) {
         String message = "Invalid username or password.";
@@ -86,7 +80,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             children: [
               const SizedBox(height: 40),
               
-              // 1. HEADER (LOGO & BAŞLIK)
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
@@ -113,8 +106,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
               const SizedBox(height: 48),
 
-              // 2. FORM ALANLARI
-              // Email Alanı
               _buildTextField(
                 controller: _emailController,
                 hintText: "user@example.com",
@@ -123,7 +114,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Şifre Alanı
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -179,7 +169,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
               const SizedBox(height: 24),
 
-              // 3. BUTON (Secure Login)
               SizedBox(
                 width: double.infinity,
                 height: 56,
@@ -221,7 +210,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               
               const SizedBox(height: 30),
 
-              // Face ID (Görselde olduğu için ekledim - Opsiyonel)
               const Column(
                 children: [
                   Icon(Icons.face, size: 40, color: Colors.grey),
@@ -232,14 +220,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
               const SizedBox(height: 30),
 
-              // 4. ALT METİN (Sign Up)
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text("Don't have an account? ", style: TextStyle(color: AppColors.textGrey)),
                   GestureDetector(
                     onTap: () {
-                      // Register ekranına git
                       Navigator.push(
                         context,
                         MaterialPageRoute(builder: (context) => const RegisterScreen()),
@@ -262,7 +248,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  // Text Field Yardımcı Widget'ı (Kod tekrarını önlemek için)
   Widget _buildTextField({
     required TextEditingController controller,
     required String hintText,

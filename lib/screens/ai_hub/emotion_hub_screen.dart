@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import '../../constants/app_colors.dart';
 import '../dashboard/dashboard_screen.dart';
-import '../security/monitoring_screen.dart'; // Güvenlik ekranına geçiş için
-import '../devices/device_control_screen.dart'; // Devices ekranı için import
-import '../notifications/notification_screen.dart'; // Alerts ekranı için import
-import '../profile/profile_screen.dart'; // Profile ekranı için import
+import '../security/monitoring_screen.dart';
+
+import '../devices/device_control_screen.dart';
+
+import '../notifications/notification_screen.dart';
+
+import '../profile/profile_screen.dart';
+
 
 class EmotionHubScreen extends StatefulWidget {
   const EmotionHubScreen({super.key});
@@ -17,7 +21,6 @@ class _EmotionHubScreenState extends State<EmotionHubScreen> {
   // AI Asistan Durumu
   bool isAiActive = true;
 
-  // AI Aktiflik durumunu değiştiren fonksiyon
   void _toggleAiAssistant() {
     setState(() {
       isAiActive = !isAiActive;
@@ -35,7 +38,6 @@ class _EmotionHubScreenState extends State<EmotionHubScreen> {
     );
   }
 
-  // Alt Menü Navigasyon Fonksiyonu
   void _onBottomNavTapped(int index) {
     if (index == 0) {
       // Dashboard'a git
@@ -45,27 +47,22 @@ class _EmotionHubScreenState extends State<EmotionHubScreen> {
         (route) => false,
       );
     } else if (index == 1) {
-      // Zaten buradayız (Emotion Hub)
     } else if (index == 2) {
-      // Güvenlik (Monitoring) ekranına git
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const MonitoringScreen()),
       );
     } else if (index == 3) {
-      // Devices ekranına git
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const DeviceControlScreen()),
       );
     } else if (index == 4) {
-      // Alerts ekranına git
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const NotificationScreen()),
       );
     } else if (index == 5) {
-      // Profile ekranına git
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const ProfileScreen()),
@@ -88,7 +85,6 @@ class _EmotionHubScreenState extends State<EmotionHubScreen> {
                 children: [
                   Row(
                     children: [
-                      // Orijinal Tasarıma Dönüş: Bot İkonu
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
@@ -109,7 +105,6 @@ class _EmotionHubScreenState extends State<EmotionHubScreen> {
                       ),
                     ],
                   ),
-                  // Sağdaki Wifi İkonu
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
@@ -134,7 +129,6 @@ class _EmotionHubScreenState extends State<EmotionHubScreen> {
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
-                          // Dış Çember (Mavi Glow Efekti)
                           Container(
                             width: 260,
                             height: 260,
@@ -150,7 +144,6 @@ class _EmotionHubScreenState extends State<EmotionHubScreen> {
                               ],
                             ),
                             child: ClipOval(
-                              // Buraya wireframe yüz resmi geliyor
                               child: Image.network(
                                 "https://img.freepik.com/premium-photo/wireframe-head-human-face-virtual-reality-polygonal-mesh-generative-ai_175880-3660.jpg",
                                 fit: BoxFit.cover,
@@ -163,7 +156,6 @@ class _EmotionHubScreenState extends State<EmotionHubScreen> {
                             ),
                           ),
                           
-                          // Üstteki "LIVE FEED" Etiketi
                           Positioned(
                             top: 20,
                             child: Container(
@@ -191,7 +183,6 @@ class _EmotionHubScreenState extends State<EmotionHubScreen> {
                             ),
                           ),
 
-                          // Alttaki Kamera İkonu (Sağ Alt)
                           Positioned(
                             bottom: 10,
                             right: 20,
@@ -205,7 +196,6 @@ class _EmotionHubScreenState extends State<EmotionHubScreen> {
                             ),
                           ),
 
-                          // Alttaki Duygu İkonu (Ortada)
                           Positioned(
                             bottom: 30,
                             child: Icon(
@@ -279,7 +269,6 @@ class _EmotionHubScreenState extends State<EmotionHubScreen> {
                     
                     const SizedBox(height: 16),
 
-                    // Yatay Kaydırılabilir Kartlar
                     SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -374,13 +363,13 @@ class _EmotionHubScreenState extends State<EmotionHubScreen> {
           ],
         ),
       ),
-      // --- BOTTOM NAVIGATION BAR (EKLENDİ) ---
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: AppColors.cardDark,
         selectedItemColor: AppColors.primaryBlue,
         unselectedItemColor: Colors.grey,
         type: BottomNavigationBarType.fixed,
-        currentIndex: 1, // 2. Eleman (AI Emotion) seçili
+        currentIndex: 1,
+
         onTap: _onBottomNavTapped,
         showSelectedLabels: true,
         showUnselectedLabels: true,

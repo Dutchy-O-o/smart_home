@@ -4,7 +4,8 @@ import '../dashboard/dashboard_screen.dart';
 import '../ai_hub/emotion_hub_screen.dart';
 import '../security/monitoring_screen.dart';
 import '../devices/device_control_screen.dart';
-import '../profile/profile_screen.dart'; // Profile ekranı için import
+import '../profile/profile_screen.dart';
+
 
 class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});
@@ -14,11 +15,9 @@ class NotificationScreen extends StatefulWidget {
 }
 
 class _NotificationScreenState extends State<NotificationScreen> {
-  // Filtre Durumları (Dummy)
   String _selectedType = "All";
   String _selectedLevel = "Any";
 
-  // Alt Menü Navigasyonu
   void _onBottomNavTapped(int index) {
     if (index == 0) {
       Navigator.pushAndRemoveUntil(
@@ -42,9 +41,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
         MaterialPageRoute(builder: (context) => const DeviceControlScreen()),
       );
     } else if (index == 4) {
-      // Zaten Alerts ekranındayız
     } else if (index == 5) {
-      // Profile ekranına git
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const ProfileScreen()),
@@ -216,7 +213,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
       ),
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: AppColors.cardDark,
-        selectedItemColor: AppColors.accentRed, // Alert sayfasında Kırmızı vurgu güzel durur
+        selectedItemColor: AppColors.accentRed,
+
         unselectedItemColor: Colors.grey,
         type: BottomNavigationBarType.fixed,
         currentIndex: 4, // 5. Eleman (Alerts)
@@ -318,10 +316,10 @@ class _NotificationScreenState extends State<NotificationScreen> {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
-        child: IntrinsicHeight( // İçeriğin boyuna göre uzasın
+        child: IntrinsicHeight(
+
           child: Row(
             children: [
-              // Sol Şerit (Renkli)
               Container(
                 width: 6,
                 color: color,
@@ -332,7 +330,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Header: İkon + Başlık + Zaman
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [

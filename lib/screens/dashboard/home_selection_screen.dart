@@ -67,10 +67,8 @@ class _HomeSelectionScreenState extends ConsumerState<HomeSelectionScreen> {
   }
 
   void _selectHome(Map<String, dynamic> home) {
-    // Seçilen evi Riverpod state'ine kaydet
     ref.read(selectedHomeProvider.notifier).setHome(home);
 
-    // Sonra Dashboard'a yönlendir (Geri tuşu ile profil seçime dönmesin diye pushReplacement)
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (context) => const DashboardScreen()),
@@ -115,14 +113,14 @@ class _HomeSelectionScreenState extends ConsumerState<HomeSelectionScreen> {
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         const Text(
-                          "Hangi eve gitmek istersiniz?",
+                          "Which home would you like to enter?",
                           style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 48),
                         if (_homes.isEmpty)
                           const Text(
-                            "Kayıtlı hiçbir eviniz bulunamadı.",
+                            "No registered homes found.",
                             style: TextStyle(color: AppColors.textGrey, fontSize: 16),
                           )
                         else
@@ -132,7 +130,7 @@ class _HomeSelectionScreenState extends ConsumerState<HomeSelectionScreen> {
                             runSpacing: 24,
                             children: _homes.map((home) {
                               final isGuest = (home['role']?.toString().toLowerCase() == 'guest');
-                              final homeName = home['home_name'] ?? 'Ev';
+                              final homeName = home['home_name'] ?? 'Home';
 
                               return GestureDetector(
                                 onTap: () => _selectHome(home),

@@ -46,7 +46,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         title: const Text("Reset Password", style: TextStyle(color: Colors.white, fontSize: 16)),
         centerTitle: true,
       ),
-      // DÜZELTME 1: SafeArea'nın child'ını SingleChildScrollView yaptık
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20),
@@ -55,7 +54,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             children: [
               const SizedBox(height: 10),
               
-              // 1. İKON
               Center(
                 child: Container(
                   width: 80,
@@ -81,7 +79,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               
               const SizedBox(height: 30),
 
-              // 2. BAŞLIK VE AÇIKLAMA
               const Center(
                 child: Text(
                   "Forgot Password?",
@@ -129,7 +126,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
               const SizedBox(height: 30),
 
-              // 4. BUTON
               SizedBox(
                 width: double.infinity,
                 height: 56,
@@ -154,8 +150,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 ),
               ),
 
-              // DÜZELTME 2: Spacer() yerine sabit boşluk koyduk.
-              // SingleChildScrollView içinde Spacer kullanılamaz.
               const SizedBox(height: 40),
 
               // 5. ALT FOOTER
@@ -180,7 +174,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               
               const SizedBox(height: 20),
               
-              // 6. GÜVENLİK İKONU
               Center(
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,

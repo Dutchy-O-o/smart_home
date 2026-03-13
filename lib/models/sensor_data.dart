@@ -40,7 +40,6 @@ class SensorCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Üst: İkon
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -50,10 +49,8 @@ class SensorCard extends StatelessWidget {
             ],
           ),
           
-          // Buraya Spacer koyuyoruz ki başlık ve değeri alta itsin
           const Spacer(),
           
-          // Orta: Başlık (Taşarsa "..." koysun)
           Text(
             title,
             maxLines: 1,
@@ -66,7 +63,6 @@ class SensorCard extends StatelessWidget {
           
           const SizedBox(height: 4),
           
-          // Alt: Değer ve Durum (FittedBox ile sığdırıyoruz)
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,

@@ -19,7 +19,6 @@ class DeviceControlScreen extends StatefulWidget {
 }
 
 class _DeviceControlScreenState extends State<DeviceControlScreen> with WidgetsBindingObserver {
-  // --- STATE DEĞİŞKENLERİ ---
   bool _isLightOn = true;
   double _brightness = 58.0;
   Color _selectedLightColor = const Color(0xFF448AFF);
@@ -30,11 +29,9 @@ class _DeviceControlScreenState extends State<DeviceControlScreen> with WidgetsB
   int _targetTemp = 20;
   String _climateMode = "Cool";
 
-  // --- GERÇEK SENSÖR DEĞERLERİ ---
   String _insideTemp = "--";
   String _insideHumidity = "--";
 
-  // --- ZAMANLAYICI (TIMER) DEĞİŞKENLERİ ---
   Timer? _tempDebounceTimer;
   Timer? _curtainDebounceTimer;
   Timer? _dataPollingTimer;
@@ -44,17 +41,14 @@ class _DeviceControlScreenState extends State<DeviceControlScreen> with WidgetsB
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
-    // Sayfa açılır açılmaz ilk veriyi çek
     _fetchLatestSensorData();
     
-    // Her 5 saniyede bir arka planda sessizce veriyi güncelle
     _startPollingTimer();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    // Sayfa kapatıldığında arka planda çalışan tüm timer'ları temizle
     _dataPollingTimer?.cancel();
     _tempDebounceTimer?.cancel();
     _curtainDebounceTimer?.cancel();
@@ -64,12 +58,10 @@ class _DeviceControlScreenState extends State<DeviceControlScreen> with WidgetsB
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      // Uygulama ekrana geldiğinde timer'ı tekrar başlat
       if (_dataPollingTimer == null || !_dataPollingTimer!.isActive) {
         _startPollingTimer();
       }
     } else {
-      // Uygulama arka plana geçtiğinde (paused, inactive, detached vs.) timer'ı durdur
       _dataPollingTimer?.cancel();
     }
   }
@@ -81,19 +73,15 @@ class _DeviceControlScreenState extends State<DeviceControlScreen> with WidgetsB
     });
   }
 
-  // --- API: SENSÖR VERİSİ ÇEKME (GET) ---
   Future<void> _fetchLatestSensorData() async {
     final url = Uri.parse("https://zz3kr12z0f.execute-api.us-east-1.amazonaws.com/prod/sensor");
     
     try {
       final session = await Amplify.Auth.fetchAuthSession();
       
-      // Eğer bu bir Cognito oturumuysa Token'ı içinden alıyoruz
       if (session is CognitoAuthSession) {
-        // Bize API Gateway fedaisini geçmek için "ID Token" lazım
         final token = session.userPoolTokensResult.value.idToken.raw;
         
-        // 2. Token'ı Bearer formatında Header içine yerleştirip isteği at
         final response = await http.get(
           url,
           headers: {
@@ -137,12 +125,9 @@ class _DeviceControlScreenState extends State<DeviceControlScreen> with WidgetsB
     try {
       final session = await Amplify.Auth.fetchAuthSession();
       
-      // Eğer bu bir Cognito oturumuysa Token'ı içinden alıyoruz
       if (session is CognitoAuthSession) {
-        // Bize API Gateway fedaisini geçmek için "ID Token" lazım
         final token = session.userPoolTokensResult.value.idToken.raw;
   
-        // 2. Token'ı Bearer formatında Header'a ekle ve Body'yi gönder
         final response = await http.post(
           url,
           headers: {
@@ -177,7 +162,6 @@ class _DeviceControlScreenState extends State<DeviceControlScreen> with WidgetsB
     }
   }
 
-  // --- DEBOUNCE FONKSİYONLARI ---
   void _updateTemperature(int delta) {
     setState(() {
       _targetTemp += delta;
@@ -211,7 +195,6 @@ class _DeviceControlScreenState extends State<DeviceControlScreen> with WidgetsB
     _sendApiCommand("perde_01", "perde_ayarla", _curtainPosition);
   }
 
-  // --- ALT MENÜ NAVİGASYONU ---
   void _onBottomNavTapped(int index) {
     if (index == 0) {
       Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const DashboardScreen()), (route) => false);

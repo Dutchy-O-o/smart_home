@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../constants/app_colors.dart';
 import '../auth/login_screen.dart';
 
-// Bu ekran uygulamanın tanıtım (Onboarding) ekranıdır.
+// This is the introductory (Onboarding) screen of the app.
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -14,22 +14,22 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
   int _currentIndex = 0;
 
-  // Ekranlarda gösterilecek veriler (Resim yerine İkon kullanıyoruz)
+  // Content displayed on screens (Using Icons instead of Images)
   final List<OnboardingContent> _contents = [
     OnboardingContent(
       title: "Safety First, Always.",
       description: "Your home is smarter than ever. Using advanced vibration and gas sensors, we detect earthquakes and leaks instantly.",
-      icon: Icons.shield_outlined, // Güvenlik Kalkanı İkonu
+      icon: Icons.shield_outlined,
     ),
     OnboardingContent(
       title: "AI Emotion Hub",
       description: "The system learns from you. Whether you're stressed or celebrating, your hub adjusts the lighting, music, and temperature to match your vibe perfectly.",
-      icon: Icons.favorite_border, // Kalp İkonu
+      icon: Icons.favorite_border,
     ),
     OnboardingContent(
       title: "Complete Control",
       description: "Seamlessly manage your lights, curtains, and climate. Powered by Raspberry Pi for instant, secure response.",
-      icon: Icons.touch_app_outlined, // Kontrol/Dokunma İkonu
+      icon: Icons.touch_app_outlined,
     ),
   ];
 
@@ -41,7 +41,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
-          // Sağ üstteki 'Skip' butonu
           TextButton(
             onPressed: () => _navigateToLogin(),
             child: const Text(
@@ -54,7 +53,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // --- 1. ÜST KISIM (İKON VE EFEKT) ---
             Expanded(
               flex: 3,
               child: PageView.builder(
@@ -69,13 +67,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   return Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // İkonun arkasındaki parlayan yuvarlak alan
                       Container(
                         height: 220,
                         width: 220,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: const Color(0xFF1E2746), // Koyu lacivert daire
+                          color: const Color(0xFF1E2746),
                           boxShadow: [
                             BoxShadow(
                               color: AppColors.primaryBlue.withOpacity(0.2),
@@ -87,7 +84,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         child: Icon(
                           _contents[index].icon,
                           size: 100,
-                          color: AppColors.primaryBlue, // Mavi neon ikon
+                          color: AppColors.primaryBlue,
                         ),
                       ),
                     ],
@@ -96,7 +93,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
             ),
 
-            // --- 2. ALT KISIM (YAZILAR VE BUTON) ---
             Expanded(
               flex: 2,
               child: Container(
@@ -111,7 +107,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 child: Column(
                   children: [
                     const SizedBox(height: 20),
-                    // Başlık
                     Text(
                       _contents[_currentIndex].title,
                       textAlign: TextAlign.center,
@@ -122,7 +117,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    // Açıklama Yazısı
                     Text(
                       _contents[_currentIndex].description,
                       textAlign: TextAlign.center,
@@ -134,7 +128,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     ),
                     const Spacer(),
 
-                    // Sayfa Noktaları (Dots)
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: List.generate(
@@ -144,7 +137,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     ),
                     const SizedBox(height: 30),
 
-                    // Mavi Buton (Next / Get Started)
                     SizedBox(
                       width: double.infinity,
                       height: 56,
@@ -199,7 +191,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  // Nokta animasyonu fonksiyonu
   Widget buildDot(int index) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
@@ -213,7 +204,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  // Login ekranına gitme fonksiyonu
   void _navigateToLogin() {
     Navigator.pushReplacement(
       context,
@@ -222,7 +212,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 }
 
-// İçerik Modeli (Basit veri tutucu)
 class OnboardingContent {
   final String title;
   final String description;

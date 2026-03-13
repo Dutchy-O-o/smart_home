@@ -9,7 +9,6 @@ class ResetConfirmationScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      // AppBar yok çünkü görselde temiz bir ekran var, sadece geri dönmek isterse diye sistem geri tuşu çalışır.
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -17,17 +16,14 @@ class ResetConfirmationScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Spacer(flex: 2),
-
-              // 1. ÖZEL İKON YAPISI (Zarf + Yeşil Tik)
               Stack(
                 alignment: Alignment.bottomRight,
                 children: [
-                  // Ana Daire ve Zarf
                   Container(
                     width: 120,
                     height: 120,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF8DAE98), // Görseldeki pastel yeşilimsi ton
+                      color: const Color(0xFF8DAE98),
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
@@ -38,22 +34,21 @@ class ResetConfirmationScreen extends StatelessWidget {
                       ],
                     ),
                     child: const Icon(
-                      Icons.mail_outline, // Zarf ikonu
+                      Icons.mail_outline,
                       size: 60,
-                      color: Color(0xFFD6A042), // Zarfın sarımsı rengi
+                      color: Color(0xFFD6A042),
                     ),
                   ),
-                  // Yeşil Tik (Badge)
                   Container(
                     padding: const EdgeInsets.all(4),
                     decoration: const BoxDecoration(
-                      color: AppColors.background, // Arka plan rengiyle sınır çizmek için
+                      color: AppColors.background,
                       shape: BoxShape.circle,
                     ),
                     child: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: const BoxDecoration(
-                        color: AppColors.accentGreen, // Parlak yeşil
+                        color: AppColors.accentGreen,
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
@@ -67,8 +62,6 @@ class ResetConfirmationScreen extends StatelessWidget {
               ),
 
               const SizedBox(height: 40),
-
-              // 2. BAŞLIK VE AÇIKLAMA
               const Text(
                 "Check your mail",
                 style: TextStyle(
@@ -90,13 +83,11 @@ class ResetConfirmationScreen extends StatelessWidget {
 
               const SizedBox(height: 40),
 
-              // 3. BUTON (Return to Login)
               SizedBox(
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
                   onPressed: () {
-                    // Kullanıcıyı Login ekranına geri gönder ve tüm geçmişi temizle
                     Navigator.pushAndRemoveUntil(
                       context,
                       MaterialPageRoute(builder: (context) => const LoginScreen()),
@@ -123,8 +114,6 @@ class ResetConfirmationScreen extends StatelessWidget {
               ),
 
               const Spacer(flex: 3),
-
-              // 4. ALT METİN (Resend Email)
               Column(
                 children: [
                   const Text("Did not receive the email?", style: TextStyle(color: AppColors.textGrey)),

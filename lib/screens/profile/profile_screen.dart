@@ -20,7 +20,6 @@ class ProfileScreen extends ConsumerStatefulWidget {
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool _pushNotifications = true;
 
-  // Alt Menü Navigasyonu (6. Eleman: Profile)
   void _onBottomNavTapped(int index) {
     if (index == 0) {
       Navigator.pushAndRemoveUntil(
@@ -37,7 +36,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     } else if (index == 4) {
       Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationScreen()));
     } else if (index == 5) {
-      // Zaten Profile ekranındayız
     }
   }
 
@@ -95,7 +93,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 40), // Başlığı ortalamak için boşluk
+                  const SizedBox(width: 40),
+
                 ],
               ),
               const SizedBox(height: 20),
@@ -259,7 +258,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           BottomNavigationBarItem(icon: Icon(Icons.security), label: 'Security'),
           BottomNavigationBarItem(icon: Icon(Icons.devices), label: 'Devices'),
           BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Alerts'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'), // YENİ
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+
         ],
       ),
     );
