@@ -4,21 +4,24 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:amplify_auth_cognito/amplify_auth_cognito.dart';
 import 'package:amplify_flutter/amplify_flutter.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/app_colors.dart';
+import '../../providers/home_provider.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../ai_hub/emotion_hub_screen.dart';
 import '../security/monitoring_screen.dart';
 import '../notifications/notification_screen.dart';
 import '../profile/profile_screen.dart';
 
-class DeviceControlScreen extends StatefulWidget {
+class DeviceControlScreen extends ConsumerStatefulWidget {
   const DeviceControlScreen({super.key});
 
   @override
-  State<DeviceControlScreen> createState() => _DeviceControlScreenState();
+  ConsumerState<DeviceControlScreen> createState() => _DeviceControlScreenState();
 }
 
-class _DeviceControlScreenState extends State<DeviceControlScreen> with WidgetsBindingObserver {
+class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
+    with WidgetsBindingObserver {
   bool _isLightOn = true;
   double _brightness = 58.0;
   Color _selectedLightColor = const Color(0xFF448AFF);
@@ -73,8 +76,12 @@ class _DeviceControlScreenState extends State<DeviceControlScreen> with WidgetsB
     });
   }
 
-  Future<void> _fetchLatestSensorData() async {
-    final url = Uri.parse("https://zz3kr12z0f.execute-api.us-east-1.amazonaws.com/prod/sensor");
+ Future<void> _fetchLatestSensorData() async {
+    final selectedHome = ref.read(selectedHomeProvider);
+    final homeId = selectedHome?['homeid'] ?? '';
+    
+    // 1. GÜNCELLEME: URL yapısı yeni REST API mimarisine göre ayarlandı
+    final url = Uri.parse("https://zz3kr12z0f.execute-api.us-east-1.amazonaws.com/prod/$homeId/sensor");
     
     try {
       final session = await Amplify.Auth.fetchAuthSession();
@@ -90,14 +97,27 @@ class _DeviceControlScreenState extends State<DeviceControlScreen> with WidgetsB
           },
         );
         
+        print(response.body);
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body);
-          setState(() {
-            _insideTemp = data['temperature'].toString();
-            _insideHumidity = data['humidity'].toString();
-          });
+          
+          // 2. GÜNCELLEME: Lambda'dan dönen "sensors" objesini alıyoruz
+          final sensors = data['sensors'] as Map<String, dynamic>? ?? {};
+          
+          // Cihaz ID'leri dinamik (UUID) olduğu için, değerler içinde dönüp 
+          // sıcaklık verisi basan sensörü (DHT11 vb.) buluyoruz.
+          for (var deviceData in sensors.values) {
+            if (deviceData is Map && deviceData.containsKey('temperature') && deviceData.containsKey('humidity')) {
+              setState(() {
+                _insideTemp = deviceData['temperature'].toString();
+                _insideHumidity = deviceData['humidity'].toString();
+              });
+              break; // Sensörü bulduk, gereksiz yere diğerlerini aramamak için döngüden çık
+            }
+          }
         } else {
           print("Sensör verisi reddedildi. Hata: ${response.statusCode}");
+          print(response.body);
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text("Sensör verileri alınamadı! (Hata: ${response.statusCode})"), duration: const Duration(seconds: 2), backgroundColor: Colors.redAccent),
@@ -116,6 +136,9 @@ class _DeviceControlScreenState extends State<DeviceControlScreen> with WidgetsB
   }
 
   Future<void> _sendApiCommand(String deviceId, String action, dynamic value) async {
+    final selectedHome = ref.read(selectedHomeProvider);
+    final homeId = selectedHome?['homeid'] ?? '';
+    
     final url = Uri.parse("https://zz3kr12z0f.execute-api.us-east-1.amazonaws.com/prod/command");
     
     ScaffoldMessenger.of(context).showSnackBar(
@@ -135,6 +158,7 @@ class _DeviceControlScreenState extends State<DeviceControlScreen> with WidgetsB
             "Authorization": "Bearer $token"
           },
           body: jsonEncode({
+            "home_id": homeId,
             "device_id": deviceId,
             "action": action,
             "value": value,
