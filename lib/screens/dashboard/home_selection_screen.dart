@@ -68,6 +68,8 @@ class _HomeSelectionScreenState extends ConsumerState<HomeSelectionScreen> {
 
   void _selectHome(Map<String, dynamic> home) {
     ref.read(selectedHomeProvider.notifier).setHome(home);
+    
+    print("Selected home: $home"); // Debug log to verify home selection
 
     Navigator.pushReplacement(
       context,
