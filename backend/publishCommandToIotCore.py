@@ -6,11 +6,16 @@ iot_client = boto3.client('iot-data', region_name='us-east-1')
 
 def lambda_handler(event, context):
     try:
-        # API Gateway "Proxy Integration" provides body as string
-        body = json.loads(event.get('body', '{}'))
+        # API Gateway "Proxy Integration" provides body as string (event['body'])
+        # Standard Integration directly passes the JSON to `event`
+        if 'body' in event and isinstance(event['body'], str):
+            body = json.loads(event['body'])
+        else:
+            body = event # Fallback for non-proxy test events or direct invoke
+            
         device_id = body.get('device_id')
         action = body.get('action') 
-        value = body.get('value') 
+        value = body.get('value')
         
         print(f"Received command: {action}")
         
