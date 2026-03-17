@@ -78,4 +78,25 @@ class ApiService {
       return null;
     }
   }
+
+  /// GET /prod/{homeID}/devices
+  static Future<List<dynamic>?> fetchDevices(String homeId) async {
+    final url = Uri.parse('$baseUrl/$homeId/devices');
+    final headers = await _getHeaders();
+
+    try {
+      final response = await http.get(url, headers: headers);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['devices'] as List<dynamic>?;
+      } else {
+        safePrint('Failed to fetch devices. Status: ${response.statusCode}');
+        safePrint('Response Body from AWS: ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      safePrint('API connection error fetching devices: $e');
+      return null;
+    }
+  }
 }
