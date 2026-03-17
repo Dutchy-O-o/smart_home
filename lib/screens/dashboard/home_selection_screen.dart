@@ -5,6 +5,9 @@ import 'package:amplify_auth_cognito/amplify_auth_cognito.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
+// --- YENİ: Firebase Messaging Kütüphanesi ---
+import 'package:firebase_messaging/firebase_messaging.dart';
+
 import '../../constants/app_colors.dart';
 import '../../providers/home_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -27,6 +30,44 @@ class _HomeSelectionScreenState extends ConsumerState<HomeSelectionScreen> {
   void initState() {
     super.initState();
     _fetchHomes();
+    
+    // YENİ: Sayfa açılır açılmaz arka planda sessizce FCM Token'ı güncelle
+    _updateFcmTokenSilently();
+  }
+
+  // --- YENİ: FCM Token'ı AWS'ye Kaydeden Fonksiyon ---
+  Future<void> _updateFcmTokenSilently() async {
+    try {
+      // 1. Cihazın Firebase'den aldığı benzersiz token'ı çek
+      String? fcmToken = await FirebaseMessaging.instance.getToken();
+      
+      if (fcmToken != null) {
+        // 2. Cognito Token'ını al
+        final session = await Amplify.Auth.fetchAuthSession() as CognitoAuthSession;
+        final cognitoToken = session.userPoolTokensResult.value.idToken.raw;
+        
+        // 3. AWS API'ye bu token'ı kaydetmesi için yolla
+        final url = Uri.parse("https://zz3kr12z0f.execute-api.us-east-1.amazonaws.com/prod/fcm-token");
+        
+        final response = await http.put(
+          url,
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer $cognitoToken"
+          },
+          body: jsonEncode({"fcm_token": fcmToken}),
+        );
+
+      if (response.statusCode == 200) {
+          print("✅ Başarılı: FCM Token AWS'ye kaydedildi.");
+        } else {
+          print("❌ Hata (Kod: ${response.statusCode})");
+          print("🛑 HATA DETAYI: ${response.body}"); // İŞTE BİZE LAZIM OLAN SATIR BU!
+        }
+      }
+    } catch (e) {
+      print("⚠️ FCM Token güncellenirken hata oluştu: $e");
+    }
   }
 
   Future<void> _fetchHomes() async {
@@ -52,7 +93,7 @@ class _HomeSelectionScreenState extends ConsumerState<HomeSelectionScreen> {
         });
       } else {
         setState(() {
-          _errorMessage = "Failed to load homes (\${response.statusCode}): \${response.body}";
+          _errorMessage = "Failed to load homes (${response.statusCode}): ${response.body}";
           _isLoading = false;
         });
       }
