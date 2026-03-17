@@ -21,23 +21,16 @@ class DeviceControlScreen extends ConsumerStatefulWidget {
 class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
     with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   
-  // States
-  bool _isLightOn = true;
-  double _brightness = 58.0;
-  Color _selectedLightColor = const Color(0xFF448AFF);
-
-  int _curtainPosition = 60;
-  
-  int _targetTemp = 20;
-  String _climateMode = "Cool";
+  // Dynamic States
+  List<dynamic> _devices = [];
+  Map<String, Map<String, dynamic>> _deviceStates = {};
+  bool _isLoading = true;
 
   String _insideTemp = "--";
   String _insideHumidity = "--";
 
   // Timers
-  Timer? _tempDebounceTimer;
-  Timer? _curtainDebounceTimer;
-  Timer? _brightnessDebounceTimer;
+  Map<String, Timer?> _debounceTimers = {};
   Timer? _dataPollingTimer;
 
   // Animation Controller
@@ -56,6 +49,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
     _fadeAnimation = CurvedAnimation(parent: _fadeController, curve: Curves.easeOutCubic);
     _fadeController.forward();
 
+    _fetchDevices();
     _fetchLatestSensorData();
     _startPollingTimer();
   }
@@ -65,9 +59,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
     WidgetsBinding.instance.removeObserver(this);
     _fadeController.dispose();
     _dataPollingTimer?.cancel();
-    _tempDebounceTimer?.cancel();
-    _curtainDebounceTimer?.cancel();
-    _brightnessDebounceTimer?.cancel();
+    _debounceTimers.values.forEach((timer) => timer?.cancel());
     super.dispose();
   }
 
@@ -87,6 +79,41 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
     _dataPollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
       _fetchLatestSensorData();
     });
+  }
+
+  Future<void> _fetchDevices() async {
+    final selectedHome = ref.read(selectedHomeProvider);
+    final homeId = selectedHome?['homeid'];
+    if (homeId == null) return;
+
+    final devices = await ApiService.fetchDevices(homeId);
+    if (devices != null && mounted) {
+      setState(() {
+        _devices = devices;
+        _isLoading = false;
+        
+        // Initialize local states from fetched properties
+        for (var device in _devices) {
+          String id = device['deviceid'];
+          _deviceStates[id] = {};
+          
+          List<dynamic> props = device['properties'] ?? [];
+          for (var prop in props) {
+            String pName = prop['property_name'];
+            var val = prop['current_value'];
+            // Parsing strings from DB
+            if (val == "ON") val = true;
+            else if (val == "OFF") val = false;
+            else if (val is String && double.tryParse(val) != null && !pName.contains("color")) {
+               val = double.parse(val);
+            }
+            _deviceStates[id]![pName] = val;
+          }
+        }
+      });
+    } else if (mounted) {
+      setState(() => _isLoading = false);
+    }
   }
 
   Future<void> _fetchLatestSensorData() async {
@@ -135,44 +162,21 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
     }
   }
 
-  // Action Handlers
-  void _toggleLight(bool val) {
-    setState(() => _isLightOn = val);
-    _sendDynamicCommand("dev_led_01", "state", val ? "ON" : "OFF");
-  }
-
-  void _updateBrightness(double val) {
-    setState(() => _brightness = val);
-    if (_brightnessDebounceTimer?.isActive ?? false) _brightnessDebounceTimer!.cancel();
-    _brightnessDebounceTimer = Timer(const Duration(milliseconds: 500), () {
-      _sendDynamicCommand("dev_led_01", "brightness", val.toInt());
+  // Dynamic Action Handler
+  void _updateDeviceState(String deviceId, String action, dynamic value) {
+    if (!mounted) return;
+    setState(() {
+      _deviceStates[deviceId] ??= {};
+      _deviceStates[deviceId]![action] = value;
     });
-  }
 
-  void _updateColor(Color color) {
-    setState(() => _selectedLightColor = color);
-    String hex = "#${color.value.toRadixString(16).substring(2).toUpperCase()}";
-    _sendDynamicCommand("dev_led_01", "color", hex);
-  }
-
-  void _updateTemperature(int delta) {
-    setState(() => _targetTemp += delta);
-    if (_tempDebounceTimer?.isActive ?? false) _tempDebounceTimer!.cancel();
-    _tempDebounceTimer = Timer(const Duration(milliseconds: 800), () {
-      _sendDynamicCommand("dev_ac_01", "temperature", _targetTemp);
-    });
-  }
-
-  void _setClimateMode(String mode) {
-    setState(() => _climateMode = mode);
-    _sendDynamicCommand("dev_ac_01", "mode", mode);
-  }
-
-  void _setCurtain(int position) {
-    setState(() => _curtainPosition = position.clamp(0, 100));
-    if (_curtainDebounceTimer?.isActive ?? false) _curtainDebounceTimer!.cancel();
-    _curtainDebounceTimer = Timer(const Duration(milliseconds: 500), () {
-      _sendDynamicCommand("dev_blinds_01", "position", _curtainPosition);
+    String dbValue = value is bool ? (value ? "ON" : "OFF") : value.toString();
+    
+    // Debounce mapping
+    String key = '${deviceId}_$action';
+    if (_debounceTimers[key]?.isActive ?? false) _debounceTimers[key]!.cancel();
+    _debounceTimers[key] = Timer(const Duration(milliseconds: 500), () {
+      _sendDynamicCommand(deviceId, action, dbValue);
     });
   }
 
@@ -203,7 +207,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
               height: 300,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: _selectedLightColor.withOpacity(0.15),
+                color: AppColors.primaryBlue.withOpacity(0.15),
               ),
             ),
           ),
@@ -215,7 +219,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
               height: 250,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.primaryBlue.withOpacity(0.1),
+                color: AppColors.accentGreen.withOpacity(0.1),
               ),
             ),
           ),
@@ -227,7 +231,9 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
           SafeArea(
             child: FadeTransition(
               opacity: _fadeAnimation,
-              child: SingleChildScrollView(
+              child: _isLoading 
+                ? const Center(child: CircularProgressIndicator(color: AppColors.primaryBlue))
+                : SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                 child: Column(
@@ -235,11 +241,26 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                   children: [
                     _buildHeader(),
                     const SizedBox(height: 32),
-                    _buildClimateCard(),
-                    const SizedBox(height: 24),
-                    _buildLightingCard(),
-                    const SizedBox(height: 24),
-                    _buildSmartBlindsCard(),
+                    if (_devices.isEmpty)
+                      const Center(child: Text("No devices found.", style: TextStyle(color: Colors.grey))),
+                    ..._devices.map((device) {
+                      Widget card;
+                      String type = device['device_type'] ?? '';
+                      if (type == 'climate' || type == 'ac') {
+                        card = _buildClimateCard(device);
+                      } else if (type == 'light' || type == 'led') {
+                        card = _buildLightingCard(device);
+                      } else if (type == 'blinds' || type == 'curtain') {
+                        card = _buildSmartBlindsCard(device);
+                      } else {
+                        // generic fallback
+                        card = _buildGenericCard(device);
+                      }
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 24),
+                        child: card,
+                      );
+                    }).toList(),
                     const SizedBox(height: 40),
                   ],
                 ),
@@ -321,7 +342,14 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
     );
   }
 
-  Widget _buildClimateCard() {
+  Widget _buildClimateCard(Map<String, dynamic> device) {
+    String deviceId = device['deviceid'];
+    String deviceName = device['device_name'] ?? 'Climate Options';
+    Map<String, dynamic> state = _deviceStates[deviceId] ?? {};
+    
+    int currentTemp = (state['temperature'] ?? 20).toInt();
+    String currentMode = state['mode'] ?? "Cool";
+
     return _buildGlassCard(
       child: Column(
         children: [
@@ -331,7 +359,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text("Climate", style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                  Text(deviceName, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
                   Text("$_insideTemp°C • $_insideHumidity%", style: const TextStyle(color: AppColors.primaryBlue, fontSize: 14, fontWeight: FontWeight.w600)),
                 ],
@@ -347,7 +375,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _buildModernIconButton(Icons.remove, () => _updateTemperature(-1)),
+              _buildModernIconButton(Icons.remove, () => _updateDeviceState(deviceId, 'temperature', currentTemp - 1)),
               Container(
                 width: 120,
                 height: 120,
@@ -363,22 +391,22 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text("$_targetTemp°", style: const TextStyle(color: Colors.white, fontSize: 40, fontWeight: FontWeight.w300)),
+                      Text("$currentTemp°", style: const TextStyle(color: Colors.white, fontSize: 40, fontWeight: FontWeight.w300)),
                       const Text("TARGET", style: TextStyle(color: Colors.grey, fontSize: 10, letterSpacing: 2, fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ),
               ),
-              _buildModernIconButton(Icons.add, () => _updateTemperature(1)),
+              _buildModernIconButton(Icons.add, () => _updateDeviceState(deviceId, 'temperature', currentTemp + 1)),
             ],
           ),
           const SizedBox(height: 32),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _buildPillToggle("Cool", Icons.ac_unit, Colors.blue),
-              _buildPillToggle("Heat", Icons.local_fire_department, Colors.orange),
-              _buildPillToggle("Fan", Icons.cyclone, Colors.white),
+              _buildDynamicPillToggle("Cool", Icons.ac_unit, Colors.blue, currentMode, () => _updateDeviceState(deviceId, 'mode', 'Cool')),
+              _buildDynamicPillToggle("Heat", Icons.local_fire_department, Colors.orange, currentMode, () => _updateDeviceState(deviceId, 'mode', 'Heat')),
+              _buildDynamicPillToggle("Fan", Icons.cyclone, Colors.white, currentMode, () => _updateDeviceState(deviceId, 'mode', 'Fan')),
             ],
           ),
         ],
@@ -386,7 +414,18 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
     );
   }
 
-  Widget _buildLightingCard() {
+  Widget _buildLightingCard(Map<String, dynamic> device) {
+    String deviceId = device['deviceid'];
+    String deviceName = device['device_name'] ?? 'Ambient Light';
+    Map<String, dynamic> state = _deviceStates[deviceId] ?? {};
+    
+    // Parse light states
+    bool isLightOn = state['state'] == true || state['state'] == "ON";
+    double currentBrightness = (state['brightness'] ?? 50.0).toDouble();
+    String hexColor = state['color'] ?? "#448AFF";
+    Color lightColor = const Color(0xFF448AFF);
+    try { lightColor = Color(int.parse(hexColor.replaceFirst('#', '0xFF'))); } catch (e) {}
+
     return _buildGlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -400,32 +439,32 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                     duration: const Duration(milliseconds: 300),
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: _isLightOn ? _selectedLightColor.withOpacity(0.2) : Colors.white10,
+                      color: isLightOn ? lightColor.withOpacity(0.2) : Colors.white10,
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    child: Icon(Icons.lightbulb, color: _isLightOn ? _selectedLightColor : Colors.grey, size: 24),
+                    child: Icon(Icons.lightbulb, color: isLightOn ? lightColor : Colors.grey, size: 24),
                   ),
                   const SizedBox(width: 16),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text("Ambient Light", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                      Text(deviceName, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                       AnimatedDefaultTextStyle(
                         duration: const Duration(milliseconds: 200),
-                        style: TextStyle(color: _isLightOn ? _selectedLightColor : Colors.grey, fontSize: 13, fontWeight: FontWeight.w600),
-                        child: Text(_isLightOn ? "Turned On" : "Turned Off"),
+                        style: TextStyle(color: isLightOn ? lightColor : Colors.grey, fontSize: 13, fontWeight: FontWeight.w600),
+                        child: Text(isLightOn ? "Turned On" : "Turned Off"),
                       ),
                     ],
                   ),
                 ],
               ),
               Switch.adaptive(
-                value: _isLightOn,
-                activeColor: _selectedLightColor,
-                activeTrackColor: _selectedLightColor.withOpacity(0.4),
+                value: isLightOn,
+                activeColor: lightColor,
+                activeTrackColor: lightColor.withOpacity(0.4),
                 inactiveThumbColor: Colors.grey,
                 inactiveTrackColor: Colors.white10,
-                onChanged: _toggleLight,
+                onChanged: (val) => _updateDeviceState(deviceId, 'state', val),
               ),
             ],
           ),
@@ -438,17 +477,17 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                 child: SliderTheme(
                   data: SliderTheme.of(context).copyWith(
                     trackHeight: 6,
-                    activeTrackColor: _isLightOn ? _selectedLightColor : Colors.grey,
+                    activeTrackColor: isLightOn ? lightColor : Colors.grey,
                     inactiveTrackColor: Colors.white10,
                     thumbColor: Colors.white,
-                    overlayColor: _selectedLightColor.withOpacity(0.2),
+                    overlayColor: lightColor.withOpacity(0.2),
                     thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10, elevation: 5),
                   ),
                   child: Slider(
-                    value: _brightness,
+                    value: currentBrightness,
                     min: 0,
                     max: 100,
-                    onChanged: _isLightOn ? _updateBrightness : null,
+                    onChanged: isLightOn ? (val) => _updateDeviceState(deviceId, 'brightness', val.toInt()) : null,
                   ),
                 ),
               ),
@@ -461,11 +500,11 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildColorSelector(const Color(0xFFFF5252)),
-              _buildColorSelector(const Color(0xFFFFB74D)),
-              _buildColorSelector(const Color(0xFF69F0AE)),
-              _buildColorSelector(const Color(0xFF448AFF)),
-              _buildColorSelector(const Color(0xFFE040FB)),
+              _buildDynamicColorSelector(const Color(0xFFFF5252), deviceId, lightColor),
+              _buildDynamicColorSelector(const Color(0xFFFFB74D), deviceId, lightColor),
+              _buildDynamicColorSelector(const Color(0xFF69F0AE), deviceId, lightColor),
+              _buildDynamicColorSelector(const Color(0xFF448AFF), deviceId, lightColor),
+              _buildDynamicColorSelector(const Color(0xFFE040FB), deviceId, lightColor),
             ],
           ),
         ],
@@ -473,7 +512,12 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
     );
   }
 
-  Widget _buildSmartBlindsCard() {
+  Widget _buildSmartBlindsCard(Map<String, dynamic> device) {
+    String deviceId = device['deviceid'];
+    String deviceName = device['device_name'] ?? 'Smart Blinds';
+    Map<String, dynamic> state = _deviceStates[deviceId] ?? {};
+    int currentPosition = (state['position'] ?? 60).toInt();
+
     return _buildGlassCard(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       child: Column(
@@ -493,8 +537,8 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text("Smart Blinds", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                      Text("Position: $_curtainPosition%", style: const TextStyle(color: Colors.tealAccent, fontSize: 13, fontWeight: FontWeight.w600)),
+                      Text(deviceName, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                      Text("Position: $currentPosition%", style: const TextStyle(color: Colors.tealAccent, fontSize: 13, fontWeight: FontWeight.w600)),
                     ],
                   ),
                 ],
@@ -517,15 +561,52 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                     thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10, elevation: 5),
                   ),
                   child: Slider(
-                    value: _curtainPosition.toDouble(),
+                    value: currentPosition.toDouble(),
                     min: 0,
                     max: 100,
-                    onChanged: (val) => _setCurtain(val.toInt()),
+                    onChanged: (val) => _updateDeviceState(deviceId, 'position', val.toInt()),
                   ),
                 ),
               ),
               Text("100%", style: TextStyle(color: Colors.grey[500], fontSize: 12)),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGenericCard(Map<String, dynamic> device) {
+    String deviceId = device['deviceid'];
+    String deviceName = device['device_name'] ?? 'Device';
+    Map<String, dynamic> state = _deviceStates[deviceId] ?? {};
+    bool isEngineOn = state['state'] == true || state['state'] == "ON";
+
+    return _buildGlassCard(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: Colors.purpleAccent.withOpacity(0.15), borderRadius: BorderRadius.circular(16)),
+                child: const Icon(Icons.device_hub, color: Colors.purpleAccent, size: 24),
+              ),
+              const SizedBox(width: 16),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(deviceName, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text(isEngineOn ? 'Power: ON' : 'Power: OFF', style: const TextStyle(color: Colors.purpleAccent, fontSize: 13)),
+                ],
+              ),
+            ],
+          ),
+          Switch.adaptive(
+            value: isEngineOn,
+            activeColor: Colors.purpleAccent,
+            onChanged: (val) => _updateDeviceState(deviceId, 'state', val),
           ),
         ],
       ),
@@ -575,6 +656,50 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
           border: Border.all(color: Colors.white10),
         ),
         child: Icon(icon, color: Colors.white, size: 28),
+      ),
+    );
+  }
+
+  Widget _buildDynamicPillToggle(String text, IconData icon, Color activeColor, String currentMode, VoidCallback onTap) {
+    bool isSelected = currentMode == text;
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? activeColor.withOpacity(0.15) : Colors.transparent,
+          borderRadius: BorderRadius.circular(30),
+          border: Border.all(color: isSelected ? activeColor.withOpacity(0.5) : Colors.white10),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: isSelected ? activeColor : Colors.grey),
+            const SizedBox(width: 8),
+            Text(text, style: TextStyle(color: isSelected ? activeColor : Colors.grey, fontWeight: FontWeight.bold, fontSize: 13)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDynamicColorSelector(Color color, String deviceId, Color selectedColor) {
+    bool isSelected = selectedColor.value == color.value;
+    return GestureDetector(
+      onTap: () {
+        String hex = "#${color.value.toRadixString(16).substring(2).toUpperCase()}";
+        _updateDeviceState(deviceId, 'color', hex);
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        width: 45, height: 45,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          border: isSelected ? Border.all(color: Colors.white, width: 3) : Border.all(color: Colors.transparent),
+          boxShadow: isSelected ? [BoxShadow(color: color.withOpacity(0.5), blurRadius: 10, spreadRadius: 2)] : [],
+        ),
       ),
     );
   }
