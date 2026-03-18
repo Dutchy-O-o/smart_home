@@ -356,14 +356,17 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(deviceName, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 4),
-                  Text("$_insideTemp°C • $_insideHumidity%", style: const TextStyle(color: AppColors.primaryBlue, fontSize: 14, fontWeight: FontWeight.w600)),
-                ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(deviceName, overflow: TextOverflow.ellipsis, maxLines: 1, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    Text("$_insideTemp°C • $_insideHumidity%", style: const TextStyle(color: AppColors.primaryBlue, fontSize: 14, fontWeight: FontWeight.w600)),
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(color: AppColors.primaryBlue.withOpacity(0.15), shape: BoxShape.circle),
@@ -433,31 +436,36 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: isLightOn ? lightColor.withOpacity(0.2) : Colors.white10,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Icon(Icons.lightbulb, color: isLightOn ? lightColor : Colors.grey, size: 24),
-                  ),
-                  const SizedBox(width: 16),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(deviceName, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                      AnimatedDefaultTextStyle(
-                        duration: const Duration(milliseconds: 200),
-                        style: TextStyle(color: isLightOn ? lightColor : Colors.grey, fontSize: 13, fontWeight: FontWeight.w600),
-                        child: Text(isLightOn ? "Turned On" : "Turned Off"),
+              Expanded(
+                child: Row(
+                  children: [
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isLightOn ? lightColor.withOpacity(0.2) : Colors.white10,
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                    ],
-                  ),
-                ],
+                      child: Icon(Icons.lightbulb, color: isLightOn ? lightColor : Colors.grey, size: 24),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(deviceName, overflow: TextOverflow.ellipsis, maxLines: 1, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                          AnimatedDefaultTextStyle(
+                            duration: const Duration(milliseconds: 200),
+                            style: TextStyle(color: isLightOn ? lightColor : Colors.grey, fontSize: 13, fontWeight: FontWeight.w600),
+                            child: Text(isLightOn ? "Turned On" : "Turned Off"),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               Switch.adaptive(
                 value: isLightOn,
                 activeColor: lightColor,
@@ -526,22 +534,26 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: Colors.tealAccent.withOpacity(0.15), borderRadius: BorderRadius.circular(16)),
-                    child: const Icon(Icons.blinds, color: Colors.tealAccent, size: 24),
-                  ),
-                  const SizedBox(width: 16),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(deviceName, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                      Text("Position: $currentPosition%", style: const TextStyle(color: Colors.tealAccent, fontSize: 13, fontWeight: FontWeight.w600)),
-                    ],
-                  ),
-                ],
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(color: Colors.tealAccent.withOpacity(0.15), borderRadius: BorderRadius.circular(16)),
+                      child: const Icon(Icons.blinds, color: Colors.tealAccent, size: 24),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(deviceName, overflow: TextOverflow.ellipsis, maxLines: 1, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                          Text("Position: $currentPosition%", style: const TextStyle(color: Colors.tealAccent, fontSize: 13, fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -584,24 +596,21 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
 
     return _buildGlassCard(
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: Colors.purpleAccent.withOpacity(0.15), borderRadius: BorderRadius.circular(16)),
-                child: const Icon(Icons.device_hub, color: Colors.purpleAccent, size: 24),
-              ),
-              const SizedBox(width: 16),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(deviceName, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                  Text(isEngineOn ? 'Power: ON' : 'Power: OFF', style: const TextStyle(color: Colors.purpleAccent, fontSize: 13)),
-                ],
-              ),
-            ],
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(color: Colors.purpleAccent.withOpacity(0.15), borderRadius: BorderRadius.circular(16)),
+            child: const Icon(Icons.device_hub, color: Colors.purpleAccent, size: 24),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(deviceName, overflow: TextOverflow.ellipsis, maxLines: 1, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                Text(isEngineOn ? 'Power: ON' : 'Power: OFF', style: const TextStyle(color: Colors.purpleAccent, fontSize: 13)),
+              ],
+            ),
           ),
           Switch.adaptive(
             value: isEngineOn,
@@ -704,44 +713,4 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
     );
   }
 
-  Widget _buildPillToggle(String text, IconData icon, Color activeColor) {
-    bool isSelected = _climateMode == text;
-    return GestureDetector(
-      onTap: () => _setClimateMode(text),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected ? activeColor.withOpacity(0.15) : Colors.transparent,
-          borderRadius: BorderRadius.circular(30),
-          border: Border.all(color: isSelected ? activeColor.withOpacity(0.5) : Colors.white10),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 18, color: isSelected ? activeColor : Colors.grey),
-            const SizedBox(width: 8),
-            Text(text, style: TextStyle(color: isSelected ? activeColor : Colors.grey, fontWeight: FontWeight.bold, fontSize: 13)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildColorSelector(Color color) {
-    bool isSelected = _selectedLightColor == color;
-    return GestureDetector(
-      onTap: () => _isLightOn ? _updateColor(color) : null,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        width: 44, height: 44,
-        decoration: BoxDecoration(
-          color: color.withOpacity(_isLightOn ? 1.0 : 0.3),
-          shape: BoxShape.circle,
-          border: isSelected ? Border.all(color: Colors.white, width: 3) : Border.all(color: Colors.transparent),
-          boxShadow: isSelected && _isLightOn ? [BoxShadow(color: color.withOpacity(0.5), blurRadius: 15, spreadRadius: 2)] : [],
-        ),
-      ),
-    );
-  }
 }

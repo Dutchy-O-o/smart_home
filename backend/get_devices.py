@@ -36,14 +36,22 @@ def lambda_handler(event, context):
         user_id = claims.get('sub')
         
         if not home_id or not user_id:
+            debug_info = {
+                "error": "Eksik parametre tespit edildi.",
+                "home_id_gelen": home_id,
+                "user_id_gelen": user_id,
+                "path_parameters": path_parameters,
+                "authorizer": request_context.get('authorizer')
+            }
             return {
                 'statusCode': 400,
                 'headers': {
                     'Access-Control-Allow-Origin': '*',
                     'Access-Control-Allow-Credentials': True
                 },
-                'body': json.dumps({"error": "Missing homeID or Authorization token."})
+                'body': json.dumps(debug_info)
             }
+
         
         conn = get_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
