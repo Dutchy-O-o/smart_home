@@ -41,49 +41,53 @@ Future<void> main() async {
 
     // Uygulama açıkken (Foreground) gelen bildirimleri dinle
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      print("Uygulama açıkken bildirim geldi: ${message.notification?.title}");
-      
-      if (message.notification != null) {
-        // Aktif olan sayfanın context'ini Global Anahtar'dan çekiyoruz
-        final currentContext = navigatorKey.currentContext;
+      // 1. KRİTİK DEĞİŞİKLİK: Notification null gelse bile Data'dan başlığı zorla çekiyoruz!
+      String title = message.notification?.title ?? message.data['title'] ?? 'ACİL DURUM UYARISI';
+      String body = message.notification?.body ?? message.data['body'] ?? 'Evde beklenmedik bir durum tespit edildi!';
 
-        if (currentContext != null) {
-          showDialog(
-            context: currentContext,
-            barrierDismissible: false, // Kullanıcı dışarı tıklayarak kapatamasın
-            builder: (BuildContext context) {
-              return AlertDialog(
-                backgroundColor: Colors.red.shade50,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                title: Row(
-                  children: [
-                    const Icon(Icons.warning_rounded, color: Colors.red, size: 30),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        message.notification!.title ?? 'Acil Durum!',
-                        style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-                      ),
+      print("Uygulama açıkken bildirim geldi: $title");
+
+      // Aktif olan sayfanın context'ini Global Anahtar'dan çekiyoruz
+      final currentContext = navigatorKey.currentContext;
+
+      if (currentContext != null) {
+        showDialog(
+          context: currentContext,
+          barrierDismissible: false, // Kullanıcı dışarı tıklayarak kapatamasın
+          builder: (BuildContext context) {
+            return AlertDialog(
+              backgroundColor: Colors.red.shade50,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+              title: Row(
+                children: [
+                  const Icon(Icons.warning_rounded, color: Colors.red, size: 30),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      title, // Artık doğrudan çektiğimiz title değişkenini kullanıyoruz
+                      style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 18),
                     ),
-                  ],
-                ),
-                content: Text(
-                  message.notification!.body ?? 'Lütfen hemen kontrol edin.',
-                  style: const TextStyle(fontSize: 16, color: Colors.black87),
-                ),
-                actions: [
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                    child: const Text("ANLADIM", style: TextStyle(color: Colors.white)),
-                    onPressed: () {
-                      Navigator.of(context).pop(); // Uyarıyı kapat
-                    },
                   ),
                 ],
-              );
-            },
-          );
-        }
+              ),
+              content: Text(
+                body, // Artık doğrudan çektiğimiz body değişkenini kullanıyoruz
+                style: const TextStyle(fontSize: 16, color: Colors.black87),
+              ),
+              actions: [
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                  child: const Text("ANLADIM", style: TextStyle(color: Colors.white)),
+                  onPressed: () {
+                    Navigator.of(context).pop(); // Uyarıyı kapat
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      } else {
+        print("Hata: Context bulunamadı, uyarı kutusu ekrana çizilemedi!");
       }
     });
   } catch (e) {
