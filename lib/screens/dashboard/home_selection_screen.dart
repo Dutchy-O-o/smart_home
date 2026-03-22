@@ -5,8 +5,8 @@ import 'package:amplify_auth_cognito/amplify_auth_cognito.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-// --- YENİ: Firebase Messaging Kütüphanesi ---
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:mobile_scanner/mobile_scanner.dart'; 
 
 import '../../constants/app_colors.dart';
 import '../../providers/home_provider.dart';
@@ -30,23 +30,17 @@ class _HomeSelectionScreenState extends ConsumerState<HomeSelectionScreen> {
   void initState() {
     super.initState();
     _fetchHomes();
-    
-    // YENİ: Sayfa açılır açılmaz arka planda sessizce FCM Token'ı güncelle
     _updateFcmTokenSilently();
   }
 
-  // --- YENİ: FCM Token'ı AWS'ye Kaydeden Fonksiyon ---
   Future<void> _updateFcmTokenSilently() async {
     try {
-      // 1. Cihazın Firebase'den aldığı benzersiz token'ı çek
       String? fcmToken = await FirebaseMessaging.instance.getToken();
       
       if (fcmToken != null) {
-        // 2. Cognito Token'ını al
         final session = await Amplify.Auth.fetchAuthSession() as CognitoAuthSession;
         final cognitoToken = session.userPoolTokensResult.value.idToken.raw;
         
-        // 3. AWS API'ye bu token'ı kaydetmesi için yolla
         final url = Uri.parse("https://zz3kr12z0f.execute-api.us-east-1.amazonaws.com/prod/fcm-token");
         
         final response = await http.put(
@@ -58,11 +52,8 @@ class _HomeSelectionScreenState extends ConsumerState<HomeSelectionScreen> {
           body: jsonEncode({"fcm_token": fcmToken}),
         );
 
-      if (response.statusCode == 200) {
+        if (response.statusCode == 200) {
           print("✅ Başarılı: FCM Token AWS'ye kaydedildi.");
-        } else {
-          print("❌ Hata (Kod: ${response.statusCode})");
-          print("🛑 HATA DETAYI: ${response.body}"); // İŞTE BİZE LAZIM OLAN SATIR BU!
         }
       }
     } catch (e) {
@@ -93,7 +84,7 @@ class _HomeSelectionScreenState extends ConsumerState<HomeSelectionScreen> {
         });
       } else {
         setState(() {
-          _errorMessage = "Failed to load homes (${response.statusCode}): ${response.body}";
+          _errorMessage = "Failed to load homes (${response.statusCode})";
           _isLoading = false;
         });
       }
@@ -110,8 +101,6 @@ class _HomeSelectionScreenState extends ConsumerState<HomeSelectionScreen> {
   void _selectHome(Map<String, dynamic> home) {
     ref.read(selectedHomeProvider.notifier).setHome(home);
     
-    print("Selected home: $home"); // Debug log to verify home selection
-
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (context) => const DashboardScreen()),
@@ -129,6 +118,47 @@ class _HomeSelectionScreenState extends ConsumerState<HomeSelectionScreen> {
     }
   }
 
+  // --- KAMERAYI AÇAN VE AWS'YE (JOIN-HOME) İSTEK ATAN FONKSİYON ---
+  Future<void> _openScanner() async {
+    final scannedToken = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const QRScannerScreen()),
+    );
+
+    if (scannedToken != null && scannedToken is String) {
+      showDialog(context: context, barrierDismissible: false, builder: (c) => const Center(child: CircularProgressIndicator(color: AppColors.accentGreen)));
+
+      try {
+        final session = await Amplify.Auth.fetchAuthSession() as CognitoAuthSession;
+        final token = session.userPoolTokensResult.value.idToken.raw;
+
+        // AWS'deki sadece /join-home olan uç nokta
+        final url = Uri.parse("https://zz3kr12z0f.execute-api.us-east-1.amazonaws.com/prod/join-home");
+        
+        final response = await http.post(
+          url,
+          headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+          body: jsonEncode({"secure_token": scannedToken}), 
+        );
+
+        if (!mounted) return;
+        Navigator.pop(context); // Yükleniyor'u kapat
+
+        if (response.statusCode == 200) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Harika! Eve başarıyla katıldınız! 🥳"), backgroundColor: AppColors.accentGreen));
+          _fetchHomes(); // Listeyi yenile
+        } else {
+          final errorData = jsonDecode(response.body);
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Hata: $errorData"), backgroundColor: AppColors.accentRed));
+        }
+      } catch (e) {
+        if (!mounted) return;
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Bağlantı hatası: $e"), backgroundColor: AppColors.accentRed));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -143,6 +173,16 @@ class _HomeSelectionScreenState extends ConsumerState<HomeSelectionScreen> {
             tooltip: "Logout",
           )
         ],
+      ),
+      // --- YENİ: KARE, YAZISIZ, MAVİ "KATIL" BUTONU ---
+      floatingActionButton: FloatingActionButton(
+        onPressed: _openScanner,
+        backgroundColor: AppColors.primaryBlue,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        elevation: 4,
+        child: const Icon(Icons.add, color: Colors.white, size: 32),
       ),
       body: SafeArea(
         child: Center(
@@ -165,8 +205,9 @@ class _HomeSelectionScreenState extends ConsumerState<HomeSelectionScreen> {
                         const SizedBox(height: 48),
                         if (_homes.isEmpty)
                           const Text(
-                            "No registered homes found.",
+                            "No registered homes found.\nTap the + button below to join one!",
                             style: TextStyle(color: AppColors.textGrey, fontSize: 16),
+                            textAlign: TextAlign.center,
                           )
                         else
                           Wrap(
@@ -222,6 +263,77 @@ class _HomeSelectionScreenState extends ConsumerState<HomeSelectionScreen> {
                       ],
                     ),
         ),
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// --- KAMERA İLE QR OKUMA SAYFASI ---
+// ============================================================================
+class QRScannerScreen extends StatefulWidget {
+  const QRScannerScreen({super.key});
+
+  @override
+  State<QRScannerScreen> createState() => _QRScannerScreenState();
+}
+
+class _QRScannerScreenState extends State<QRScannerScreen> {
+  bool _isProcessing = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: const Text("QR Kodu Çerçeveye Alın", style: TextStyle(color: Colors.white)),
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      body: Stack(
+        children: [
+          MobileScanner(
+            onDetect: (BarcodeCapture capture) {
+              if (_isProcessing) return; 
+
+              final List<Barcode> barcodes = capture.barcodes;
+              for (final barcode in barcodes) {
+                if (barcode.rawValue != null) {
+                  setState(() => _isProcessing = true);
+                  final String code = barcode.rawValue!;
+                  
+                  // Okunan şifreli metni geldiğimiz sayfaya geri fırlatıyoruz
+                  Navigator.pop(context, code);
+                  break; 
+                }
+              }
+            },
+          ),
+          
+          Center(
+            child: Container(
+              width: 250,
+              height: 250,
+              decoration: BoxDecoration(
+                border: Border.all(color: AppColors.accentGreen, width: 3),
+                borderRadius: BorderRadius.circular(24),
+              ),
+            ),
+          ),
+          
+          Positioned(
+            bottom: 40,
+            left: 0,
+            right: 0,
+            child: const Center(
+              child: Text(
+                "Adminin ekranındaki QR kodu okutun",
+                style: TextStyle(color: Colors.white, fontSize: 16, backgroundColor: Colors.black54),
+              ),
+            ),
+          )
+        ],
       ),
     );
   }

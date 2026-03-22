@@ -11,10 +11,12 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:amplify_flutter/amplify_flutter.dart';
 import 'package:amplify_auth_cognito/amplify_auth_cognito.dart';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+
 import '../../providers/home_provider.dart';
 import '../../providers/auth_provider.dart';
+import 'home_selection_screen.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -51,9 +53,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         },
       );
 
-      safePrint('API Response Status: ${response.statusCode}');
-      safePrint('API Response Body: ${response.body}');
-
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         setState(() {
@@ -61,14 +60,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           _isLoadingHomes = false;
         });
       } else {
-        safePrint('Failed to load homes: ${response.statusCode}');
         setState(() {
-          _errorMessage = "Server error (${response.statusCode}): ${response.body}";
+          _errorMessage = "Server error (${response.statusCode})";
           _isLoadingHomes = false;
         });
       }
     } catch (e) {
-      safePrint('Fetch homes error: $e');
       setState(() {
         _errorMessage = e.toString();
         _isLoadingHomes = false;
@@ -88,33 +85,136 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   void _onBottomNavTapped(int index) {
-    if (index == 0) {
-    } else if (index == 1) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const EmotionHubScreen()),
-      );
-    } else if (index == 2) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const MonitoringScreen()),
-      );
-    } else if (index == 3) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const DeviceControlScreen()),
-      );
-    } else if (index == 4) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const NotificationScreen()),
-      );
-    } else if (index == 5) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const ProfileScreen()),
-      );
+    if (index == 0) return;
+    final routes = [
+      null,
+      const EmotionHubScreen(),
+      const MonitoringScreen(),
+      const DeviceControlScreen(),
+      const NotificationScreen(),
+      const ProfileScreen(),
+    ];
+    if (routes[index] != null) {
+      Navigator.push(context, MaterialPageRoute(builder: (context) => routes[index]!));
     }
+  }
+
+  // --- GERÇEK API'DEN ŞİFRELİ QR TOKEN'I ALAN FONKSİYON ---
+  Future<void> _generateAndShowQr(String homeId, String homeName) async {
+    print("🕵️‍♂️ 3. API İSTEK FONKSİYONU BAŞLADI. Hedef Ev: $homeId");
+    showDialog(context: context, barrierDismissible: false, builder: (c) => const Center(child: CircularProgressIndicator(color: AppColors.primaryBlue)));
+
+    try {
+      final session = await Amplify.Auth.fetchAuthSession() as CognitoAuthSession;
+      final token = session.userPoolTokensResult.value.idToken.raw;
+      print("🕵️‍♂️ 4. COGNITO TOKEN ALINDI, AWS'YE GİDİLİYOR...");
+
+      final url = Uri.parse("https://zz3kr12z0f.execute-api.us-east-1.amazonaws.com/prod/$homeId/generate-invite");
+      print("🕵️‍♂️ 5. İSTEK ATILAN URL: $url");
+      
+      final response = await http.post(
+        url,
+        headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+        body: jsonEncode({}),
+      );
+
+      if (!mounted) return;
+      Navigator.pop(context); // Yükleniyor dairesini kapat
+
+      print("🕵️‍♂️ 6. AWS'DEN CEVAP GELDİ! Status Code: ${response.statusCode}");
+      print("🕵️‍♂️ 7. AWS CEVAP İÇERİĞİ: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final secureToken = data['secure_token'];
+        print("✅ 8. ŞİFRELİ TOKEN ALINDI, MODAL AÇILIYOR!");
+        _showQrInviteModal(context, secureToken, homeName);
+      } else {
+        print("❌ HATA: AWS işlemi reddetti.");
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("QR oluşturulamadı: ${response.body}"), backgroundColor: AppColors.accentRed));
+      }
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context);
+      print("❌ SİSTEM HATASI (Catch): $e");
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Bağlantı hatası: $e"), backgroundColor: AppColors.accentRed));
+    }
+  }
+
+  // --- QR KOD MODALINI AÇAN FONKSİYON ---
+  void _showQrInviteModal(BuildContext context, String secureToken, String homeName) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: AppColors.cardDark,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.qr_code_scanner, color: AppColors.accentGreen, size: 40),
+                const SizedBox(height: 16),
+                Text(
+                  "$homeName Daveti",
+                  style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  "Misafirin uygulamasından bu kodu okutmasını isteyin. (5 dk geçerlidir)",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppColors.textGrey, fontSize: 14),
+                ),
+                const SizedBox(height: 24),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child:QrImageView(
+                    data: secureToken, // AWS'den gelen şifreli metin
+                    version: QrVersions.auto,
+                    size: 200.0,
+                    backgroundColor: Colors.white, // Tarayıcının karanlık modda kafası karışmasın diye
+                  ),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryBlue.withOpacity(0.2),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text("KAPAT", style: TextStyle(color: AppColors.primaryBlue, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // --- Üst menüdeki yuvarlak butonları hizalamak için yardımcı widget ---
+  Widget _buildHeaderBtn(IconData icon, Color color, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.15),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: color, size: 20),
+      ),
+    );
   }
 
   @override
@@ -131,78 +231,91 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // --- ŞIK VE FERAH ÜST MENÜ ---
               Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => const ProfileScreen()),
-                          );
-                        },
-                        child: const CircleAvatar(
-                          radius: 22,
-                          backgroundColor: AppColors.cardDark,
-                          child: Icon(Icons.person, color: Colors.white),
+                  Expanded(
+                    child: Row(
+                      children: [
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen()));
+                          },
+                          child: const CircleAvatar(
+                            radius: 22,
+                            backgroundColor: AppColors.cardDark,
+                            child: Icon(Icons.person, color: Colors.white),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text("Welcome Back", style: TextStyle(color: AppColors.textGrey, fontSize: 12)),
-                          Row(
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(homeName, style: const TextStyle(color: AppColors.textWhite, fontSize: 20, fontWeight: FontWeight.bold)),
-                              if (homeRole.isNotEmpty) ...[
-                                const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(color: AppColors.primaryBlue.withOpacity(0.2), borderRadius: BorderRadius.circular(4)),
-                                  child: Text(homeRole, style: const TextStyle(color: AppColors.primaryBlue, fontSize: 10, fontWeight: FontWeight.bold)),
-                                )
-                              ]
-                            ]
+                              Row(
+                                children: [
+                                  const Text("Welcome Back", style: TextStyle(color: AppColors.textGrey, fontSize: 12)),
+                                  const SizedBox(width: 8),
+                                  Container(width: 6, height: 6, decoration: const BoxDecoration(color: AppColors.accentGreen, shape: BoxShape.circle)),
+                                  const SizedBox(width: 4),
+                                  const Icon(Icons.wifi, color: AppColors.accentGreen, size: 12),
+                                ],
+                              ),
+                              const SizedBox(height: 2),
+                              Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      homeName,
+                                      style: const TextStyle(color: AppColors.textWhite, fontSize: 18, fontWeight: FontWeight.bold),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  if (homeRole.isNotEmpty) ...[
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(color: AppColors.primaryBlue.withOpacity(0.2), borderRadius: BorderRadius.circular(4)),
+                                      child: Text(homeRole, style: const TextStyle(color: AppColors.primaryBlue, fontSize: 10, fontWeight: FontWeight.bold)),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ],
+                        ),
+                      ],
+                    ),
                   ),
+
+                  // --- SAĞ TARAF: Aksiyon Butonları ---
                   Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: AppColors.cardDark,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.white12),
-                        ),
-                        child: Row(
-                          children: const [
-                            Icon(Icons.circle, size: 8, color: AppColors.accentGreen),
-                            SizedBox(width: 6),
-                            Text("MQTT", style: TextStyle(color: AppColors.textWhite, fontSize: 11, fontWeight: FontWeight.bold)),
-                          ],
-                        ),
-                      ),
+                      if (homeRole == 'ADMIN') ...[
+                        _buildHeaderBtn(Icons.qr_code, AppColors.accentGreen, () {
+                          
+                          // İŞTE SİHİRLİ DOKUNUŞ: 'homeid' eklendi!
+                          final currentHomeId = selectedHome?['home_id'] ?? selectedHome?['id'] ?? selectedHome?['homeid'];
+                          
+                          if (currentHomeId != null) {
+                            _generateAndShowQr(currentHomeId.toString(), homeName);
+                          } else {
+                            print("❌ HATA: Ev ID'si hala bulunamadı!");
+                          }
+                        }),
+                        const SizedBox(width: 8),
+                      ],
+                      _buildHeaderBtn(Icons.swap_horiz, AppColors.primaryBlue, () {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(builder: (context) => const HomeSelectionScreen()),
+                        );
+                      }),
                       const SizedBox(width: 8),
-                      const Icon(Icons.wifi, color: Colors.white, size: 20),
-                      const SizedBox(width: 12),
-                      InkWell(
-                        onTap: _handleLogout,
-                        borderRadius: BorderRadius.circular(20),
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: AppColors.accentRed.withOpacity(0.2),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.logout, color: AppColors.accentRed, size: 20),
-                        ),
-                      ),
+                      _buildHeaderBtn(Icons.logout, AppColors.accentRed, _handleLogout),
                     ],
                   ),
                 ],
@@ -314,7 +427,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
               const SizedBox(height: 24),
 
-              // --- 3. ENVIRONMENTAL METRICS ---
               Row(
                 children: const [
                   Expanded(
@@ -341,7 +453,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
               const SizedBox(height: 24),
 
-              // --- 4. SECURITY STATUS ---
               const Text("Security Status", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
               Row(
@@ -349,7 +460,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   Expanded(
                     child: GestureDetector(
                       onTap: () => _onBottomNavTapped(2),
-
                       child: const SensorCard(
                         title: "Gas Sensor",
                         value: "SAFE",
@@ -364,7 +474,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   Expanded(
                     child: GestureDetector(
                       onTap: () => _onBottomNavTapped(2),
-
                       child: const SensorCard(
                         title: "Vibration",
                         value: "STABLE",
@@ -380,7 +489,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
               const SizedBox(height: 24),
 
-              // --- 5. QUICK ACCESS ---
               const Text("Quick Access", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
               Row(
@@ -391,14 +499,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   _buildQuickAccessBtn(Icons.ac_unit, "AC On", Colors.white24, iconColor: AppColors.primaryBlue),
                   _buildQuickAccessBtn(Icons.palette, "Mood", Colors.white24, iconColor: Colors.pinkAccent, onTap: () {
                     _onBottomNavTapped(1);
-
                   }),
                 ],
               ),
 
               const SizedBox(height: 24),
 
-              // --- 6. DEVICE CONTROL CARD ---
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -446,16 +552,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: AppColors.cardDark,
         selectedItemColor: AppColors.primaryBlue,
-
         unselectedItemColor: Colors.grey,
         type: BottomNavigationBarType.fixed,
         currentIndex: 0,
-
         onTap: _onBottomNavTapped,
         showSelectedLabels: true,
-
         showUnselectedLabels: true,
-
         selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
         unselectedLabelStyle: const TextStyle(fontSize: 12),
         items: const [
