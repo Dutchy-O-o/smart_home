@@ -101,12 +101,23 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
           for (var prop in props) {
             String pName = prop['property_name'];
             var val = prop['current_value'];
-            // Parsing strings from DB
-            if (val == "ON") val = true;
-            else if (val == "OFF") val = false;
-            else if (val is String && double.tryParse(val) != null && !pName.contains("color")) {
-               val = double.parse(val);
+
+            // Gelişmiş Default Değer Atama (Değer DB'den null geldiyse)
+            if (val == null || val == "null" || val == "") {
+              if (pName == 'power') val = 'off';
+              else if (pName == 'brightness' || pName == 'volume') val = 50;
+              else if (pName == 'color') val = '#FFFFFF';
+              else if (pName == 'position') val = 100; // Blinds varsayılan %100 açık
+              else if (pName == 'playback') val = 'stop'; // Speaker varsayılan kapalı
+            } else {
+              // Değer geldiyse küçük harfe çevirerek normalize et (ON -> on)
+              if (val is String && (val.toUpperCase() == "ON" || val.toUpperCase() == "OFF")) {
+                val = val.toLowerCase();
+              } else if (val is String && double.tryParse(val) != null && !pName.contains("color")) {
+                val = double.parse(val);
+              }
             }
+
             _deviceStates[id]![pName] = val;
           }
         }
