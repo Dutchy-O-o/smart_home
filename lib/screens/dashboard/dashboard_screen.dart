@@ -17,6 +17,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../../providers/home_provider.dart';
 import '../../providers/auth_provider.dart';
 import 'home_selection_screen.dart';
+import '../../services/api_service.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -31,6 +32,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   List<dynamic> _userHomes = [];
   bool _isLoadingHomes = true;
   String _errorMessage = '';
+
+  String _temperature = "--";
+  String _humidity = "--";
+  String _gasStatus = "SAFE";
+  String _vibrationStatus = "STABLE";
+  String _lastHomeId = '';
 
   @override
   void initState() {
@@ -96,6 +103,33 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     ];
     if (routes[index] != null) {
       Navigator.push(context, MaterialPageRoute(builder: (context) => routes[index]!));
+    }
+  }
+
+  // --- SENSÖR VERİSİ ÇEKME ---
+  Future<void> _fetchSensors(String homeId) async {
+    final data = await ApiService.fetchSensors(homeId);
+    if (data != null && data['sensors'] != null) {
+      final sensors = data['sensors'] as Map<String, dynamic>;
+      
+      if (mounted) {
+        setState(() {
+          for (var deviceData in sensors.values) {
+            if (deviceData is Map) {
+              if (deviceData.containsKey('temperature')) _temperature = deviceData['temperature'].toString();
+              if (deviceData.containsKey('humidity')) _humidity = deviceData['humidity'].toString();
+              
+              if (deviceData.containsKey('status') && deviceData.containsKey('gas_level')) {
+                _gasStatus = deviceData['status'].toString().toUpperCase();
+              }
+              if (deviceData.containsKey('event') && deviceData.containsKey('vibration_intensity')) {
+                String evt = deviceData['event'].toString().toLowerCase();
+                _vibrationStatus = evt == 'earthquake_detected' ? 'DANGER' : 'STABLE';
+              }
+            }
+          }
+        });
+      }
     }
   }
 
@@ -222,6 +256,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final selectedHome = ref.watch(selectedHomeProvider);
     final homeName = selectedHome?['home_name'] ?? 'Home';
     final homeRole = selectedHome?['role']?.toString().toUpperCase() ?? '';
+    final homeId = (selectedHome?['home_id'] ?? selectedHome?['id'] ?? selectedHome?['homeid'])?.toString();
+
+    if (homeId != null && homeId.isNotEmpty && homeId != _lastHomeId) {
+       _lastHomeId = homeId;
+       WidgetsBinding.instance.addPostFrameCallback((_) {
+         _fetchSensors(homeId);
+       });
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -428,21 +470,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               const SizedBox(height: 24),
 
               Row(
-                children: const [
+                children: [
                   Expanded(
                     child: SensorCard(
                       title: "Temperature",
-                      value: "22",
+                      value: _temperature,
                       unit: "°C",
                       icon: Icons.thermostat,
                       iconColor: AppColors.accentOrange,
                     ),
                   ),
-                  SizedBox(width: 16),
+                  const SizedBox(width: 16),
                   Expanded(
                     child: SensorCard(
                       title: "Humidity",
-                      value: "45",
+                      value: _humidity,
                       unit: "%",
                       icon: Icons.water_drop,
                       iconColor: AppColors.primaryBlue,
@@ -460,13 +502,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   Expanded(
                     child: GestureDetector(
                       onTap: () => _onBottomNavTapped(2),
-                      child: const SensorCard(
+                      child: SensorCard(
                         title: "Gas Sensor",
-                        value: "SAFE",
+                        value: _gasStatus,
                         icon: Icons.cloud,
-                        iconColor: AppColors.accentGreen,
-                        status: "• NORMAL",
-                        statusColor: AppColors.accentGreen,
+                        iconColor: _gasStatus == 'DANGER' ? Colors.redAccent : AppColors.accentGreen,
+                        status: _gasStatus == 'DANGER' ? "• LEAK" : "• NORMAL",
+                        statusColor: _gasStatus == 'DANGER' ? Colors.redAccent : AppColors.accentGreen,
                       ),
                     ),
                   ),
@@ -474,13 +516,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   Expanded(
                     child: GestureDetector(
                       onTap: () => _onBottomNavTapped(2),
-                      child: const SensorCard(
+                      child: SensorCard(
                         title: "Vibration",
-                        value: "STABLE",
+                        value: _vibrationStatus,
                         icon: Icons.vibration,
-                        iconColor: AppColors.accentGreen,
-                        status: "• NO RISK",
-                        statusColor: AppColors.accentGreen,
+                        iconColor: _vibrationStatus == 'DANGER' ? Colors.redAccent : AppColors.accentGreen,
+                        status: _vibrationStatus == 'DANGER' ? "• QUAKE" : "• NO RISK",
+                        statusColor: _vibrationStatus == 'DANGER' ? Colors.redAccent : AppColors.accentGreen,
                       ),
                     ),
                   ),

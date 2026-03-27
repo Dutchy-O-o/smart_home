@@ -60,7 +60,6 @@ class ApiService {
     }
   }
 
-  /// GET /prod/{homeID}/sensor
   static Future<Map<String, dynamic>?> fetchSensors(String homeId) async {
     final url = Uri.parse('$baseUrl/$homeId/sensor');
     final headers = await _getHeaders();
