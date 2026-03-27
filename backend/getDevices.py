@@ -89,7 +89,7 @@ def lambda_handler(event, context):
             FROM devices d
             LEFT JOIN actuator_properties ap ON d.deviceid = ap.deviceid
             LEFT JOIN actuator_current_states acs ON ap.propertyid = acs.propertyid
-            WHERE d."homeid" = %s
+            WHERE d."homeid" = %s AND d.device_type != 'sensor'
             GROUP BY d.deviceid, d.device_type, d.device_name
             ORDER BY d.device_name ASC;
         """
