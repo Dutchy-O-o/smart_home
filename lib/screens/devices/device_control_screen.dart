@@ -78,6 +78,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
     _dataPollingTimer?.cancel();
     _dataPollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
       _fetchLatestSensorData();
+      _fetchDevices(); // Actuatorlar da 5 sn'de bir tablodan çekilsin
     });
   }
 
