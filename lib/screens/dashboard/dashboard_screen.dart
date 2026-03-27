@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../constants/app_colors.dart';
 import '../../widgets/sensor_card.dart';
@@ -38,6 +39,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   String _gasStatus = "SAFE";
   String _vibrationStatus = "STABLE";
   String _lastHomeId = '';
+  Timer? _dashboardPollingTimer;
+
+  @override
+  void dispose() {
+    _dashboardPollingTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -262,6 +270,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
        _lastHomeId = homeId;
        WidgetsBinding.instance.addPostFrameCallback((_) {
          _fetchSensors(homeId);
+       });
+       
+       _dashboardPollingTimer?.cancel();
+       _dashboardPollingTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+         if (mounted) _fetchSensors(homeId);
        });
     }
 
