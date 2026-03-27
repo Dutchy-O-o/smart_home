@@ -92,10 +92,12 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
         _devices = devices;
         _isLoading = false;
         
-        // Initialize local states from fetched properties
+        // Initialize local states from fetched properties, but PRESERVE sensor data if already fetched
         for (var device in _devices) {
           String id = device['deviceid'];
-          _deviceStates[id] = {};
+          if (_deviceStates[id] == null) {
+            _deviceStates[id] = {};
+          }
           
           List<dynamic> props = device['properties'] ?? [];
           for (var prop in props) {
@@ -118,7 +120,11 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
               }
             }
 
-            _deviceStates[id]![pName] = val;
+            // Sadece null değilse veya biz default bir değer atadıysak (isimli property'ler) kaydet
+            // Böylece diğer kaynaktan (sensörden) gelen tazedata null ile EZİLMEZ.
+            if (val != null && val != "null" && val != "") {
+              _deviceStates[id]![pName] = val;
+            }
           }
         }
       });
@@ -133,19 +139,45 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
     if (homeId == null) return;
 
     final data = await ApiService.fetchSensors(homeId);
+    
     if (data != null && data['sensors'] != null) {
       final sensors = data['sensors'] as Map<String, dynamic>;
       
-      for (var deviceData in sensors.values) {
-        if (deviceData is Map && deviceData.containsKey('temperature') && deviceData.containsKey('humidity')) {
-          if (mounted) {
-            setState(() {
-              _insideTemp = deviceData['temperature'].toString();
-              _insideHumidity = deviceData['humidity'].toString();
-            });
+      if (mounted) {
+        setState(() {
+          // Gelen her sensör verisini kendi cihaz ID'sine göre state'e kaydet
+          for (var entry in sensors.entries) {
+            String devId = entry.key;
+            var deviceData = entry.value;
+
+            if (deviceData is Map) {
+              if (_deviceStates[devId] == null) {
+                _deviceStates[devId] = {};
+              }
+              
+              if (deviceData.containsKey('temperature')) {
+                _deviceStates[devId]!['temperature'] = deviceData['temperature'];
+                _insideTemp = deviceData['temperature'].toString(); // Dashboard vs için globale de yazalım
+              }
+              if (deviceData.containsKey('humidity')) {
+                _deviceStates[devId]!['humidity'] = deviceData['humidity'];
+                _insideHumidity = deviceData['humidity'].toString();
+              }
+              if (deviceData.containsKey('gas_level')) {
+                _deviceStates[devId]!['gas_level'] = deviceData['gas_level'];
+                if (deviceData.containsKey('status')) {
+                  _deviceStates[devId]!['status'] = deviceData['status'];
+                }
+              }
+              if (deviceData.containsKey('vibration_intensity')) {
+                _deviceStates[devId]!['vibration_intensity'] = deviceData['vibration_intensity'];
+                if (deviceData.containsKey('event')) {
+                  _deviceStates[devId]!['event'] = deviceData['event'];
+                }
+              }
+            }
           }
-          break;
-        }
+        });
       }
     }
   }
