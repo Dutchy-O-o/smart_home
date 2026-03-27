@@ -3,15 +3,15 @@ import os
 import psycopg2 
 
 def lambda_handler(event, context):
-    print("Received Event:", json.dumps(event))
+    print("Gelen Event:", json.dumps(event))
 
-    # 1. Extract userId (sub) from API Gateway + Cognito Authorizer
+    # 1. API Gateway + Cognito Authorizer'dan userId'yi (sub) çıkar
     user_id = None
     
-    # Try fetching claim via Authorizer
+    # Authorizer üzerinden claim deneme
     if event.get("requestContext") and event["requestContext"].get("authorizer") and event["requestContext"]["authorizer"].get("claims"):
         user_id = event["requestContext"]["authorizer"]["claims"].get("sub")
-    # Query string for testing via Postman etc.
+    # Postman vs. test amaçlı queryString
     elif event.get("queryStringParameters") and event["queryStringParameters"].get("userId"):
         user_id = event["queryStringParameters"]["userId"]
 
@@ -22,10 +22,10 @@ def lambda_handler(event, context):
                 "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Credentials": True
             },
-            "body": json.dumps({"error": "Unauthorized or missing User ID."})
+            "body": json.dumps({"error": "Unauthorized veya Eksik User ID tespit edildi."})
         }
 
-    # 2. Environment Variables
+    # 2. Ortam Değişkenleri (Environment Variables)
     db_host = os.environ.get("DB_HOST")
     db_user = os.environ.get("DB_USER")
     db_password = os.environ.get("DB_PASSWORD")
@@ -35,14 +35,14 @@ def lambda_handler(event, context):
     connection = None
     
     try:
-        # 3. Connect to PostgreSQL
+        # 3. PostgreSQL'e bağlan (AWS RDS, Neon, Supabase fark etmez)
         connection = psycopg2.connect(
             host=db_host,
             user=db_user,
             password=db_password,
             dbname=db_name,
             port=db_port,
-            sslmode='require' 
+            sslmode='require' # Çoğu modern Postgres sunucusu ssl gerektirir
         )
         
         cursor = connection.cursor()
@@ -75,14 +75,14 @@ def lambda_handler(event, context):
         }
 
     except Exception as e:
-        print("Database or Processing Error:", e)
+        print("Veritabanı VEYA İşlem Hatası:", e)
         return {
             "statusCode": 500,
             "headers": {
                 "Access-Control-Allow-Origin": "*"
             },
             "body": json.dumps({
-                "error": "Server error, failed to list homes.",
+                "error": "Sunucu hatası, evler listelenemedi.",
                 "details": str(e)
             })
         }
