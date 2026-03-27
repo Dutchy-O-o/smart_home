@@ -255,7 +255,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                         card = _buildSmartBlindsCard(device);
                       } else if (name.contains('temp') || name.contains('nem') || type.contains('temp')) {
                         card = _buildTempHumidityCard(device);
-                      } else if (name.contains('gas') || name.contains('gaz') || type.contains('gas') || type == 'stove') {
+                      } else if (name.contains('gas') || name.contains('gaz') || type.contains('gas')) {
                         card = _buildGasCard(device);
                       } else if (name.contains('deprem') || name.contains('earthquake') || type.contains('vibration')) {
                         card = _buildEarthquakeCard(device);
@@ -903,34 +903,25 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
   // --- Premium Mini Widgets --- //
 
   Widget _buildPremiumBottomNav() {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        border: const Border(top: BorderSide(color: Colors.white10)),
-      ),
-      child: SafeArea(
-        child: BottomNavigationBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          selectedItemColor: AppColors.primaryBlue,
-          unselectedItemColor: Colors.grey[600],
-          type: BottomNavigationBarType.fixed,
-          currentIndex: 3,
-          onTap: _onBottomNavTapped,
-          showSelectedLabels: true,
-          showUnselectedLabels: true,
-          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
-          unselectedLabelStyle: const TextStyle(fontSize: 11),
-          items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.grid_view_rounded), label: 'Dash'),
-            BottomNavigationBarItem(icon: Icon(Icons.auto_awesome), label: 'AI Hub'),
-            BottomNavigationBarItem(icon: Icon(Icons.videocam_outlined), label: 'CCTV'),
-            BottomNavigationBarItem(icon: Icon(Icons.tune_rounded), label: 'Control'),
-            BottomNavigationBarItem(icon: Icon(Icons.notifications_none_rounded), label: 'Alerts'),
-            BottomNavigationBarItem(icon: Icon(Icons.person_outline_rounded), label: 'Profile'),
-          ],
-        ),
-      ),
+    return BottomNavigationBar(
+      backgroundColor: AppColors.cardDark,
+      selectedItemColor: AppColors.primaryBlue,
+      unselectedItemColor: Colors.grey,
+      type: BottomNavigationBarType.fixed,
+      currentIndex: 3,
+      onTap: _onBottomNavTapped,
+      showSelectedLabels: true,
+      showUnselectedLabels: true,
+      selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+      unselectedLabelStyle: const TextStyle(fontSize: 12),
+      items: const [
+        BottomNavigationBarItem(icon: Icon(Icons.grid_view), label: 'Dash'),
+        BottomNavigationBarItem(icon: Icon(Icons.sentiment_satisfied_alt), label: 'Emotion'),
+        BottomNavigationBarItem(icon: Icon(Icons.security), label: 'Security'),
+        BottomNavigationBarItem(icon: Icon(Icons.devices), label: 'Devices'),
+        BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Alerts'),
+        BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+      ],
     );
   }
 
