@@ -5,6 +5,7 @@ import '../ai_hub/emotion_hub_screen.dart';
 import '../security/monitoring_screen.dart';
 import '../devices/device_control_screen.dart';
 import '../notifications/notification_screen.dart';
+import '../automations/automations_list_screen.dart';
 import '../auth/login_screen.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -30,12 +31,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     } else if (index == 1) {
       Navigator.push(context, MaterialPageRoute(builder: (context) => const EmotionHubScreen()));
     } else if (index == 2) {
-      Navigator.push(context, MaterialPageRoute(builder: (context) => const MonitoringScreen()));
+      Navigator.push(context, MaterialPageRoute(builder: (context) => const AutomationsListScreen()));
     } else if (index == 3) {
-      Navigator.push(context, MaterialPageRoute(builder: (context) => const DeviceControlScreen()));
+      Navigator.push(context, MaterialPageRoute(builder: (context) => const MonitoringScreen()));
     } else if (index == 4) {
-      Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationScreen()));
+      Navigator.push(context, MaterialPageRoute(builder: (context) => const DeviceControlScreen()));
     } else if (index == 5) {
+      Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationScreen()));
+    } else if (index == 6) {
+      // Already on Profile
     }
   }
 
@@ -246,7 +250,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         selectedItemColor: AppColors.primaryBlue,
         unselectedItemColor: Colors.grey,
         type: BottomNavigationBarType.fixed,
-        currentIndex: 5, // 6. Eleman (Profile)
+        currentIndex: 6,
         onTap: _onBottomNavTapped,
         showSelectedLabels: true,
         showUnselectedLabels: true,
@@ -255,11 +259,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.grid_view), label: 'Dash'),
           BottomNavigationBarItem(icon: Icon(Icons.sentiment_satisfied_alt), label: 'Emotion'),
+          BottomNavigationBarItem(icon: Icon(Icons.auto_awesome), label: 'Automate'),
           BottomNavigationBarItem(icon: Icon(Icons.security), label: 'Security'),
           BottomNavigationBarItem(icon: Icon(Icons.devices), label: 'Devices'),
           BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Alerts'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-
         ],
       ),
     );

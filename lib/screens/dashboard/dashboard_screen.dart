@@ -6,8 +6,10 @@ import '../auth/login_screen.dart';
 import '../ai_hub/emotion_hub_screen.dart'; 
 import '../security/monitoring_screen.dart';
 import '../devices/device_control_screen.dart';
+import '../devices/device_control_screen.dart';
 import '../notifications/notification_screen.dart';
 import '../profile/profile_screen.dart';
+import '../automations/automations_list_screen.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:amplify_flutter/amplify_flutter.dart';
@@ -102,14 +104,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   void _onBottomNavTapped(int index) {
     if (index == 0) return;
     final routes = [
-      null,
-      const EmotionHubScreen(),
-      const MonitoringScreen(),
-      const DeviceControlScreen(),
-      const NotificationScreen(),
-      const ProfileScreen(),
+      null, // Dash
+      const EmotionHubScreen(), // Emotion
+      const AutomationsListScreen(), // Automate
+      const MonitoringScreen(), // Security
+      const DeviceControlScreen(), // Devices
+      const NotificationScreen(), // Alerts
+      const ProfileScreen(), // Profile
     ];
-    if (routes[index] != null) {
+    if (index < routes.length && routes[index] != null) {
       Navigator.push(context, MaterialPageRoute(builder: (context) => routes[index]!));
     }
   }
@@ -618,6 +621,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.grid_view), label: 'Dash'),
           BottomNavigationBarItem(icon: Icon(Icons.sentiment_satisfied_alt), label: 'Emotion'),
+          BottomNavigationBarItem(icon: Icon(Icons.auto_awesome), label: 'Automate'),
           BottomNavigationBarItem(icon: Icon(Icons.security), label: 'Security'),
           BottomNavigationBarItem(icon: Icon(Icons.devices), label: 'Devices'),
           BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Alerts'),

@@ -5,7 +5,7 @@ import '../ai_hub/emotion_hub_screen.dart';
 import '../devices/device_control_screen.dart';
 
 import '../notifications/notification_screen.dart';
-
+import '../automations/automations_list_screen.dart';
 import '../profile/profile_screen.dart';
 
 
@@ -25,26 +25,17 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
         (route) => false,
       );
     } else if (index == 1) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const EmotionHubScreen()),
-      );
+      Navigator.push(context, MaterialPageRoute(builder: (context) => const EmotionHubScreen()));
     } else if (index == 2) {
+      Navigator.push(context, MaterialPageRoute(builder: (context) => const AutomationsListScreen()));
     } else if (index == 3) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const DeviceControlScreen()),
-      );
+      // Already on Security
     } else if (index == 4) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const NotificationScreen()),
-      );
+      Navigator.push(context, MaterialPageRoute(builder: (context) => const DeviceControlScreen()));
     } else if (index == 5) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const ProfileScreen()),
-      );
+      Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationScreen()));
+    } else if (index == 6) {
+      Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen()));
     }
   }
 
@@ -337,15 +328,16 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
         selectedItemColor: AppColors.accentGreen,
         unselectedItemColor: Colors.grey,
         type: BottomNavigationBarType.fixed,
-        currentIndex: 2,
+        currentIndex: 3,
         onTap: _onBottomNavTapped,
         showSelectedLabels: true, 
         showUnselectedLabels: true,
-        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-        unselectedLabelStyle: const TextStyle(fontSize: 12),
+        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
+        unselectedLabelStyle: const TextStyle(fontSize: 10),
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.grid_view), label: 'Dash'),
           BottomNavigationBarItem(icon: Icon(Icons.sentiment_satisfied_alt), label: 'Emotion'),
+          BottomNavigationBarItem(icon: Icon(Icons.auto_awesome), label: 'Automate'),
           BottomNavigationBarItem(icon: Icon(Icons.security), label: 'Security'),
           BottomNavigationBarItem(icon: Icon(Icons.devices), label: 'Devices'),
           BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Alerts'),

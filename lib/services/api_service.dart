@@ -98,4 +98,49 @@ class ApiService {
       return null;
     }
   }
+
+  /// GET /prod/{homeID}/automations
+  static Future<List<dynamic>?> fetchAutomations(String homeId) async {
+    final url = Uri.parse('$baseUrl/$homeId/automations');
+    final headers = await _getHeaders();
+
+    try {
+      final response = await http.get(url, headers: headers);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['automations'] as List<dynamic>?;
+      } else {
+        safePrint('Failed to fetch automations. Status: ${response.statusCode}');
+        safePrint('Body: ${response.body}'); // <-- gerçek Lambda hatasını gösterir
+        return null;
+      }
+    } catch (e) {
+      safePrint('API connection error fetching automations: $e');
+      return null;
+    }
+  }
+
+  /// POST /prod/{homeID}/automations
+  static Future<bool> saveAutomation(String homeId, Map<String, dynamic> payload) async {
+    final url = Uri.parse('$baseUrl/$homeId/automations');
+    final headers = await _getHeaders();
+
+    try {
+      final response = await http.post(
+        url,
+        headers: headers,
+        body: jsonEncode(payload),
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return true;
+      } else {
+        safePrint('Failed to save automation. Status: ${response.statusCode}');
+        safePrint('Response Body: ${response.body}');
+        return false;
+      }
+    } catch (e) {
+      safePrint('API connection error saving automation: $e');
+      return false;
+    }
+  }
 }

@@ -8,6 +8,7 @@ import '../../services/api_service.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../ai_hub/emotion_hub_screen.dart';
 import '../security/monitoring_screen.dart';
+import '../automations/automations_list_screen.dart';
 import '../notifications/notification_screen.dart';
 import '../profile/profile_screen.dart';
 
@@ -219,17 +220,6 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
     });
   }
 
-  void _onBottomNavTapped(int index) {
-    final routes = [
-      () => Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const DashboardScreen()), (r) => false),
-      () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EmotionHubScreen())),
-      () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MonitoringScreen())),
-      () {}, // Self
-      () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationScreen())),
-      () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen())),
-    ];
-    routes.elementAt(index)();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -946,13 +936,29 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
 
   // --- Premium Mini Widgets --- //
 
+  void _onBottomNavTapped(int index) {
+    if (index == 4) return; // Current (Devices)
+    final routes = [
+      const DashboardScreen(), // Dash
+      const EmotionHubScreen(), // Emotion
+      const AutomationsListScreen(), // Automate
+      const MonitoringScreen(), // Security
+      null, // Current Devices
+      const NotificationScreen(), // Alerts
+      const ProfileScreen(), // Profile
+    ];
+    if (index < routes.length && routes[index] != null) {
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => routes[index]!));
+    }
+  }
+
   Widget _buildPremiumBottomNav() {
     return BottomNavigationBar(
       backgroundColor: AppColors.cardDark,
       selectedItemColor: AppColors.primaryBlue,
       unselectedItemColor: Colors.grey,
       type: BottomNavigationBarType.fixed,
-      currentIndex: 3,
+      currentIndex: 4,
       onTap: _onBottomNavTapped,
       showSelectedLabels: true,
       showUnselectedLabels: true,
@@ -961,6 +967,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
       items: const [
         BottomNavigationBarItem(icon: Icon(Icons.grid_view), label: 'Dash'),
         BottomNavigationBarItem(icon: Icon(Icons.sentiment_satisfied_alt), label: 'Emotion'),
+        BottomNavigationBarItem(icon: Icon(Icons.auto_awesome), label: 'Automate'),
         BottomNavigationBarItem(icon: Icon(Icons.security), label: 'Security'),
         BottomNavigationBarItem(icon: Icon(Icons.devices), label: 'Devices'),
         BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Alerts'),
