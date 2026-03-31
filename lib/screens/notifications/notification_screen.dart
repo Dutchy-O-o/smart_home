@@ -5,7 +5,7 @@ import '../ai_hub/emotion_hub_screen.dart';
 import '../security/monitoring_screen.dart';
 import '../devices/device_control_screen.dart';
 import '../profile/profile_screen.dart';
-
+import '../automations/automations_list_screen.dart';
 
 class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});
@@ -26,26 +26,17 @@ class _NotificationScreenState extends State<NotificationScreen> {
         (route) => false,
       );
     } else if (index == 1) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const EmotionHubScreen()),
-      );
+      Navigator.push(context, MaterialPageRoute(builder: (context) => const EmotionHubScreen()));
     } else if (index == 2) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const MonitoringScreen()),
-      );
+      Navigator.push(context, MaterialPageRoute(builder: (context) => const AutomationsListScreen()));
     } else if (index == 3) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const DeviceControlScreen()),
-      );
+      Navigator.push(context, MaterialPageRoute(builder: (context) => const MonitoringScreen()));
     } else if (index == 4) {
+      Navigator.push(context, MaterialPageRoute(builder: (context) => const DeviceControlScreen()));
     } else if (index == 5) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const ProfileScreen()),
-      );
+      // Already on Alerts
+    } else if (index == 6) {
+      Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen()));
     }
   }
 
@@ -214,10 +205,9 @@ class _NotificationScreenState extends State<NotificationScreen> {
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: AppColors.cardDark,
         selectedItemColor: AppColors.accentRed,
-
         unselectedItemColor: Colors.grey,
         type: BottomNavigationBarType.fixed,
-        currentIndex: 4, // 5. Eleman (Alerts)
+        currentIndex: 5,
         onTap: _onBottomNavTapped,
         showSelectedLabels: true,
         showUnselectedLabels: true,
@@ -226,6 +216,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.grid_view), label: 'Dash'),
           BottomNavigationBarItem(icon: Icon(Icons.sentiment_satisfied_alt), label: 'Emotion'),
+          BottomNavigationBarItem(icon: Icon(Icons.auto_awesome), label: 'Automate'),
           BottomNavigationBarItem(icon: Icon(Icons.security), label: 'Security'),
           BottomNavigationBarItem(icon: Icon(Icons.devices), label: 'Devices'),
           BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Alerts'),
