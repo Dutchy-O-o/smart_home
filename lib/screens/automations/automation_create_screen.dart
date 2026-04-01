@@ -30,9 +30,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
 
   // Action State (MVP: List of predefined devices to pick from)
   List<dynamic> _availableDevices = [];
-  String? _selectedDeviceId;
-  bool _actionPower = true;
-  double _actionBrightness = 80;
+  List<Map<String, dynamic>> _addedActions = [];
 
   @override
   void initState() {
@@ -62,9 +60,21 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
       }
       
       // Load action MVP
-      if (widget.existingData!['actions'] != null && widget.existingData!['actions'].isNotEmpty) {
-        var firstAction = widget.existingData!['actions'][0];
-        _selectedDeviceId = firstAction['deviceID']?.toString();
+      if (widget.existingData!['actions'] != null) {
+        for (var action in widget.existingData!['actions']) {
+          var details = action['details'] ?? {};
+          _addedActions.add({
+             'device_id': action['device_id']?.toString() ?? '',
+             'device_name': action['device_name']?.toString() ?? 'Unknown Device',
+             'device_type': 'unknown',
+             'power': details['power'] == 'on' || details['state'] == 'on',
+             'brightness': num.tryParse(details['brightness']?.toString() ?? '') ?? 80,
+             'color': details['color']?.toString() ?? '#FFFFFF',
+             'volume': num.tryParse(details['volume']?.toString() ?? '') ?? 50,
+             'playback': details['playback']?.toString() ?? 'play',
+             'position': num.tryParse(details['position']?.toString() ?? '') ?? 100,
+          });
+        }
       }
     }
   }
@@ -78,36 +88,19 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
     if (devs != null && mounted) {
       setState(() {
         _availableDevices = devs;
+        // Update device types and names for loaded actions
+        for (var i = 0; i < _addedActions.length; i++) {
+          final matched = devs.where((d) => d['deviceid'].toString() == _addedActions[i]['device_id'].toString()).toList();
+          if (matched.isNotEmpty) {
+             _addedActions[i]['device_type'] = matched.first['device_type']?.toString().toLowerCase() ?? 'unknown';
+             _addedActions[i]['device_name'] = matched.first['device_name']?.toString() ?? 'Device';
+          }
+        }
       });
     }
   }
 
-  Map<String, dynamic>? get _selectedDevice {
-    if (_selectedDeviceId == null || _availableDevices.isEmpty) return null;
-    try {
-      return _availableDevices.firstWhere((dev) => dev['deviceid'].toString() == _selectedDeviceId);
-    } catch (_) {
-      return null;
-    }
-  }
 
-  String get _deviceType {
-    return _selectedDevice?['device_type']?.toString().toLowerCase() ?? '';
-  }
-  
-  String get _deviceName {
-    return _selectedDevice?['device_name']?.toString().toLowerCase() ?? '';
-  }
-
-  bool get _isLed => _deviceType == 'led' || _deviceType == 'light' || _deviceType == 'smartbulb' || _deviceName.contains('led') || _deviceName.contains('light');
-  bool get _isSpeaker => _deviceType == 'speaker' || _deviceType == 'audio' || _deviceName.contains('speaker');
-  bool get _isBlinds => _deviceType == 'blinds' || _deviceType == 'curtain' || _deviceName.contains('blind');
-
-  // Action states for specific devices
-  String _actionColor = '#FFFFFF';
-  int _actionVolume = 50;
-  String _actionPlayback = 'play';
-  int _actionPosition = 100;
 
   Future<void> _saveAutomation() async {
     final selectedHome = ref.read(selectedHomeProvider);
@@ -123,8 +116,8 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
       return;
     }
 
-    if (_selectedDeviceId == null && widget.existingData == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select a target device.', style: TextStyle(color: Colors.white)), backgroundColor: AppColors.accentOrange));
+    if (_addedActions.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please add at least one device action.', style: TextStyle(color: Colors.white)), backgroundColor: AppColors.accentOrange));
       return;
     }
 
@@ -142,24 +135,30 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
 
     setState(() { _isSaving = true; });
 
-    List<Map<String, dynamic>> actions = [
-      {
-        "device_id": _selectedDeviceId ?? 'unknown-device',
-        "details": <String, dynamic>{
-          "state": _actionPower ? "on" : "off"
-        }
-      }
-    ];
+    List<Map<String, dynamic>> actions = _addedActions.map((act) {
+       Map<String, dynamic> details = <String, dynamic>{
+          "power": (act['power'] == true) ? "on" : "off"
+       };
+       final dtype = act['device_type'].toString();
+       final dname = act['device_name'].toString().toLowerCase();
+       bool isLed = dtype == 'led' || dtype == 'light' || dtype == 'smartbulb' || dname.contains('led') || dname.contains('light');
+       bool isSpk = dtype == 'speaker' || dtype == 'audio' || dname.contains('speaker');
+       bool isBld = dtype == 'blinds' || dtype == 'curtain' || dname.contains('blind');
 
-    if (_isLed) {
-      actions[0]["details"]["brightness"] = _actionBrightness.toInt();
-      actions[0]["details"]["color"] = _actionColor;
-    } else if (_isSpeaker) {
-      actions[0]["details"]["volume"] = _actionVolume.toInt();
-      actions[0]["details"]["playback"] = _actionPlayback;
-    } else if (_isBlinds) {
-      actions[0]["details"]["position"] = _actionPosition.toInt();
-    }
+       if (isLed) {
+          details["brightness"] = (num.tryParse(act['brightness']?.toString() ?? '') ?? 80).toInt();
+          details["color"] = act["color"]?.toString() ?? '#FFFFFF';
+       } else if (isSpk) {
+          details["volume"] = (num.tryParse(act['volume']?.toString() ?? '') ?? 50).toInt();
+          details["playback"] = act["playback"]?.toString() ?? 'play';
+       } else if (isBld) {
+          details["position"] = (num.tryParse(act['position']?.toString() ?? '') ?? 100).toInt();
+       }
+       return {
+          "device_id": act['device_id'],
+          "details": details
+       };
+    }).toList();
 
     Map<String, dynamic> payload = {
       "rule_name": _nameController.text.trim(),
@@ -209,7 +208,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text("Automation Settings", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: Text(widget.existingData != null ? 'Edit Automation' : 'New Automation', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
@@ -241,7 +240,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
                 style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                 cursorColor: AppColors.primaryBlue,
                 decoration: const InputDecoration(
-                  hintText: 'Otomasyon Adı (Örn: Gece Modu)',
+                  hintText: 'Automation Name (e.g. Night Mode)',
                   hintStyle: TextStyle(color: Colors.white30, fontWeight: FontWeight.normal),
                   border: InputBorder.none,
                   contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -356,10 +355,13 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
 
   Widget _buildEmotionGrid() {
     final emotions = [
-      {'id': 'happy', 'label': 'Happy', 'icon': '😊', 'color': Colors.amber},
-      {'id': 'sad', 'label': 'Sad', 'icon': '😢', 'color': Colors.blueGrey},
       {'id': 'angry', 'label': 'Angry', 'icon': '😠', 'color': Colors.redAccent},
+      {'id': 'disgust', 'label': 'Disgust', 'icon': '🤢', 'color': Colors.green},
+      {'id': 'fear', 'label': 'Fear', 'icon': '😨', 'color': Colors.deepPurple},
+      {'id': 'happy', 'label': 'Happy', 'icon': '😊', 'color': Colors.amber},
       {'id': 'neutral', 'label': 'Neutral', 'icon': '😐', 'color': Colors.teal},
+      {'id': 'sad', 'label': 'Sad', 'icon': '😢', 'color': Colors.blueGrey},
+      {'id': 'surprise', 'label': 'Surprise', 'icon': '😲', 'color': Colors.orangeAccent},
     ];
 
     return _buildGlassCard(
@@ -368,10 +370,10 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          childAspectRatio: 1.3,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
+          crossAxisCount: 3,
+          childAspectRatio: 1.1,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
         ),
         itemCount: emotions.length,
         itemBuilder: (context, index) {
@@ -484,187 +486,256 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
   }
 
   Widget _buildActionCard() {
-    return _buildGlassCard(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+    return Column(
+      children: [
+        if (_addedActions.isNotEmpty)
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _addedActions.length,
+            itemBuilder: (context, index) {
+              return _buildDeviceActionCard(index);
+            },
+          ),
+        const SizedBox(height: 16),
+        InkWell(
+          onTap: _showAddDeviceModal,
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.white.withOpacity(0.2), style: BorderStyle.solid),
+              borderRadius: BorderRadius.circular(16),
+              color: Colors.white.withOpacity(0.02),
+            ),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.add_circle_outline, color: AppColors.primaryBlue),
+                SizedBox(width: 8),
+                Text("Add Target Device", style: TextStyle(color: AppColors.primaryBlue, fontWeight: FontWeight.bold, fontSize: 16)),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showAddDeviceModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.cardDark,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          height: MediaQuery.of(context).size.height * 0.6,
+          child: Column(
+            children: [
+              const Text("Select Device", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              Expanded(
+                child: Builder(
+                  builder: (context) {
+                    final unaddedDevices = _availableDevices.where((d) => 
+                       !_addedActions.any((a) => a['device_id'].toString() == d['deviceid'].toString())
+                    ).toList();
+                    
+                    if (_availableDevices.isEmpty) {
+                      return const Center(child: Text("No devices found.", style: TextStyle(color: Colors.white54)));
+                    } else if (unaddedDevices.isEmpty) {
+                      return const Center(child: Text("All devices are already added.", style: TextStyle(color: Colors.white54)));
+                    }
+
+                    return ListView.builder(
+                      itemCount: unaddedDevices.length,
+                      itemBuilder: (context, index) {
+                        final dev = unaddedDevices[index];
+                        return ListTile(
+                          title: Text(dev['device_name'].toString(), style: const TextStyle(color: Colors.white)),
+                          subtitle: Text(dev['device_type'].toString(), style: const TextStyle(color: Colors.white54)),
+                          trailing: const Icon(Icons.add, color: AppColors.primaryBlue),
+                          onTap: () {
+                            setState(() {
+                               _addedActions.add({
+                                  'device_id': dev['deviceid'].toString(),
+                                  'device_name': dev['device_name'].toString(),
+                                  'device_type': dev['device_type'].toString().toLowerCase(),
+                                  'power': true,
+                                  'brightness': 80,
+                                  'color': '#FFFFFF',
+                                  'volume': 50,
+                                  'playback': 'play',
+                                  'position': 100,
+                               });
+                            });
+                            Navigator.pop(context);
+                          },
+                        );
+                      },
+                    );
+                  }
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDeviceActionCard(int index) {
+    final act = _addedActions[index];
+    final dtype = act['device_type'].toString();
+    final dname = act['device_name'].toString().toLowerCase();
+    bool isLed = dtype == 'led' || dtype == 'light' || dtype == 'smartbulb' || dname.contains('led') || dname.contains('light');
+    bool isSpk = dtype == 'speaker' || dtype == 'audio' || dname.contains('speaker');
+    bool isBld = dtype == 'blinds' || dtype == 'curtain' || dname.contains('blind');
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.cardDark,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-                child: const Icon(Icons.devices_other, color: Colors.white, size: 24),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                child: Icon(isLed ? Icons.lightbulb : isSpk ? Icons.speaker : Icons.blinds, color: Colors.white, size: 20),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text("Hedef Cihaz", style: TextStyle(color: Colors.white54, fontSize: 12)),
-                    const SizedBox(height: 4),
-                    DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        isExpanded: true,
-                        isDense: true,
-                        dropdownColor: AppColors.cardDark,
-                        hint: const Text('Select Device', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                        value: _selectedDeviceId,
-                        icon: const Icon(Icons.expand_more, color: Colors.white),
-                        style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-                        items: _availableDevices.map((dev) {
-                          return DropdownMenuItem<String>(
-                            value: dev['deviceid'].toString(),
-                            child: Text(dev['device_name'].toString(), overflow: TextOverflow.ellipsis),
-                          );
-                        }).toList(),
-                        onChanged: (val) {
-                           setState(() {
-                             _selectedDeviceId = val;
-                             // Reset state to defaults on change
-                             _actionPower = true;
-                             _actionColor = '#FFFFFF';
-                             _actionBrightness = 80;
-                             _actionVolume = 50;
-                             _actionPlayback = 'play';
-                             _actionPosition = 100;
-                           });
-                        },
-                      ),
-                    ),
-                  ],
-                ),
+                child: Text(act['device_name'].toString(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
               ),
               Switch(
-                value: _actionPower,
+                value: act['power'] as bool,
                 activeColor: AppColors.primaryBlue,
-                onChanged: (val) => setState(() => _actionPower = val),
+                onChanged: (val) {
+                  setState(() { _addedActions[index]['power'] = val; });
+                },
               ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                onPressed: () {
+                  setState(() { _addedActions.removeAt(index); });
+                },
+              )
             ],
           ),
-          
-          if (_selectedDeviceId != null) ...[
-            if (_isLed) ...[
-              const SizedBox(height: 24),
-              Divider(color: Colors.white.withOpacity(0.05), height: 1),
-              const SizedBox(height: 16),
-              
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _buildColorSelector(Colors.redAccent, '#FF0000'),
-                  _buildColorSelector(Colors.greenAccent, '#00FF00'),
-                  _buildColorSelector(Colors.blueAccent, '#0000FF'),
-                  _buildColorSelector(Colors.white, '#FFFFFF'),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  const Icon(Icons.brightness_low, color: Colors.grey, size: 20),
-                  Expanded(
-                    child: SliderTheme(
-                      data: SliderTheme.of(context).copyWith(trackHeight: 4, activeTrackColor: AppColors.primaryBlue, thumbColor: AppColors.primaryBlue),
-                      child: Slider(
-                        value: _actionBrightness,
-                        min: 0,
-                        max: 100,
-                        onChanged: (val) => setState(() => _actionBrightness = val),
-                      ),
-                    ),
+          if (isLed) ...[
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildColorSelector(index, Colors.redAccent, '#FF0000'),
+                _buildColorSelector(index, Colors.greenAccent, '#00FF00'),
+                _buildColorSelector(index, Colors.blueAccent, '#0000FF'),
+                _buildColorSelector(index, Colors.white, '#FFFFFF'),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.brightness_low, color: Colors.grey, size: 16),
+                Expanded(
+                  child: Slider(
+                    value: (act['brightness'] as num).toDouble(),
+                    min: 0,
+                    max: 100,
+                    activeColor: AppColors.primaryBlue,
+                    onChanged: (val) => setState(() { _addedActions[index]['brightness'] = val.toInt(); }),
                   ),
-                  const Icon(Icons.brightness_high, color: Colors.grey, size: 20),
-                ],
-              ),
-            ] else if (_isSpeaker) ...[
-              const SizedBox(height: 24),
-              Divider(color: Colors.white.withOpacity(0.05), height: 1),
-              const SizedBox(height: 16),
-              
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _buildPlaybackButton(Icons.play_arrow, 'play'),
-                  _buildPlaybackButton(Icons.pause, 'pause'),
-                  _buildPlaybackButton(Icons.stop, 'stop'),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  const Icon(Icons.volume_down, color: Colors.grey, size: 20),
-                  Expanded(
-                    child: SliderTheme(
-                      data: SliderTheme.of(context).copyWith(trackHeight: 4, activeTrackColor: Colors.pinkAccent, thumbColor: Colors.pinkAccent),
-                      child: Slider(
-                        value: _actionVolume.toDouble(),
-                        min: 0,
-                        max: 100,
-                        onChanged: (val) => setState(() => _actionVolume = val.toInt()),
-                      ),
-                    ),
+                ),
+                const Icon(Icons.brightness_high, color: Colors.grey, size: 16),
+              ],
+            ),
+          ] else if (isSpk) ...[
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildPlaybackButton(index, Icons.play_arrow, 'play'),
+                _buildPlaybackButton(index, Icons.pause, 'pause'),
+                _buildPlaybackButton(index, Icons.stop, 'stop'),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.volume_down, color: Colors.grey, size: 16),
+                Expanded(
+                  child: Slider(
+                    value: (act['volume'] as num).toDouble(),
+                    min: 0,
+                    max: 100,
+                    activeColor: Colors.pinkAccent,
+                    onChanged: (val) => setState(() { _addedActions[index]['volume'] = val.toInt(); }),
                   ),
-                  const Icon(Icons.volume_up, color: Colors.grey, size: 20),
-                ],
-              ),
-            ] else if (_isBlinds) ...[
-              const SizedBox(height: 24),
-              Divider(color: Colors.white.withOpacity(0.05), height: 1),
-              const SizedBox(height: 16),
-              
-              Row(
-                children: [
-                  Text("0%", style: TextStyle(color: Colors.grey[500], fontSize: 12)),
-                  Expanded(
-                    child: SliderTheme(
-                      data: SliderTheme.of(context).copyWith(trackHeight: 4, activeTrackColor: Colors.cyanAccent, thumbColor: Colors.white),
-                      child: Slider(
-                        value: _actionPosition.toDouble(),
-                        min: 0,
-                        max: 100,
-                        onChanged: (val) => setState(() => _actionPosition = val.toInt()),
-                      ),
-                    ),
+                ),
+                const Icon(Icons.volume_up, color: Colors.grey, size: 16),
+              ],
+            ),
+          ] else if (isBld) ...[
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Text("0%", style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+                Expanded(
+                  child: Slider(
+                    value: (act['position'] as num).toDouble(),
+                    min: 0,
+                    max: 100,
+                    activeColor: Colors.cyanAccent,
+                    onChanged: (val) => setState(() { _addedActions[index]['position'] = val.toInt(); }),
                   ),
-                  Text("100%", style: TextStyle(color: Colors.grey[500], fontSize: 12)),
-                ],
-              ),
-            ]
+                ),
+                Text("100%", style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+              ],
+            ),
           ]
         ],
       ),
     );
   }
 
-  Widget _buildColorSelector(Color color, String hex) {
-    bool isSelected = _actionColor == hex;
+  Widget _buildColorSelector(int index, Color color, String hex) {
+    bool isSelected = _addedActions[index]['color'] == hex;
     return GestureDetector(
-      onTap: () => setState(() => _actionColor = hex),
+      onTap: () => setState(() { _addedActions[index]['color'] = hex; }),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        width: 32, height: 32,
+        width: 30, height: 30,
         decoration: BoxDecoration(
           color: color,
           shape: BoxShape.circle,
           border: isSelected ? Border.all(color: Colors.white, width: 2) : null,
-          boxShadow: isSelected ? [BoxShadow(color: color.withOpacity(0.5), blurRadius: 8)] : [],
+          boxShadow: isSelected ? [BoxShadow(color: color.withOpacity(0.5), blurRadius: 6)] : [],
         ),
       ),
     );
   }
 
-  Widget _buildPlaybackButton(IconData icon, String action) {
-    bool isSelected = _actionPlayback == action;
+  Widget _buildPlaybackButton(int index, IconData icon, String action) {
+    bool isSelected = _addedActions[index]['playback'] == action;
     return GestureDetector(
-      onTap: () => setState(() => _actionPlayback = action),
+      onTap: () => setState(() { _addedActions[index]['playback'] = action; }),
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: isSelected ? Colors.pinkAccent.withOpacity(0.2) : Colors.white.withOpacity(0.05),
           shape: BoxShape.circle,
           border: isSelected ? Border.all(color: Colors.pinkAccent) : null,
         ),
-        child: Icon(icon, color: isSelected ? Colors.pinkAccent : Colors.grey, size: 24),
+        child: Icon(icon, color: isSelected ? Colors.pinkAccent : Colors.grey, size: 20),
       ),
     );
   }

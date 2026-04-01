@@ -78,7 +78,7 @@ class _AutomationsListScreenState extends ConsumerState<AutomationsListScreen> {
           }
         },
         icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text("Yeni Otomasyon", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        label: const Text("New Automation", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       ),
       bottomNavigationBar: _buildPremiumBottomNav(),
     );
@@ -169,43 +169,137 @@ class _AutomationsListScreenState extends ConsumerState<AutomationsListScreen> {
         final name = auto['rule_name'] ?? 'Unnamed Automation';
         final isEnabled = auto['is_enabled'] ?? false;
         final condition = auto['trigger_condition'] ?? '';
+        final actions = (auto['actions'] as List<dynamic>?) ?? [];
         
         bool isAI = condition.toString().contains('emotion');
+        
+        // Build action summary
+        String actionSummary = "";
+        if (actions.isEmpty) {
+          actionSummary = "No actions configured";
+        } else {
+          List<String> actionTexts = [];
+          for (var act in actions) {
+            String actText = "\u2022 ${act['device_name']}: ";
+            var det = act['details'] ?? {};
+            if (det['power'] == 'off' || det['state'] == 'off') {
+              actText += "Turn Off";
+            } else {
+              List<String> props = ["Turn On"];
+              if (det['brightness'] != null) props.add("Brightness ${det['brightness']}%");
+              if (det['volume'] != null) props.add("Vol ${det['volume']}%");
+              if (det['playback'] != null) props.add("${det['playback']}");
+              if (det['position'] != null) props.add("Open ${det['position']}%");
+              actText += props.join(', ');
+            }
+            actionTexts.add(actText);
+          }
+          actionSummary = "Actions:\n${actionTexts.join('\n')}";
+        }
+        return Dismissible(
+          key: Key(auto['rule_id']?.toString() ?? UniqueKey().toString()),
+          direction: DismissDirection.endToStart,
+          confirmDismiss: (direction) async {
+            // Step 1: Ask for confirmation
+            final confirmed = await showDialog<bool>(
+              context: context,
+              builder: (BuildContext ctx) {
+                return AlertDialog(
+                  backgroundColor: AppColors.cardDark,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  title: const Text("Delete Automation", style: TextStyle(color: Colors.white)),
+                  content: const Text("Are you sure you want to delete this automation?", style: TextStyle(color: Colors.white54)),
+                  actions: <Widget>[
+                    TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(false),
+                      child: const Text("CANCEL", style: TextStyle(color: Colors.white54)),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(true),
+                      child: const Text("DELETE", style: TextStyle(color: AppColors.accentRed)),
+                    ),
+                  ],
+                );
+              },
+            );
+            if (confirmed != true) return false;
 
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withOpacity(0.1)),
+            // Step 2: Call API
+            final ruleId = auto['rule_id'];
+            if (ruleId == null) return false;
+
+            final selectedHome = ref.read(selectedHomeProvider);
+            final homeId = (selectedHome?['home_id'] ?? selectedHome?['id'] ?? selectedHome?['homeid'])?.toString();
+            if (homeId == null) return false;
+
+            final success = await ApiService.deleteAutomation(homeId, ruleId.toString());
+            if (!success && mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Failed to delete automation.', style: TextStyle(color: Colors.white)), backgroundColor: AppColors.accentRed),
+              );
+            }
+            return success;
+          },
+          onDismissed: (direction) {
+            setState(() => _automations.removeAt(index));
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('"$name" deleted.', style: const TextStyle(color: Colors.white)),
+                  backgroundColor: AppColors.cardDark,
+                ),
+              );
+            }
+          },
+          background: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: AppColors.accentRed.withOpacity(0.8),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            alignment: Alignment.centerRight,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: const Icon(Icons.delete_outline, color: Colors.white, size: 32),
           ),
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-            leading: CircleAvatar(
-              backgroundColor: isAI ? AppColors.accentOrange.withOpacity(0.2) : AppColors.primaryBlue.withOpacity(0.2),
-              child: Icon(
-                isAI ? Icons.face : Icons.sensors,
-                color: isAI ? AppColors.accentOrange : AppColors.primaryBlue,
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white.withOpacity(0.1)),
+            ),
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              leading: CircleAvatar(
+                backgroundColor: isAI ? AppColors.accentOrange.withOpacity(0.2) : AppColors.primaryBlue.withOpacity(0.2),
+                child: Icon(
+                  isAI ? Icons.face : Icons.sensors,
+                  color: isAI ? AppColors.accentOrange : AppColors.primaryBlue,
+                ),
               ),
-            ),
-            title: Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-            subtitle: Padding(
-              padding: const EdgeInsets.only(top: 8.0),
-              child: Text(condition, style: const TextStyle(color: AppColors.textGrey, fontSize: 13)),
-            ),
-            trailing: Switch(
-              value: isEnabled,
-              activeColor: AppColors.primaryBlue,
-              onChanged: (val) {
-                // TODO: Update specific boolean switch via API
+              title: Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+              subtitle: Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("IF: $condition", style: const TextStyle(color: AppColors.primaryBlue, fontSize: 13, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 6),
+                    Text(actionSummary, style: const TextStyle(color: AppColors.textGrey, fontSize: 13, height: 1.4)),
+                  ],
+                ),
+              ),
+              trailing: const Icon(Icons.edit, color: Colors.white54, size: 20),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => AutomationCreateScreen(existingData: auto)),
+                ).then((_) {
+                  // Refresh on back
+                  _fetchAutomations();
+                });
               },
             ),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => AutomationCreateScreen(existingData: auto)),
-              );
-            },
           ),
         );
       },
