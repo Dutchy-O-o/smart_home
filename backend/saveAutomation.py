@@ -31,14 +31,29 @@ def lambda_handler(event, context):
         )
         cur = conn.cursor(cursor_factory=RealDictCursor)
         
-        # 1. Insert into automation_rules
-        rule_id = str(uuid.uuid4())
+        rule_id = body.get('rule_id')
         
-        cur.execute("""
-            INSERT INTO automation_rules (ruleid, homeid, rule_name, trigger_condition, is_enabled)
-            VALUES (%s, %s, %s, %s, %s)
-            RETURNING ruleid;
-        """, (rule_id, home_id, rule_name, trigger_condition, is_enabled))
+        if rule_id:
+            # Update existing rule
+            # Delete old action details and actions to recreate them
+            cur.execute("""
+                DELETE FROM action_details 
+                WHERE actionid IN (SELECT actionid FROM rule_actions WHERE ruleid = %s)
+            """, (rule_id,))
+            cur.execute("DELETE FROM rule_actions WHERE ruleid = %s", (rule_id,))
+            
+            cur.execute("""
+                UPDATE automation_rules 
+                SET rule_name = %s, trigger_condition = %s, is_enabled = %s 
+                WHERE ruleid = %s
+            """, (rule_name, trigger_condition, is_enabled, rule_id))
+        else:
+            # Create new rule
+            rule_id = str(uuid.uuid4())
+            cur.execute("""
+                INSERT INTO automation_rules (ruleid, homeid, rule_name, trigger_condition, is_enabled)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (rule_id, home_id, rule_name, trigger_condition, is_enabled))
         
         for action in actions:
             action_id = str(uuid.uuid4())
@@ -56,8 +71,11 @@ def lambda_handler(event, context):
             # details is a dict like {"state": "on", "brightness": 100}
             if isinstance(details, dict):
                 for prop_name, target_value in details.items():
-                    # Find propertyid from actuator_properties
-                    cur.execute("SELECT propertyid FROM actuator_properties WHERE property_name = %s", (prop_name,))
+                    # Find propertyid from actuator_properties specifically for this device
+                    cur.execute("""
+                        SELECT propertyid FROM actuator_properties 
+                        WHERE deviceid = %s AND property_name = %s
+                    """, (device_id, prop_name))
                     prop_row = cur.fetchone()
                     
                     if prop_row:
@@ -69,13 +87,16 @@ def lambda_handler(event, context):
                             VALUES (%s, %s, %s, %s)
                         """, (detail_id, action_id, property_id, str(target_value)))
                     else:
-                        print(f"Warning: propertyid not found for '{prop_name}'.")
+                        print(f"Warning: propertyid not found for '{prop_name}' on device '{device_id}'.")
             elif isinstance(details, list):
                 # Fallback if Flutter sends the old format [{"property_name": "...", "target_value": "..."}]
                 for detail in details:
                     prop_name = detail.get("property_name")
                     target_value = detail.get("target_value")
-                    cur.execute("SELECT propertyid FROM actuator_properties WHERE property_name = %s", (prop_name,))
+                    cur.execute("""
+                        SELECT propertyid FROM actuator_properties 
+                        WHERE deviceid = %s AND property_name = %s
+                    """, (device_id, prop_name))
                     prop_row = cur.fetchone()
                     if prop_row:
                         property_id = prop_row['propertyid']

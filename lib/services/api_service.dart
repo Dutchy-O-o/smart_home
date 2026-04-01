@@ -143,4 +143,27 @@ class ApiService {
       return false;
     }
   }
+
+  /// DELETE /prod/{homeID}/automations?rule_id={ruleId}
+  static Future<bool> deleteAutomation(String homeId, String ruleId) async {
+    final url = Uri.parse('$baseUrl/$homeId/automations').replace(
+      queryParameters: {'rule_id': ruleId},
+    );
+    final headers = await _getHeaders();
+
+    try {
+      final response = await http.delete(url, headers: headers);
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return true;
+      } else {
+        safePrint('Failed to delete automation. Status: ${response.statusCode}');
+        safePrint('Response Body: ${response.body}');
+        return false;
+      }
+    } catch (e) {
+      safePrint('API connection error deleting automation: $e');
+      return false;
+    }
+  }
 }
