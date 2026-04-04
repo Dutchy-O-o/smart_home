@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "769059591531",
+    "project_id": "iot-home-72f48",
+    "storage_bucket": "iot-home-72f48.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:769059591531:android:e27d3169327547e1b4682e",
+        "android_client_info": {
+          "package_name": "com.example.akilli_ev"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAiVQNCXDGFJ6tEEKJ8DvAHxXCG9j1WCRA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
