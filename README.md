@@ -1,6 +1,14 @@
 # Smart Home
 
 [![Flutter CI](https://github.com/Dutchy-O-o/smart_home/actions/workflows/flutter-ci.yml/badge.svg)](https://github.com/Dutchy-O-o/smart_home/actions/workflows/flutter-ci.yml)
+[![Flutter](https://img.shields.io/badge/Flutter-3.38-02569B?logo=flutter&logoColor=white)](https://flutter.dev)
+[![Dart](https://img.shields.io/badge/Dart-3.10-0175C2?logo=dart&logoColor=white)](https://dart.dev)
+[![Platforms](https://img.shields.io/badge/platforms-Android%20%7C%20iOS-blue)](#)
+[![AWS](https://img.shields.io/badge/AWS-Cognito%20%7C%20IoT%20%7C%20Lambda-FF9900?logo=amazonaws&logoColor=white)](https://aws.amazon.com)
+[![Firebase](https://img.shields.io/badge/Firebase-FCM-FFCA28?logo=firebase&logoColor=black)](https://firebase.google.com)
+[![Claude](https://img.shields.io/badge/Claude-Haiku%204.5-D97757?logo=anthropic&logoColor=white)](https://anthropic.com)
+[![Spotify](https://img.shields.io/badge/Spotify-Web%20API-1DB954?logo=spotify&logoColor=white)](https://developer.spotify.com)
+[![Last commit](https://img.shields.io/github/last-commit/Dutchy-O-o/smart_home)](https://github.com/Dutchy-O-o/smart_home/commits/main)
 
 A Flutter-based smart home companion app with mood-aware automation, AI assistant, and multi-home support. Devices and sensors are managed through an AWS IoT + Cognito backend, facial emotion detection runs on a local Raspberry Pi, and an on-device Claude agent controls the house through natural language.
 
