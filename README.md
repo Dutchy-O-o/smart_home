@@ -1,5 +1,7 @@
 # Smart Home
 
+[![Flutter CI](https://github.com/Dutchy-O-o/smart_home/actions/workflows/flutter-ci.yml/badge.svg)](https://github.com/Dutchy-O-o/smart_home/actions/workflows/flutter-ci.yml)
+
 A Flutter-based smart home companion app with mood-aware automation, AI assistant, and multi-home support. Devices and sensors are managed through an AWS IoT + Cognito backend, facial emotion detection runs on a local Raspberry Pi, and an on-device Claude agent controls the house through natural language.
 
 ---
