@@ -1,0 +1,45 @@
+name: Flutter CI
+
+on:
+  push:
+    branches: [main, Test-Branch]
+  pull_request:
+    branches: [main, Test-Branch]
+
+jobs:
+  analyze:
+    name: Analyze & Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.6'
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Create placeholder .env
+        run: |
+          cat > .env <<EOF
+          CLAUDE_API_KEY=ci-placeholder
+          SPOTIFY_CLIENT_ID=ci-placeholder
+          SPOTIFY_CLIENT_SECRET=ci-placeholder
+          EMOTION_API_URL=https://example.invalid/predict
+          EOF
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
+
+      - name: Build debug APK
+        run: flutter build apk --debug
