@@ -5,24 +5,21 @@ import '../../providers/home_provider.dart';
 import '../../services/api_service.dart';
 import 'automation_create_screen.dart';
 
-import '../dashboard/dashboard_screen.dart';
-import '../ai_hub/emotion_hub_screen.dart';
-import '../security/monitoring_screen.dart';
-import '../devices/device_control_screen.dart';
-import '../notifications/notification_screen.dart';
-import '../profile/profile_screen.dart';
+enum _Filter { all, active, ai, sensor }
 
 class AutomationsListScreen extends ConsumerStatefulWidget {
   const AutomationsListScreen({super.key});
 
   @override
-  ConsumerState<AutomationsListScreen> createState() => _AutomationsListScreenState();
+  ConsumerState<AutomationsListScreen> createState() =>
+      _AutomationsListScreenState();
 }
 
 class _AutomationsListScreenState extends ConsumerState<AutomationsListScreen> {
   bool _isLoading = true;
   List<dynamic> _automations = [];
   String _errorMessage = '';
+  _Filter _filter = _Filter.all;
 
   @override
   void initState() {
@@ -32,277 +29,693 @@ class _AutomationsListScreenState extends ConsumerState<AutomationsListScreen> {
 
   Future<void> _fetchAutomations() async {
     final selectedHome = ref.read(selectedHomeProvider);
-    final homeId = (selectedHome?['home_id'] ?? selectedHome?['id'] ?? selectedHome?['homeid'])?.toString();
-    
+    final homeId = (selectedHome?['home_id'] ??
+            selectedHome?['id'] ??
+            selectedHome?['homeid'])
+        ?.toString();
+
     if (homeId == null || homeId.isEmpty) {
-      if (mounted) setState(() { _isLoading = false; _errorMessage = "Home ID not found."; });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Home ID not found.';
+        });
+      }
       return;
     }
 
-    setState(() { _isLoading = true; _errorMessage = ''; });
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
 
     final data = await ApiService.fetchAutomations(homeId);
-    
+
     if (mounted) {
       setState(() {
         if (data != null) {
           _automations = data;
         } else {
-          _errorMessage = "Failed to load automations or connection could not be established.";
+          _errorMessage = 'Failed to load automations.';
         }
         _isLoading = false;
       });
     }
   }
 
+  Future<void> _openCreate({Map<String, dynamic>? existing}) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AutomationCreateScreen(existingData: existing),
+      ),
+    );
+    if (mounted) _fetchAutomations();
+    if (result == true && mounted) _fetchAutomations();
+  }
+
+  bool _isAi(dynamic auto) {
+    final cond = (auto['trigger_condition'] ?? '').toString().toLowerCase();
+    return cond.contains('emotion') || cond.contains('mood');
+  }
+
+  List<dynamic> get _filtered {
+    return _automations.where((a) {
+      switch (_filter) {
+        case _Filter.all:
+          return true;
+        case _Filter.active:
+          return a['is_enabled'] == true;
+        case _Filter.ai:
+          return _isAi(a);
+        case _Filter.sensor:
+          return !_isAi(a);
+      }
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text("Home Automations", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+      backgroundColor: AppColors.bg(context),
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildHeader(),
+            if (!_isLoading && _automations.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              _buildStats(),
+              const SizedBox(height: 16),
+              _buildFilters(),
+              const SizedBox(height: 8),
+            ],
+            Expanded(child: _buildBody()),
+          ],
+        ),
       ),
-      body: _buildBody(),
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: AppColors.primaryBlue,
-        onPressed: () async {
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const AutomationCreateScreen()),
-          );
-          if (result == true && mounted) {
-             _fetchAutomations(); // Reload
-          }
-        },
+        elevation: 4,
+        onPressed: () => _openCreate(),
         icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text("New Automation", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        label: const Text(
+          'New',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 0.3,
+          ),
+        ),
       ),
-      bottomNavigationBar: _buildPremiumBottomNav(),
     );
   }
 
-  void _onBottomNavTapped(int index) {
-    if (index == 2) return;
-    final routes = [
-      const DashboardScreen(), // Dash
-      const EmotionHubScreen(), // Emotion
-      null, // Current Automate
-      const MonitoringScreen(), // Security
-      const DeviceControlScreen(), // Devices
-      const NotificationScreen(), // Alerts
-      const ProfileScreen(), // Profile
-    ];
-    if (index < routes.length && routes[index] != null) {
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => routes[index]!));
-    }
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () => Navigator.maybePop(context),
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AppColors.card(context),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.borderCol(context)),
+              ),
+              child: Icon(Icons.arrow_back,
+                  size: 20, color: AppColors.text(context)),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Automations',
+                  style: TextStyle(
+                    color: AppColors.text(context),
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                Text(
+                  'Manage your smart triggers',
+                  style: TextStyle(
+                    color: AppColors.textSub(context),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          GestureDetector(
+            onTap: _isLoading ? null : _fetchAutomations,
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AppColors.card(context),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.borderCol(context)),
+              ),
+              child: Icon(Icons.refresh,
+                  size: 20, color: AppColors.textSub(context)),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
-  Widget _buildPremiumBottomNav() {
-    return BottomNavigationBar(
-      backgroundColor: AppColors.cardDark,
-      selectedItemColor: AppColors.primaryBlue,
-      unselectedItemColor: Colors.grey,
-      type: BottomNavigationBarType.fixed,
-      currentIndex: 2,
-      onTap: _onBottomNavTapped,
-      showSelectedLabels: true,
-      showUnselectedLabels: true,
-      selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-      unselectedLabelStyle: const TextStyle(fontSize: 12),
-      items: const [
-        BottomNavigationBarItem(icon: Icon(Icons.grid_view), label: 'Dash'),
-        BottomNavigationBarItem(icon: Icon(Icons.sentiment_satisfied_alt), label: 'Emotion'),
-        BottomNavigationBarItem(icon: Icon(Icons.auto_awesome), label: 'Automate'),
-        BottomNavigationBarItem(icon: Icon(Icons.security), label: 'Security'),
-        BottomNavigationBarItem(icon: Icon(Icons.devices), label: 'Devices'),
-        BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Alerts'),
-        BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-      ],
+  Widget _buildStats() {
+    final active =
+        _automations.where((a) => a['is_enabled'] == true).length;
+    final ai = _automations.where(_isAi).length;
+    final total = _automations.length;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        children: [
+          _statTile('Total', '$total', AppColors.primaryBlue, Icons.layers),
+          const SizedBox(width: 10),
+          _statTile('Active', '$active', AppColors.accentGreen,
+              Icons.flash_on),
+          const SizedBox(width: 10),
+          _statTile('AI', '$ai', AppColors.accentOrange, Icons.face_retouching_natural),
+        ],
+      ),
+    );
+  }
+
+  Widget _statTile(String label, String value, Color color, IconData icon) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+        decoration: BoxDecoration(
+          color: AppColors.card(context),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.borderCol(context)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 28, height: 28,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: color, size: 16),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(value,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: AppColors.text(context),
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                      )),
+                  Text(label,
+                      maxLines: 1,
+                      softWrap: false,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: AppColors.textSub(context),
+                        fontSize: 10.5,
+                      )),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilters() {
+    return SizedBox(
+      height: 36,
+      child: ListView(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        scrollDirection: Axis.horizontal,
+        children: [
+          _filterChip('All', _Filter.all),
+          _filterChip('Active', _Filter.active),
+          _filterChip('AI', _Filter.ai),
+          _filterChip('Sensor', _Filter.sensor),
+        ],
+      ),
+    );
+  }
+
+  Widget _filterChip(String label, _Filter f) {
+    final selected = _filter == f;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: GestureDetector(
+        onTap: () => setState(() => _filter = f),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: selected
+                ? AppColors.primaryBlue
+                : AppColors.card(context),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: selected
+                  ? AppColors.primaryBlue
+                  : AppColors.borderCol(context),
+            ),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected ? Colors.white : AppColors.text(context),
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
     );
   }
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.primaryBlue));
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primaryBlue),
+      );
     }
-    
+
     if (_errorMessage.isNotEmpty && _automations.isEmpty) {
+      return _buildErrorState();
+    }
+
+    if (_automations.isEmpty) {
+      return _buildEmptyState();
+    }
+
+    final list = _filtered;
+    if (list.isEmpty) {
       return Center(
+        child: Text(
+          'No results in this filter.',
+          style: TextStyle(color: AppColors.textSub(context), fontSize: 14),
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      color: AppColors.primaryBlue,
+      onRefresh: _fetchAutomations,
+      child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
+        itemCount: list.length,
+        itemBuilder: (context, i) => _buildAutomationCard(list[i]),
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
+            Container(
+              width: 72, height: 72,
+              decoration: BoxDecoration(
+                color: AppColors.accentRed.withOpacity(0.12),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.cloud_off,
+                  color: AppColors.accentRed, size: 36),
+            ),
             const SizedBox(height: 16),
-            Text(_errorMessage, style: const TextStyle(color: AppColors.textGrey, fontSize: 16)),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryBlue),
+            Text(
+              _errorMessage,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppColors.text(context), fontSize: 15),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryBlue,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              ),
               onPressed: _fetchAutomations,
-              child: const Text("Tekrar Dene"),
+              icon: const Icon(Icons.refresh, size: 18),
+              label: const Text('Retry'),
             ),
           ],
         ),
-      );
-    }
-    
-    if (_automations.isEmpty) {
-      return Center(
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
-            Icon(Icons.auto_awesome, color: AppColors.textGrey, size: 64),
-            SizedBox(height: 16),
-            Text("You haven't created any automations yet.", style: TextStyle(color: AppColors.textGrey, fontSize: 16)),
+          children: [
+            Container(
+              width: 96, height: 96,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    AppColors.primaryBlue.withOpacity(0.3),
+                    AppColors.primaryBlue.withOpacity(0.05),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.auto_awesome,
+                  color: AppColors.primaryBlue, size: 44),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'No automations yet',
+              style: TextStyle(
+                color: AppColors.text(context),
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Trigger your devices automatically based on\nsensor data or mood.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppColors.textSub(context), fontSize: 13),
+            ),
+            const SizedBox(height: 22),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryBlue,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+                elevation: 0,
+              ),
+              onPressed: () => _openCreate(),
+              icon: const Icon(Icons.add, color: Colors.white),
+              label: const Text(
+                'Create your first automation',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+            ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAutomationCard(dynamic auto) {
+    final name = auto['rule_name'] ?? 'Untitled';
+    final isEnabled = auto['is_enabled'] ?? false;
+    final condition = (auto['trigger_condition'] ?? '').toString();
+    final actions = (auto['actions'] as List<dynamic>?) ?? [];
+    final isAI = _isAi(auto);
+    final accent = isAI ? AppColors.accentOrange : AppColors.primaryBlue;
+
+    return Dismissible(
+      key: Key(auto['rule_id']?.toString() ?? UniqueKey().toString()),
+      direction: DismissDirection.endToStart,
+      confirmDismiss: (_) => _confirmAndDelete(auto),
+      onDismissed: (_) {
+        setState(() => _automations.remove(auto));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('"$name" deleted'),
+              backgroundColor: AppColors.card(context),
+            ),
+          );
+        }
+      },
+      background: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: AppColors.accentRed,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.delete_outline, color: Colors.white),
+            SizedBox(width: 6),
+            Text('Delete',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ],
+        ),
+      ),
+      child: GestureDetector(
+        onTap: () => _openCreate(existing: auto),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: AppColors.card(context),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isEnabled
+                  ? accent.withOpacity(0.35)
+                  : AppColors.borderCol(context),
+              width: isEnabled ? 1.2 : 1,
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 42, height: 42,
+                      decoration: BoxDecoration(
+                        color: accent.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        isAI ? Icons.face_retouching_natural : Icons.sensors,
+                        color: accent,
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name,
+                            style: TextStyle(
+                              color: AppColors.text(context),
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              Container(
+                                width: 6, height: 6,
+                                decoration: BoxDecoration(
+                                  color: isEnabled
+                                      ? AppColors.accentGreen
+                                      : AppColors.textSub(context),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                isEnabled ? 'Active' : 'Disabled',
+                                style: TextStyle(
+                                  color: isEnabled
+                                      ? AppColors.accentGreen
+                                      : AppColors.textSub(context),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(Icons.chevron_right,
+                        color: AppColors.textSub(context), size: 22),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                _conditionPill(condition, accent),
+                if (actions.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: actions.map<Widget>(_actionChip).toList(),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _conditionPill(String condition, Color accent) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: accent.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: accent.withOpacity(0.25)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.bolt, size: 13, color: accent),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              condition.isEmpty ? 'No condition' : condition,
+              style: TextStyle(
+                color: accent,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _actionChip(dynamic act) {
+    final det = act['details'] ?? {};
+    final name = (act['device_name'] ?? '?').toString();
+    String label;
+    if (det['power'] == 'off' || det['state'] == 'off') {
+      label = 'Off';
+    } else {
+      final parts = <String>['On'];
+      if (det['brightness'] != null) parts.add('${det['brightness']}%');
+      if (det['volume'] != null) parts.add('Vol ${det['volume']}');
+      if (det['playback'] != null) parts.add('${det['playback']}');
+      if (det['position'] != null) parts.add('${det['position']}%');
+      label = parts.join(' · ');
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.bg(context),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.borderCol(context)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            name,
+            style: TextStyle(
+              color: AppColors.text(context),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          Text(
+            ' → ',
+            style: TextStyle(
+                color: AppColors.textSub(context), fontSize: 11),
+          ),
+          Text(
+            label,
+            style: TextStyle(
+              color: AppColors.textSub(context),
+              fontSize: 11,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<bool> _confirmAndDelete(dynamic auto) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.card(context),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Delete automation',
+            style: TextStyle(color: AppColors.text(context))),
+        content: Text(
+          'This automation will be permanently deleted. Are you sure?',
+          style: TextStyle(color: AppColors.textSub(context)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel',
+                style: TextStyle(color: AppColors.textSub(context))),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete',
+                style: TextStyle(color: AppColors.accentRed)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return false;
+
+    final ruleId = auto['rule_id'];
+    if (ruleId == null) return false;
+    final selectedHome = ref.read(selectedHomeProvider);
+    final homeId = (selectedHome?['home_id'] ??
+            selectedHome?['id'] ??
+            selectedHome?['homeid'])
+        ?.toString();
+    if (homeId == null) return false;
+
+    final ok = await ApiService.deleteAutomation(homeId, ruleId.toString());
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Delete failed.'),
+          backgroundColor: AppColors.accentRed,
         ),
       );
     }
-
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
-      itemCount: _automations.length,
-      itemBuilder: (context, index) {
-        final auto = _automations[index];
-        final name = auto['rule_name'] ?? 'Unnamed Automation';
-        final isEnabled = auto['is_enabled'] ?? false;
-        final condition = auto['trigger_condition'] ?? '';
-        final actions = (auto['actions'] as List<dynamic>?) ?? [];
-        
-        bool isAI = condition.toString().contains('emotion');
-        
-        // Build action summary
-        String actionSummary = "";
-        if (actions.isEmpty) {
-          actionSummary = "No actions configured";
-        } else {
-          List<String> actionTexts = [];
-          for (var act in actions) {
-            String actText = "\u2022 ${act['device_name']}: ";
-            var det = act['details'] ?? {};
-            if (det['power'] == 'off' || det['state'] == 'off') {
-              actText += "Turn Off";
-            } else {
-              List<String> props = ["Turn On"];
-              if (det['brightness'] != null) props.add("Brightness ${det['brightness']}%");
-              if (det['volume'] != null) props.add("Vol ${det['volume']}%");
-              if (det['playback'] != null) props.add("${det['playback']}");
-              if (det['position'] != null) props.add("Open ${det['position']}%");
-              actText += props.join(', ');
-            }
-            actionTexts.add(actText);
-          }
-          actionSummary = "Actions:\n${actionTexts.join('\n')}";
-        }
-        return Dismissible(
-          key: Key(auto['rule_id']?.toString() ?? UniqueKey().toString()),
-          direction: DismissDirection.endToStart,
-          confirmDismiss: (direction) async {
-            // Step 1: Ask for confirmation
-            final confirmed = await showDialog<bool>(
-              context: context,
-              builder: (BuildContext ctx) {
-                return AlertDialog(
-                  backgroundColor: AppColors.cardDark,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  title: const Text("Delete Automation", style: TextStyle(color: Colors.white)),
-                  content: const Text("Are you sure you want to delete this automation?", style: TextStyle(color: Colors.white54)),
-                  actions: <Widget>[
-                    TextButton(
-                      onPressed: () => Navigator.of(ctx).pop(false),
-                      child: const Text("CANCEL", style: TextStyle(color: Colors.white54)),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.of(ctx).pop(true),
-                      child: const Text("DELETE", style: TextStyle(color: AppColors.accentRed)),
-                    ),
-                  ],
-                );
-              },
-            );
-            if (confirmed != true) return false;
-
-            // Step 2: Call API
-            final ruleId = auto['rule_id'];
-            if (ruleId == null) return false;
-
-            final selectedHome = ref.read(selectedHomeProvider);
-            final homeId = (selectedHome?['home_id'] ?? selectedHome?['id'] ?? selectedHome?['homeid'])?.toString();
-            if (homeId == null) return false;
-
-            final success = await ApiService.deleteAutomation(homeId, ruleId.toString());
-            if (!success && mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Failed to delete automation.', style: TextStyle(color: Colors.white)), backgroundColor: AppColors.accentRed),
-              );
-            }
-            return success;
-          },
-          onDismissed: (direction) {
-            setState(() => _automations.removeAt(index));
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('"$name" deleted.', style: const TextStyle(color: Colors.white)),
-                  backgroundColor: AppColors.cardDark,
-                ),
-              );
-            }
-          },
-          background: Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            decoration: BoxDecoration(
-              color: AppColors.accentRed.withOpacity(0.8),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            alignment: Alignment.centerRight,
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: const Icon(Icons.delete_outline, color: Colors.white, size: 32),
-          ),
-          child: Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withOpacity(0.1)),
-            ),
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              leading: CircleAvatar(
-                backgroundColor: isAI ? AppColors.accentOrange.withOpacity(0.2) : AppColors.primaryBlue.withOpacity(0.2),
-                child: Icon(
-                  isAI ? Icons.face : Icons.sensors,
-                  color: isAI ? AppColors.accentOrange : AppColors.primaryBlue,
-                ),
-              ),
-              title: Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-              subtitle: Padding(
-                padding: const EdgeInsets.only(top: 8.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text("IF: $condition", style: const TextStyle(color: AppColors.primaryBlue, fontSize: 13, fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 6),
-                    Text(actionSummary, style: const TextStyle(color: AppColors.textGrey, fontSize: 13, height: 1.4)),
-                  ],
-                ),
-              ),
-              trailing: const Icon(Icons.edit, color: Colors.white54, size: 20),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => AutomationCreateScreen(existingData: auto)),
-                ).then((_) {
-                  // Refresh on back
-                  _fetchAutomations();
-                });
-              },
-            ),
-          ),
-        );
-      },
-    );
+    return ok;
   }
 }

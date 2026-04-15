@@ -3,13 +3,6 @@ import 'package:flutter/material.dart';
 import '../../constants/app_colors.dart';
 import '../../widgets/sensor_card.dart';
 import '../auth/login_screen.dart';
-import '../ai_hub/emotion_hub_screen.dart'; 
-import '../security/monitoring_screen.dart';
-import '../devices/device_control_screen.dart';
-import '../devices/device_control_screen.dart';
-import '../notifications/notification_screen.dart';
-import '../profile/profile_screen.dart';
-import '../automations/automations_list_screen.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:amplify_flutter/amplify_flutter.dart';
@@ -19,6 +12,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../providers/home_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/navigation_provider.dart';
 import 'home_selection_screen.dart';
 import '../../services/api_service.dart';
 
@@ -101,23 +95,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     }
   }
 
-  void _onBottomNavTapped(int index) {
-    if (index == 0) return;
-    final routes = [
-      null, // Dash
-      const EmotionHubScreen(), // Emotion
-      const AutomationsListScreen(), // Automate
-      const MonitoringScreen(), // Security
-      const DeviceControlScreen(), // Devices
-      const NotificationScreen(), // Alerts
-      const ProfileScreen(), // Profile
-    ];
-    if (index < routes.length && routes[index] != null) {
-      Navigator.push(context, MaterialPageRoute(builder: (context) => routes[index]!));
-    }
-  }
-
-  // --- SENSÖR VERİSİ ÇEKME ---
+  // --- FETCH SENSOR DATA ---
   Future<void> _fetchSensors(String homeId) async {
     final data = await ApiService.fetchSensors(homeId);
     if (data != null && data['sensors'] != null) {
@@ -144,18 +122,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     }
   }
 
-  // --- GERÇEK API'DEN ŞİFRELİ QR TOKEN'I ALAN FONKSİYON ---
+  // --- FUNCTION THAT FETCHES THE ENCRYPTED QR TOKEN FROM THE REAL API ---
   Future<void> _generateAndShowQr(String homeId, String homeName) async {
-    print("🕵️‍♂️ 3. API İSTEK FONKSİYONU BAŞLADI. Hedef Ev: $homeId");
+    print("🕵️‍♂️ 3. API REQUEST FUNCTION STARTED. Target Home: $homeId");
     showDialog(context: context, barrierDismissible: false, builder: (c) => const Center(child: CircularProgressIndicator(color: AppColors.primaryBlue)));
 
     try {
       final session = await Amplify.Auth.fetchAuthSession() as CognitoAuthSession;
       final token = session.userPoolTokensResult.value.idToken.raw;
-      print("🕵️‍♂️ 4. COGNITO TOKEN ALINDI, AWS'YE GİDİLİYOR...");
+      print("🕵️‍♂️ 4. COGNITO TOKEN RECEIVED, CONNECTING TO AWS...");
 
       final url = Uri.parse("https://zz3kr12z0f.execute-api.us-east-1.amazonaws.com/prod/$homeId/generate-invite");
-      print("🕵️‍♂️ 5. İSTEK ATILAN URL: $url");
+      print("🕵️‍♂️ 5. REQUESTED URL: $url");
       
       final response = await http.post(
         url,
@@ -164,35 +142,35 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       );
 
       if (!mounted) return;
-      Navigator.pop(context); // Yükleniyor dairesini kapat
+      Navigator.pop(context); // Close the loading spinner
 
-      print("🕵️‍♂️ 6. AWS'DEN CEVAP GELDİ! Status Code: ${response.statusCode}");
-      print("🕵️‍♂️ 7. AWS CEVAP İÇERİĞİ: ${response.body}");
+      print("🕵️‍♂️ 6. RESPONSE RECEIVED FROM AWS! Status Code: ${response.statusCode}");
+      print("🕵️‍♂️ 7. AWS RESPONSE BODY: ${response.body}");
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final secureToken = data['secure_token'];
-        print("✅ 8. ŞİFRELİ TOKEN ALINDI, MODAL AÇILIYOR!");
+        print("✅ 8. ENCRYPTED TOKEN RECEIVED, OPENING MODAL!");
         _showQrInviteModal(context, secureToken, homeName);
       } else {
-        print("❌ HATA: AWS işlemi reddetti.");
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("QR oluşturulamadı: ${response.body}"), backgroundColor: AppColors.accentRed));
+        print("❌ ERROR: AWS rejected the request.");
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Could not generate QR: ${response.body}"), backgroundColor: AppColors.accentRed));
       }
     } catch (e) {
       if (!mounted) return;
       Navigator.pop(context);
-      print("❌ SİSTEM HATASI (Catch): $e");
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Bağlantı hatası: $e"), backgroundColor: AppColors.accentRed));
+      print("❌ SYSTEM ERROR (Catch): $e");
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Connection error: $e"), backgroundColor: AppColors.accentRed));
     }
   }
 
-  // --- QR KOD MODALINI AÇAN FONKSİYON ---
+  // --- FUNCTION THAT OPENS THE QR CODE MODAL ---
   void _showQrInviteModal(BuildContext context, String secureToken, String homeName) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return Dialog(
-          backgroundColor: AppColors.cardDark,
+          backgroundColor: AppColors.card(context),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
           child: Padding(
             padding: const EdgeInsets.all(24.0),
@@ -202,14 +180,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 const Icon(Icons.qr_code_scanner, color: AppColors.accentGreen, size: 40),
                 const SizedBox(height: 16),
                 Text(
-                  "$homeName Daveti",
-                  style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                  "$homeName Invitation",
+                  style: TextStyle(color: AppColors.text(context), fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  "Misafirin uygulamasından bu kodu okutmasını isteyin. (5 dk geçerlidir)",
+                Text(
+                  "Ask the guest to scan this code from their app. (Valid for 5 minutes)",
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: AppColors.textGrey, fontSize: 14),
+                  style: TextStyle(color: AppColors.textSub(context), fontSize: 14),
                 ),
                 const SizedBox(height: 24),
                 Container(
@@ -219,10 +197,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child:QrImageView(
-                    data: secureToken, // AWS'den gelen şifreli metin
+                    data: secureToken, // Encrypted text received from AWS
                     version: QrVersions.auto,
                     size: 200.0,
-                    backgroundColor: Colors.white, // Tarayıcının karanlık modda kafası karışmasın diye
+                    backgroundColor: Colors.white, // So the scanner doesn't get confused in dark mode
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -235,7 +213,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
                     onPressed: () => Navigator.pop(context),
-                    child: const Text("KAPAT", style: TextStyle(color: AppColors.primaryBlue, fontWeight: FontWeight.bold)),
+                    child: const Text("CLOSE", style: TextStyle(color: AppColors.primaryBlue, fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],
@@ -246,7 +224,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  // --- Üst menüdeki yuvarlak butonları hizalamak için yardımcı widget ---
+  // --- Helper widget to align the round buttons in the top menu ---
   Widget _buildHeaderBtn(IconData icon, Color color, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
@@ -282,14 +260,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     }
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.bg(context),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // --- ŞIK VE FERAH ÜST MENÜ ---
+              // --- SLEEK AND SPACIOUS TOP MENU ---
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -299,12 +277,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       children: [
                         GestureDetector(
                           onTap: () {
-                            Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen()));
+                            ref.read(tabIndexProvider.notifier).setTab(6);
                           },
-                          child: const CircleAvatar(
+                          child: CircleAvatar(
                             radius: 22,
-                            backgroundColor: AppColors.cardDark,
-                            child: Icon(Icons.person, color: Colors.white),
+                            backgroundColor: AppColors.card(context),
+                            child: Icon(Icons.person, color: AppColors.iconDefault(context)),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -314,7 +292,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             children: [
                               Row(
                                 children: [
-                                  const Text("Welcome Back", style: TextStyle(color: AppColors.textGrey, fontSize: 12)),
+                                  Text("Welcome Back", style: TextStyle(color: AppColors.textSub(context), fontSize: 12)),
                                   const SizedBox(width: 8),
                                   Container(width: 6, height: 6, decoration: const BoxDecoration(color: AppColors.accentGreen, shape: BoxShape.circle)),
                                   const SizedBox(width: 4),
@@ -327,7 +305,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                   Flexible(
                                     child: Text(
                                       homeName,
-                                      style: const TextStyle(color: AppColors.textWhite, fontSize: 18, fontWeight: FontWeight.bold),
+                                      style: TextStyle(color: AppColors.text(context), fontSize: 18, fontWeight: FontWeight.bold),
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
@@ -348,20 +326,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     ),
                   ),
 
-                  // --- SAĞ TARAF: Aksiyon Butonları ---
+                  // --- RIGHT SIDE: Action Buttons ---
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (homeRole == 'ADMIN') ...[
                         _buildHeaderBtn(Icons.qr_code, AppColors.accentGreen, () {
                           
-                          // İŞTE SİHİRLİ DOKUNUŞ: 'homeid' eklendi!
+                          // HERE'S THE MAGIC TOUCH: 'homeid' added!
                           final currentHomeId = selectedHome?['home_id'] ?? selectedHome?['id'] ?? selectedHome?['homeid'];
-                          
+
                           if (currentHomeId != null) {
                             _generateAndShowQr(currentHomeId.toString(), homeName);
                           } else {
-                            print("❌ HATA: Ev ID'si hala bulunamadı!");
+                            print("❌ ERROR: Home ID still not found!");
                           }
                         }),
                         const SizedBox(width: 8),
@@ -381,14 +359,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               
               const SizedBox(height: 24),
 
-              const Text("My Homes", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              Text("My Homes", style: TextStyle(color: AppColors.text(context), fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
               _isLoadingHomes 
                 ? const Center(child: CircularProgressIndicator(color: AppColors.primaryBlue))
                 : _errorMessage.isNotEmpty
                   ? Text(_errorMessage, style: const TextStyle(color: AppColors.accentRed))
                   : _userHomes.isEmpty 
-                    ? const Text("No homes found.", style: TextStyle(color: Colors.grey))
+                    ? Text("No homes found.", style: TextStyle(color: AppColors.textSub(context)))
                     : SizedBox(
                         height: 100,
                         child: ListView.builder(
@@ -404,7 +382,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             margin: const EdgeInsets.only(right: 16),
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: AppColors.cardDark,
+                              color: AppColors.card(context),
                               border: Border.all(color: isGuest ? AppColors.accentOrange.withOpacity(0.5) : AppColors.primaryBlue.withOpacity(0.5)),
                               borderRadius: BorderRadius.circular(16),
                             ),
@@ -423,7 +401,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                     Expanded(
                                       child: Text(
                                         home['home_name'] ?? 'Home $index',
-                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                        style: TextStyle(color: AppColors.text(context), fontWeight: FontWeight.bold),
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
@@ -458,7 +436,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF152238),
+                  color: AppColors.card(context),
                   borderRadius: BorderRadius.circular(24),
                   border: Border.all(color: AppColors.primaryBlue.withOpacity(0.3)),
                 ),
@@ -469,12 +447,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          Text("System Online", style: TextStyle(color: AppColors.primaryBlue, fontSize: 16, fontWeight: FontWeight.bold)),
-                          SizedBox(height: 4),
+                        children: [
+                          const Text("System Online", style: TextStyle(color: AppColors.primaryBlue, fontSize: 16, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 4),
                           Text(
                             "The house feels cozy and secure. No anomalies detected in the last hour.",
-                            style: TextStyle(color: AppColors.textGrey, fontSize: 12, height: 1.4),
+                            style: TextStyle(color: AppColors.textSub(context), fontSize: 12, height: 1.4),
                           ),
                         ],
                       ),
@@ -511,13 +489,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
               const SizedBox(height: 24),
 
-              const Text("Security Status", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              Text("Security Status", style: TextStyle(color: AppColors.text(context), fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
               Row(
                 children: [
                   Expanded(
                     child: GestureDetector(
-                      onTap: () => _onBottomNavTapped(2),
+                      onTap: () => ref.read(tabIndexProvider.notifier).setTab(3),
                       child: SensorCard(
                         title: "Gas Sensor",
                         value: _gasStatus,
@@ -531,7 +509,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   const SizedBox(width: 16),
                   Expanded(
                     child: GestureDetector(
-                      onTap: () => _onBottomNavTapped(2),
+                      onTap: () => ref.read(tabIndexProvider.notifier).setTab(3),
                       child: SensorCard(
                         title: "Vibration",
                         value: _vibrationStatus,
@@ -547,7 +525,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
               const SizedBox(height: 24),
 
-              const Text("Quick Access", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              Text("Quick Access", style: TextStyle(color: AppColors.text(context), fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -556,7 +534,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   _buildQuickAccessBtn(Icons.curtains, "Curtains", Colors.white24),
                   _buildQuickAccessBtn(Icons.ac_unit, "AC On", Colors.white24, iconColor: AppColors.primaryBlue),
                   _buildQuickAccessBtn(Icons.palette, "Mood", Colors.white24, iconColor: Colors.pinkAccent, onTap: () {
-                    _onBottomNavTapped(1);
+                    ref.read(tabIndexProvider.notifier).setTab(1);
                   }),
                 ],
               ),
@@ -566,7 +544,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.cardDark,
+                  color: AppColors.card(context),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
@@ -583,9 +561,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          Text("Living Room Dimmer", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                          Text("80% Brightness", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                        children: [
+                          Text("Living Room Dimmer", style: TextStyle(color: AppColors.text(context), fontWeight: FontWeight.bold)),
+                          Text("80% Brightness", style: TextStyle(color: AppColors.textSub(context), fontSize: 12)),
                         ],
                       ),
                     ),
@@ -607,27 +585,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ),
       ),
       
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: AppColors.cardDark,
-        selectedItemColor: AppColors.primaryBlue,
-        unselectedItemColor: Colors.grey,
-        type: BottomNavigationBarType.fixed,
-        currentIndex: 0,
-        onTap: _onBottomNavTapped,
-        showSelectedLabels: true,
-        showUnselectedLabels: true,
-        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-        unselectedLabelStyle: const TextStyle(fontSize: 12),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.grid_view), label: 'Dash'),
-          BottomNavigationBarItem(icon: Icon(Icons.sentiment_satisfied_alt), label: 'Emotion'),
-          BottomNavigationBarItem(icon: Icon(Icons.auto_awesome), label: 'Automate'),
-          BottomNavigationBarItem(icon: Icon(Icons.security), label: 'Security'),
-          BottomNavigationBarItem(icon: Icon(Icons.devices), label: 'Devices'),
-          BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Alerts'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-        ],
-      ),
     );
   }
 
@@ -640,7 +597,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             width: 60,
             height: 60,
             decoration: BoxDecoration(
-              color: bg == AppColors.primaryBlue ? AppColors.primaryBlue : AppColors.cardDark,
+              color: bg == AppColors.primaryBlue ? AppColors.primaryBlue : AppColors.card(context),
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
@@ -653,7 +610,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             child: Icon(icon, color: iconColor, size: 28),
           ),
           const SizedBox(height: 8),
-          Text(label, style: const TextStyle(color: AppColors.textGrey, fontSize: 12)),
+          Text(label, style: TextStyle(color: AppColors.textSub(context), fontSize: 12)),
         ],
       ),
     );

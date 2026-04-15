@@ -20,20 +20,20 @@ class AuthNotifier extends Notifier<AuthState> {
   Future<void> checkCurrentUser() async {
     state = AuthState.loading;
     try {
-      safePrint('--- OTURUM KONTROLÜ BAŞLADI ---');
+      safePrint('--- SESSION CHECK STARTED ---');
       final session = await Amplify.Auth.fetchAuthSession();
-      
-      safePrint('1. Amplify Kasa Durumu: ${session.isSignedIn ? "DOLU" : "BOŞ"}');
-      
+
+      safePrint('1. Amplify Vault Status: ${session.isSignedIn ? "FILLED" : "EMPTY"}');
+
       if (session.isSignedIn) {
         state = AuthState.authenticated;
-        safePrint('2. Sonuç: KULLANICI İÇERİ ALINDI!');
+        safePrint('2. Result: USER LET IN!');
       } else {
         state = AuthState.unauthenticated;
-        safePrint('2. Sonuç: KASA BOŞ, LOGİNE YÖNLENDİRİLİYOR.');
+        safePrint('2. Result: VAULT EMPTY, REDIRECTING TO LOGIN.');
       }
     } catch (e) {
-      safePrint('!!! OTURUM KONTROLÜ SIRASINDA HATA: $e');
+      safePrint('!!! ERROR DURING SESSION CHECK: $e');
       state = AuthState.unauthenticated;
     }
   }

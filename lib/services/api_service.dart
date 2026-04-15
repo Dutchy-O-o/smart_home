@@ -1,10 +1,36 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:amplify_flutter/amplify_flutter.dart';
 import 'package:amplify_auth_cognito/amplify_auth_cognito.dart';
 
 class ApiService {
   static const String baseUrl = 'https://zz3kr12z0f.execute-api.us-east-1.amazonaws.com/prod';
+
+  // Avoid spamming the same error while the network is down
+  static bool _networkDown = false;
+
+  static void _logNetworkError(String context, Object err) {
+    final isNetwork = err is SocketException ||
+        err.toString().contains('Failed host lookup') ||
+        err.toString().contains('SocketException');
+    if (isNetwork) {
+      if (!_networkDown) {
+        _networkDown = true;
+        safePrint('[ApiService] Network unreachable — suppressing repeat errors until recovery. ($context)');
+      }
+      return; // spam yapma
+    }
+    // Always log non-network errors
+    safePrint('[ApiService] $context: $err');
+  }
+
+  static void _markNetworkUp() {
+    if (_networkDown) {
+      _networkDown = false;
+      safePrint('[ApiService] Network recovered.');
+    }
+  }
 
   static Future<Map<String, String>> _getHeaders() async {
     try {
@@ -47,6 +73,7 @@ class ApiService {
         }),
       );
       if (response.statusCode == 200) {
+        _markNetworkUp();
         safePrint('Command sent successfully: $action -> $value');
         return true;
       } else {
@@ -55,7 +82,7 @@ class ApiService {
         return false;
       }
     } catch (e) {
-      safePrint('API connection error: $e');
+      _logNetworkError('sendCommand', e);
       return false;
     }
   }
@@ -67,13 +94,14 @@ class ApiService {
     try {
       final response = await http.get(url, headers: headers);
       if (response.statusCode == 200) {
+        _markNetworkUp();
         return jsonDecode(response.body);
       } else {
         safePrint('Failed to fetch sensors. Status: ${response.statusCode}');
         return null;
       }
     } catch (e) {
-      safePrint('API connection error: $e');
+      _logNetworkError('fetchSensors', e);
       return null;
     }
   }
@@ -86,6 +114,7 @@ class ApiService {
     try {
       final response = await http.get(url, headers: headers);
       if (response.statusCode == 200) {
+        _markNetworkUp();
         final data = jsonDecode(response.body);
         return data['devices'] as List<dynamic>?;
       } else {
@@ -94,7 +123,7 @@ class ApiService {
         return null;
       }
     } catch (e) {
-      safePrint('API connection error fetching devices: $e');
+      _logNetworkError('fetchDevices', e);
       return null;
     }
   }
@@ -107,15 +136,16 @@ class ApiService {
     try {
       final response = await http.get(url, headers: headers);
       if (response.statusCode == 200) {
+        _markNetworkUp();
         final data = jsonDecode(response.body);
         return data['automations'] as List<dynamic>?;
       } else {
         safePrint('Failed to fetch automations. Status: ${response.statusCode}');
-        safePrint('Body: ${response.body}'); // <-- gerçek Lambda hatasını gösterir
+        safePrint('Body: ${response.body}');
         return null;
       }
     } catch (e) {
-      safePrint('API connection error fetching automations: $e');
+      _logNetworkError('fetchAutomations', e);
       return null;
     }
   }
@@ -132,6 +162,7 @@ class ApiService {
         body: jsonEncode(payload),
       );
       if (response.statusCode == 200 || response.statusCode == 201) {
+        _markNetworkUp();
         return true;
       } else {
         safePrint('Failed to save automation. Status: ${response.statusCode}');
@@ -139,7 +170,7 @@ class ApiService {
         return false;
       }
     } catch (e) {
-      safePrint('API connection error saving automation: $e');
+      _logNetworkError('saveAutomation', e);
       return false;
     }
   }
@@ -155,6 +186,7 @@ class ApiService {
       final response = await http.delete(url, headers: headers);
 
       if (response.statusCode == 200 || response.statusCode == 204) {
+        _markNetworkUp();
         return true;
       } else {
         safePrint('Failed to delete automation. Status: ${response.statusCode}');
@@ -162,7 +194,7 @@ class ApiService {
         return false;
       }
     } catch (e) {
-      safePrint('API connection error deleting automation: $e');
+      _logNetworkError('deleteAutomation', e);
       return false;
     }
   }

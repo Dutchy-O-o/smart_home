@@ -46,6 +46,8 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Akıllı eve katılmak için QR kodu okutmanız gerekiyor.</string>
+	<string>Akıllı eve katılmak için QR kod okutmak ve duygu analizi (Emotion Hub) taraması yapmak için kameraya erişim gerekiyor.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Duygu analizi için galerinizden fotoğraf seçebilmeniz adına erişim gerekiyor.</string>
 </dict>
 </plist>

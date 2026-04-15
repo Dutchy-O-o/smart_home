@@ -46,3 +46,12 @@ app.*.map.json
 
 # Agent related files
 .agent/
+
+# API keys & env
+.env
+lib/config/
+.claude/
+
+# Repomix output
+repomix-output.xml
+lib/repomix-output.xml
