@@ -56,15 +56,15 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
     final isLoading = authState == AuthState.loading;
 
     return Scaffold(
-      backgroundColor: AppColors.bg(context),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: AppColors.iconDefault(context)),
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text("Verify Email", style: TextStyle(color: AppColors.text(context))),
+        title: const Text("Verify Email", style: TextStyle(color: Colors.white)),
         centerTitle: true,
       ),
       body: SafeArea(
@@ -76,34 +76,34 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
             children: [
               const Icon(Icons.mark_email_read_outlined, size: 80, color: AppColors.primaryBlue),
               const SizedBox(height: 24),
-              Text(
+              const Text(
                 "Check your inbox",
                 style: TextStyle(
-                  color: AppColors.text(context),
+                  color: AppColors.textWhite,
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 12),
               Text(
-                "We've sent a 6-digit confirmation code to\n${widget.email}",
+                "We've sent a 6-digit confirmation code to\n\${widget.email}",
                 textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.textSub(context), fontSize: 14),
+                style: const TextStyle(color: AppColors.textGrey, fontSize: 14),
               ),
               const SizedBox(height: 40),
               
               TextField(
                 controller: _codeController,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.text(context), fontSize: 24, letterSpacing: 8),
+                style: const TextStyle(color: Colors.white, fontSize: 24, letterSpacing: 8),
                 keyboardType: TextInputType.number,
                 maxLength: 6,
                 decoration: InputDecoration(
                   filled: true,
-                  fillColor: AppColors.card(context),
+                  fillColor: AppColors.cardDark,
                   counterText: "",
                   hintText: "000000",
-                  hintStyle: TextStyle(color: AppColors.textSub(context), letterSpacing: 8),
+                  hintStyle: const TextStyle(color: Colors.grey, letterSpacing: 8),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
                     borderSide: BorderSide.none,

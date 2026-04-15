@@ -11,8 +11,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../constants/app_colors.dart';
 import '../../providers/home_provider.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/navigation_provider.dart';
-import '../../widgets/main_shell.dart';
+import 'dashboard_screen.dart';
 import '../auth/login_screen.dart';
 
 class HomeSelectionScreen extends ConsumerStatefulWidget {
@@ -54,11 +53,11 @@ class _HomeSelectionScreenState extends ConsumerState<HomeSelectionScreen> {
         );
 
         if (response.statusCode == 200) {
-          print("✅ Başarılı: FCM Token AWS'ye kaydedildi.");
+          print("✅ Success: FCM Token saved to AWS.");
         }
       }
     } catch (e) {
-      print("⚠️ FCM Token güncellenirken hata oluştu: $e");
+      print("⚠️ Error while updating FCM Token: $e");
     }
   }
 
@@ -101,11 +100,10 @@ class _HomeSelectionScreenState extends ConsumerState<HomeSelectionScreen> {
 
   void _selectHome(Map<String, dynamic> home) {
     ref.read(selectedHomeProvider.notifier).setHome(home);
-    ref.read(tabIndexProvider.notifier).setTab(0);
-
+    
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => const MainShell()),
+      MaterialPageRoute(builder: (context) => const DashboardScreen()),
     );
   }
 
@@ -120,7 +118,7 @@ class _HomeSelectionScreenState extends ConsumerState<HomeSelectionScreen> {
     }
   }
 
-  // --- KAMERAYI AÇAN VE AWS'YE (JOIN-HOME) İSTEK ATAN FONKSİYON ---
+  // --- FUNCTION THAT OPENS THE CAMERA AND SENDS A REQUEST TO AWS (JOIN-HOME) ---
   Future<void> _openScanner() async {
     final scannedToken = await Navigator.push(
       context,
@@ -134,7 +132,7 @@ class _HomeSelectionScreenState extends ConsumerState<HomeSelectionScreen> {
         final session = await Amplify.Auth.fetchAuthSession() as CognitoAuthSession;
         final token = session.userPoolTokensResult.value.idToken.raw;
 
-        // AWS'deki sadece /join-home olan uç nokta
+        // The /join-home endpoint on AWS
         final url = Uri.parse("https://zz3kr12z0f.execute-api.us-east-1.amazonaws.com/prod/join-home");
         
         final response = await http.post(
@@ -144,19 +142,19 @@ class _HomeSelectionScreenState extends ConsumerState<HomeSelectionScreen> {
         );
 
         if (!mounted) return;
-        Navigator.pop(context); // Yükleniyor'u kapat
+        Navigator.pop(context); // Close the loading spinner
 
         if (response.statusCode == 200) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Harika! Eve başarıyla katıldınız! 🥳"), backgroundColor: AppColors.accentGreen));
-          _fetchHomes(); // Listeyi yenile
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Great! You've successfully joined the home! 🥳"), backgroundColor: AppColors.accentGreen));
+          _fetchHomes(); // Refresh the list
         } else {
           final errorData = jsonDecode(response.body);
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Hata: $errorData"), backgroundColor: AppColors.accentRed));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $errorData"), backgroundColor: AppColors.accentRed));
         }
       } catch (e) {
         if (!mounted) return;
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Bağlantı hatası: $e"), backgroundColor: AppColors.accentRed));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Connection error: $e"), backgroundColor: AppColors.accentRed));
       }
     }
   }
@@ -164,7 +162,7 @@ class _HomeSelectionScreenState extends ConsumerState<HomeSelectionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg(context),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -176,7 +174,7 @@ class _HomeSelectionScreenState extends ConsumerState<HomeSelectionScreen> {
           )
         ],
       ),
-      // --- YENİ: KARE, YAZISIZ, MAVİ "KATIL" BUTONU ---
+      // --- NEW: SQUARE, TEXTLESS, BLUE "JOIN" BUTTON ---
       floatingActionButton: FloatingActionButton(
         onPressed: _openScanner,
         backgroundColor: AppColors.primaryBlue,
@@ -199,16 +197,16 @@ class _HomeSelectionScreenState extends ConsumerState<HomeSelectionScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Text(
+                        const Text(
                           "Which home would you like to enter?",
-                          style: TextStyle(color: AppColors.text(context), fontSize: 24, fontWeight: FontWeight.bold),
+                          style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 48),
                         if (_homes.isEmpty)
-                          Text(
+                          const Text(
                             "No registered homes found.\nTap the + button below to join one!",
-                            style: TextStyle(color: AppColors.textSub(context), fontSize: 16),
+                            style: TextStyle(color: AppColors.textGrey, fontSize: 16),
                             textAlign: TextAlign.center,
                           )
                         else
@@ -245,7 +243,7 @@ class _HomeSelectionScreenState extends ConsumerState<HomeSelectionScreen> {
                                     const SizedBox(height: 12),
                                     Text(
                                       homeName,
-                                      style: TextStyle(color: AppColors.text(context), fontSize: 16, fontWeight: FontWeight.w600),
+                                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
@@ -271,7 +269,7 @@ class _HomeSelectionScreenState extends ConsumerState<HomeSelectionScreen> {
 }
 
 // ============================================================================
-// --- KAMERA İLE QR OKUMA SAYFASI ---
+// --- CAMERA QR SCANNER PAGE ---
 // ============================================================================
 class QRScannerScreen extends StatefulWidget {
   const QRScannerScreen({super.key});
@@ -290,7 +288,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text("QR Kodu Çerçeveye Alın", style: TextStyle(color: Colors.white)),
+        title: const Text("Align the QR Code in the Frame", style: TextStyle(color: Colors.white)),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: Stack(
@@ -305,7 +303,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
                   setState(() => _isProcessing = true);
                   final String code = barcode.rawValue!;
                   
-                  // Okunan şifreli metni geldiğimiz sayfaya geri fırlatıyoruz
+                  // Send the scanned encrypted text back to the previous page
                   Navigator.pop(context, code);
                   break; 
                 }
@@ -330,7 +328,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
             right: 0,
             child: const Center(
               child: Text(
-                "Adminin ekranındaki QR kodu okutun",
+                "Scan the QR code on the admin's screen",
                 style: TextStyle(color: Colors.white, fontSize: 16, backgroundColor: Colors.black54),
               ),
             ),

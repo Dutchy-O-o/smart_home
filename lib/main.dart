@@ -3,13 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:amplify_flutter/amplify_flutter.dart';
 import 'package:amplify_auth_cognito/amplify_auth_cognito.dart';
 
-// --- YENİ EKLENEN FIREBASE KÜTÜPHANELERİ ---
+// --- FIREBASE LIBRARIES ---
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'firebase_options.dart';
 
-// PROJENİN DİĞER İÇE AKTARIMLARI
+// PROJECT IMPORTS
 import 'amplifyconfiguration.dart';
 import 'constants/app_colors.dart';
 import 'providers/auth_provider.dart';
@@ -19,42 +19,42 @@ import 'providers/alert_provider.dart';
 import 'screens/dashboard/home_selection_screen.dart';
 import 'screens/onboarding/onboarding_screen.dart';
 
-// 1. TÜM UYGULAMANIN EKRANINI TUTACAK GLOBAL ANAHTAR (EN TEPEYE EKLENDİ)
+// 1. GLOBAL NAVIGATOR KEY (used to show dialogs from anywhere)
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
-// 2. UYGULAMA KAPALIYKEN ÇALIŞACAK FONKSİYON (Sınıfların dışında en üstte)
+// 2. BACKGROUND MESSAGE HANDLER (must be a top-level function)
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  // Arka planda çalışırken Firebase'i kendi içinde başlatması gerekir
+  // Firebase needs to be initialized again in the background isolate
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  print("Arka planda bildirim geldi: ${message.notification?.title}");
+  print("Background notification received: ${message.notification?.title}");
 }
 
 Future<void> main() async {
-  // Flutter motorunu bağla
+  // Bind Flutter engine
   WidgetsFlutterBinding.ensureInitialized();
 
-  // .env dosyasını yükle
+  // Load .env
   await dotenv.load(fileName: ".env");
 
-  // --- 3. FIREBASE'İ BAŞLAT VE BİLDİRİMLERİ DİNLE ---
+  // --- 3. INIT FIREBASE AND LISTEN FOR NOTIFICATIONS ---
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    
-    // Arka plan dinleyicisini Firebase'e tanıt
+
+    // Register the background listener
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-    // Uygulama açıkken (Foreground) gelen bildirimleri dinle
+    // Foreground notifications
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      // 1. KRİTİK DEĞİŞİKLİK: Notification null gelse bile Data'dan başlığı zorla çekiyoruz!
-      String title = message.notification?.title ?? message.data['title'] ?? 'ACİL DURUM UYARISI';
-      String body = message.notification?.body ?? message.data['body'] ?? 'Evde beklenmedik bir durum tespit edildi!';
+      // CRITICAL: Force-pull title from Data when Notification is null
+      String title = message.notification?.title ?? message.data['title'] ?? 'EMERGENCY ALERT';
+      String body = message.notification?.body ?? message.data['body'] ?? 'An unexpected event was detected at home!';
 
-      print("Uygulama açıkken bildirim geldi: $title");
+      print("Foreground notification received: $title");
 
-      // Aktif olan sayfanın context'ini Global Anahtar'dan çekiyoruz
+      // Get the current page context from the global key
       final currentContext = navigatorKey.currentContext;
 
       if (currentContext != null) {
@@ -90,7 +90,7 @@ Future<void> main() async {
 
         showDialog(
           context: currentContext,
-          barrierDismissible: false, // Kullanıcı dışarı tıklayarak kapatamasın
+          barrierDismissible: false, // user can't tap outside to close
           builder: (BuildContext context) {
             return AlertDialog(
               backgroundColor: Colors.red.shade50,
@@ -101,22 +101,22 @@ Future<void> main() async {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      title, // Artık doğrudan çektiğimiz title değişkenini kullanıyoruz
+                      title,
                       style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 18),
                     ),
                   ),
                 ],
               ),
               content: Text(
-                body, // Artık doğrudan çektiğimiz body değişkenini kullanıyoruz
+                body,
                 style: const TextStyle(fontSize: 16, color: Colors.black87),
               ),
               actions: [
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                  child: const Text("ANLADIM", style: TextStyle(color: Colors.white)),
+                  child: const Text("OK", style: TextStyle(color: Colors.white)),
                   onPressed: () {
-                    Navigator.of(context).pop(); // Uyarıyı kapat
+                    Navigator.of(context).pop();
                   },
                 ),
               ],
@@ -124,17 +124,17 @@ Future<void> main() async {
           },
         );
       } else {
-        print("Hata: Context bulunamadı, uyarı kutusu ekrana çizilemedi!");
+        print("Error: Context not found, could not show alert dialog.");
       }
     });
   } catch (e) {
-    print("Firebase başlatılırken hata oluştu: $e");
+    print("Firebase init error: $e");
   }
 
-  // --- 4. AWS AMPLIFY'I BAŞLAT ---
+  // --- 4. INIT AWS AMPLIFY ---
   await _configureAmplify();
 
-  // Uygulamayı Riverpod ile sararak başlat
+  // Wrap app in Riverpod
   runApp(const ProviderScope(child: AkilliEvApp()));
 }
 
@@ -174,7 +174,7 @@ class AkilliEvApp extends ConsumerWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       navigatorKey: navigatorKey,
-      title: 'Akıllı Ev',
+      title: 'Smart Home',
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeMode,

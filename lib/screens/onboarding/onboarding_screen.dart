@@ -36,16 +36,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg(context),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
           TextButton(
             onPressed: () => _navigateToLogin(),
-            child: Text(
+            child: const Text(
               "Skip",
-              style: TextStyle(color: AppColors.textSub(context)),
+              style: TextStyle(color: AppColors.textGrey),
             ),
           )
         ],
@@ -97,8 +97,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               flex: 2,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 30),
-                decoration: BoxDecoration(
-                  color: AppColors.bg(context),
+                decoration: const BoxDecoration(
+                  color: AppColors.background,
                   borderRadius: BorderRadius.only(
                     topLeft: Radius.circular(30),
                     topRight: Radius.circular(30),
@@ -110,19 +110,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     Text(
                       _contents[_currentIndex].title,
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.text(context),
+                        color: AppColors.textWhite,
                       ),
                     ),
                     const SizedBox(height: 16),
                     Text(
                       _contents[_currentIndex].description,
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 14,
-                        color: AppColors.textSub(context),
+                        color: AppColors.textGrey,
                         height: 1.5,
                       ),
                     ),

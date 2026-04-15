@@ -1,5 +1,12 @@
 import 'package:flutter/material.dart';
 import '../../constants/app_colors.dart';
+import '../dashboard/dashboard_screen.dart';
+import '../ai_hub/emotion_hub_screen.dart';
+import '../devices/device_control_screen.dart';
+
+import '../notifications/notification_screen.dart';
+import '../automations/automations_list_screen.dart';
+import '../profile/profile_screen.dart';
 
 
 class MonitoringScreen extends StatefulWidget {
@@ -10,10 +17,32 @@ class MonitoringScreen extends StatefulWidget {
 }
 
 class _MonitoringScreenState extends State<MonitoringScreen> {
+  void _onBottomNavTapped(int index) {
+    if (index == 0) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const DashboardScreen()),
+        (route) => false,
+      );
+    } else if (index == 1) {
+      Navigator.push(context, MaterialPageRoute(builder: (context) => const EmotionHubScreen()));
+    } else if (index == 2) {
+      Navigator.push(context, MaterialPageRoute(builder: (context) => const AutomationsListScreen()));
+    } else if (index == 3) {
+      // Already on Security
+    } else if (index == 4) {
+      Navigator.push(context, MaterialPageRoute(builder: (context) => const DeviceControlScreen()));
+    } else if (index == 5) {
+      Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationScreen()));
+    } else if (index == 6) {
+      Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen()));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg(context),
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
@@ -26,31 +55,31 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.menu, color: AppColors.iconDefault(context)),
+                      const Icon(Icons.menu, color: Colors.white),
                       const SizedBox(width: 16),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
+                        children: const [
                           Text(
                             "Monitoring Station",
                             style: TextStyle(
-                              color: AppColors.text(context),
+                              color: Colors.white,
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           Text(
                             "System Online v2.4.1",
-                            style: TextStyle(color: AppColors.textSub(context), fontSize: 10),
+                            style: TextStyle(color: AppColors.textGrey, fontSize: 10),
                           ),
                         ],
                       ),
                     ],
                   ),
-                  CircleAvatar(
+                  const CircleAvatar(
                     radius: 18,
-                    backgroundColor: AppColors.card(context),
-                    child: Icon(Icons.person, size: 20, color: AppColors.iconDefault(context)),
+                    backgroundColor: AppColors.cardDark,
+                    child: Icon(Icons.person, size: 20, color: Colors.white),
                   ),
                 ],
               ),
@@ -171,9 +200,9 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                         const SizedBox(width: 12),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text("CRITICAL ALERT", style: TextStyle(color: AppColors.accentRed, fontWeight: FontWeight.bold, fontSize: 12)),
-                            Text("Gas Threshold Exceeded", style: TextStyle(color: AppColors.text(context), fontWeight: FontWeight.bold, fontSize: 16)),
+                          children: const [
+                            Text("CRITICAL ALERT", style: TextStyle(color: AppColors.accentRed, fontWeight: FontWeight.bold, fontSize: 12)),
+                            Text("Gas Threshold Exceeded", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
                           ],
                         ),
                       ],
@@ -224,10 +253,10 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  const Text(
                     "ACTIONS",
                     style: TextStyle(
-                        color: AppColors.textSub(context),
+                        color: AppColors.textGrey,
                         fontWeight: FontWeight.bold,
                         fontSize: 12,
                         letterSpacing: 1.2),
@@ -241,9 +270,9 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
 
                         height: 60,
                         decoration: BoxDecoration(
-                          color: AppColors.card(context),
+                          color: AppColors.cardDark,
                           shape: BoxShape.circle,
-                          border: Border.all(color: AppColors.borderCol(context)),
+                          border: Border.all(color: Colors.white24),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withOpacity(0.2),
@@ -253,7 +282,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                           ],
                         ),
                         child: IconButton(
-                          icon: Icon(Icons.refresh, color: AppColors.iconDefault(context), size: 28),
+                          icon: const Icon(Icons.refresh, color: Colors.white70, size: 28),
                           onPressed: () {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(content: Text("Sensors refreshed.")),
@@ -294,6 +323,27 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
         ),
       ),
       
+      bottomNavigationBar: BottomNavigationBar(
+        backgroundColor: AppColors.cardDark,
+        selectedItemColor: AppColors.accentGreen,
+        unselectedItemColor: Colors.grey,
+        type: BottomNavigationBarType.fixed,
+        currentIndex: 3,
+        onTap: _onBottomNavTapped,
+        showSelectedLabels: true, 
+        showUnselectedLabels: true,
+        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
+        unselectedLabelStyle: const TextStyle(fontSize: 10),
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.grid_view), label: 'Dash'),
+          BottomNavigationBarItem(icon: Icon(Icons.sentiment_satisfied_alt), label: 'Emotion'),
+          BottomNavigationBarItem(icon: Icon(Icons.auto_awesome), label: 'Automate'),
+          BottomNavigationBarItem(icon: Icon(Icons.security), label: 'Security'),
+          BottomNavigationBarItem(icon: Icon(Icons.devices), label: 'Devices'),
+          BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Alerts'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+        ],
+      ),
     );
   }
 
@@ -301,7 +351,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: AppColors.card(context),
+        color: AppColors.cardDark,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: isGreen ? dotColor.withOpacity(0.3) : Colors.transparent),
       ),
@@ -314,7 +364,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
             Icon(Icons.wifi, size: 14, color: dotColor),
              const SizedBox(width: 6),
           ],
-          Text(text, style: TextStyle(color: isGreen ? dotColor : AppColors.textSub(context), fontSize: 11, fontWeight: FontWeight.bold)),
+          Text(text, style: TextStyle(color: isGreen ? dotColor : Colors.grey, fontSize: 11, fontWeight: FontWeight.bold)),
         ],
       ),
     );
@@ -333,7 +383,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
       height: 200, 
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.card(context),
+        color: AppColors.cardDark,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
@@ -343,21 +393,21 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
             children: [
               Row(
                 children: [
-                  Icon(icon, color: AppColors.textSub(context), size: 20),
+                  Icon(icon, color: Colors.grey, size: 20),
                   const SizedBox(width: 8),
-                  Text(title, style: TextStyle(color: AppColors.textSub(context))),
+                  Text(title, style: const TextStyle(color: Colors.grey)),
                 ],
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: isTrendPositive ? AppColors.accentGreen.withOpacity(0.1) : AppColors.textSub(context).withOpacity(0.1),
+                  color: isTrendPositive ? AppColors.accentGreen.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   trend,
                   style: TextStyle(
-                    color: isTrendPositive ? AppColors.accentGreen : AppColors.textSub(context),
+                    color: isTrendPositive ? AppColors.accentGreen : Colors.grey,
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
                   ),
@@ -370,10 +420,10 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(value, style: TextStyle(color: AppColors.text(context), fontSize: 32, fontWeight: FontWeight.bold)),
+              Text(value, style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold)),
               Padding(
                 padding: const EdgeInsets.only(bottom: 6, left: 4),
-                child: Text(unit, style: TextStyle(color: AppColors.textSub(context), fontSize: 16)),
+                child: Text(unit, style: const TextStyle(color: Colors.grey, fontSize: 16)),
               ),
             ],
           ),
@@ -391,10 +441,10 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
           const SizedBox(height: 4),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text("00:00", style: TextStyle(color: AppColors.textSub(context), fontSize: 10)),
-              Text("12:00", style: TextStyle(color: AppColors.textSub(context), fontSize: 10)),
-              Text("Now", style: TextStyle(color: AppColors.textSub(context), fontSize: 10)),
+            children: const [
+              Text("00:00", style: TextStyle(color: Colors.grey, fontSize: 10)),
+              Text("12:00", style: TextStyle(color: Colors.grey, fontSize: 10)),
+              Text("Now", style: TextStyle(color: Colors.grey, fontSize: 10)),
             ],
           ),
         ],

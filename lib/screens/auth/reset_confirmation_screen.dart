@@ -8,7 +8,7 @@ class ResetConfirmationScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg(context),
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -41,8 +41,8 @@ class ResetConfirmationScreen extends StatelessWidget {
                   ),
                   Container(
                     padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: AppColors.bg(context),
+                    decoration: const BoxDecoration(
+                      color: AppColors.background,
                       shape: BoxShape.circle,
                     ),
                     child: Container(
@@ -62,20 +62,20 @@ class ResetConfirmationScreen extends StatelessWidget {
               ),
 
               const SizedBox(height: 40),
-              Text(
+              const Text(
                 "Check your mail",
                 style: TextStyle(
-                  color: AppColors.text(context),
+                  color: AppColors.textWhite,
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 16),
-              Text(
+              const Text(
                 "We have sent password recovery instructions to your email. Please check your inbox and spam folder.",
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: AppColors.textSub(context),
+                  color: AppColors.textGrey,
                   fontSize: 15,
                   height: 1.5,
                 ),
@@ -116,7 +116,7 @@ class ResetConfirmationScreen extends StatelessWidget {
               const Spacer(flex: 3),
               Column(
                 children: [
-                  Text("Did not receive the email?", style: TextStyle(color: AppColors.textSub(context))),
+                  const Text("Did not receive the email?", style: TextStyle(color: AppColors.textGrey)),
                   const SizedBox(height: 8),
                   GestureDetector(
                     onTap: () {

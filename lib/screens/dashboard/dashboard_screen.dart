@@ -95,7 +95,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     }
   }
 
-  // --- SENSÖR VERİSİ ÇEKME ---
+  // --- FETCH SENSOR DATA ---
   Future<void> _fetchSensors(String homeId) async {
     final data = await ApiService.fetchSensors(homeId);
     if (data != null && data['sensors'] != null) {
@@ -122,18 +122,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     }
   }
 
-  // --- GERÇEK API'DEN ŞİFRELİ QR TOKEN'I ALAN FONKSİYON ---
+  // --- FUNCTION THAT FETCHES THE ENCRYPTED QR TOKEN FROM THE REAL API ---
   Future<void> _generateAndShowQr(String homeId, String homeName) async {
-    print("🕵️‍♂️ 3. API İSTEK FONKSİYONU BAŞLADI. Hedef Ev: $homeId");
+    print("🕵️‍♂️ 3. API REQUEST FUNCTION STARTED. Target Home: $homeId");
     showDialog(context: context, barrierDismissible: false, builder: (c) => const Center(child: CircularProgressIndicator(color: AppColors.primaryBlue)));
 
     try {
       final session = await Amplify.Auth.fetchAuthSession() as CognitoAuthSession;
       final token = session.userPoolTokensResult.value.idToken.raw;
-      print("🕵️‍♂️ 4. COGNITO TOKEN ALINDI, AWS'YE GİDİLİYOR...");
+      print("🕵️‍♂️ 4. COGNITO TOKEN RECEIVED, CONNECTING TO AWS...");
 
       final url = Uri.parse("https://zz3kr12z0f.execute-api.us-east-1.amazonaws.com/prod/$homeId/generate-invite");
-      print("🕵️‍♂️ 5. İSTEK ATILAN URL: $url");
+      print("🕵️‍♂️ 5. REQUESTED URL: $url");
       
       final response = await http.post(
         url,
@@ -142,29 +142,29 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       );
 
       if (!mounted) return;
-      Navigator.pop(context); // Yükleniyor dairesini kapat
+      Navigator.pop(context); // Close the loading spinner
 
-      print("🕵️‍♂️ 6. AWS'DEN CEVAP GELDİ! Status Code: ${response.statusCode}");
-      print("🕵️‍♂️ 7. AWS CEVAP İÇERİĞİ: ${response.body}");
+      print("🕵️‍♂️ 6. RESPONSE RECEIVED FROM AWS! Status Code: ${response.statusCode}");
+      print("🕵️‍♂️ 7. AWS RESPONSE BODY: ${response.body}");
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final secureToken = data['secure_token'];
-        print("✅ 8. ŞİFRELİ TOKEN ALINDI, MODAL AÇILIYOR!");
+        print("✅ 8. ENCRYPTED TOKEN RECEIVED, OPENING MODAL!");
         _showQrInviteModal(context, secureToken, homeName);
       } else {
-        print("❌ HATA: AWS işlemi reddetti.");
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("QR oluşturulamadı: ${response.body}"), backgroundColor: AppColors.accentRed));
+        print("❌ ERROR: AWS rejected the request.");
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Could not generate QR: ${response.body}"), backgroundColor: AppColors.accentRed));
       }
     } catch (e) {
       if (!mounted) return;
       Navigator.pop(context);
-      print("❌ SİSTEM HATASI (Catch): $e");
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Bağlantı hatası: $e"), backgroundColor: AppColors.accentRed));
+      print("❌ SYSTEM ERROR (Catch): $e");
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Connection error: $e"), backgroundColor: AppColors.accentRed));
     }
   }
 
-  // --- QR KOD MODALINI AÇAN FONKSİYON ---
+  // --- FUNCTION THAT OPENS THE QR CODE MODAL ---
   void _showQrInviteModal(BuildContext context, String secureToken, String homeName) {
     showDialog(
       context: context,
@@ -180,12 +180,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 const Icon(Icons.qr_code_scanner, color: AppColors.accentGreen, size: 40),
                 const SizedBox(height: 16),
                 Text(
-                  "$homeName Daveti",
+                  "$homeName Invitation",
                   style: TextStyle(color: AppColors.text(context), fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  "Misafirin uygulamasından bu kodu okutmasını isteyin. (5 dk geçerlidir)",
+                  "Ask the guest to scan this code from their app. (Valid for 5 minutes)",
                   textAlign: TextAlign.center,
                   style: TextStyle(color: AppColors.textSub(context), fontSize: 14),
                 ),
@@ -197,10 +197,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child:QrImageView(
-                    data: secureToken, // AWS'den gelen şifreli metin
+                    data: secureToken, // Encrypted text received from AWS
                     version: QrVersions.auto,
                     size: 200.0,
-                    backgroundColor: Colors.white, // Tarayıcının karanlık modda kafası karışmasın diye
+                    backgroundColor: Colors.white, // So the scanner doesn't get confused in dark mode
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -213,7 +213,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
                     onPressed: () => Navigator.pop(context),
-                    child: const Text("KAPAT", style: TextStyle(color: AppColors.primaryBlue, fontWeight: FontWeight.bold)),
+                    child: const Text("CLOSE", style: TextStyle(color: AppColors.primaryBlue, fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],
@@ -224,7 +224,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  // --- Üst menüdeki yuvarlak butonları hizalamak için yardımcı widget ---
+  // --- Helper widget to align the round buttons in the top menu ---
   Widget _buildHeaderBtn(IconData icon, Color color, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
@@ -267,7 +267,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // --- ŞIK VE FERAH ÜST MENÜ ---
+              // --- SLEEK AND SPACIOUS TOP MENU ---
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -326,20 +326,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     ),
                   ),
 
-                  // --- SAĞ TARAF: Aksiyon Butonları ---
+                  // --- RIGHT SIDE: Action Buttons ---
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (homeRole == 'ADMIN') ...[
                         _buildHeaderBtn(Icons.qr_code, AppColors.accentGreen, () {
                           
-                          // İŞTE SİHİRLİ DOKUNUŞ: 'homeid' eklendi!
+                          // HERE'S THE MAGIC TOUCH: 'homeid' added!
                           final currentHomeId = selectedHome?['home_id'] ?? selectedHome?['id'] ?? selectedHome?['homeid'];
-                          
+
                           if (currentHomeId != null) {
                             _generateAndShowQr(currentHomeId.toString(), homeName);
                           } else {
-                            print("❌ HATA: Ev ID'si hala bulunamadı!");
+                            print("❌ ERROR: Home ID still not found!");
                           }
                         }),
                         const SizedBox(width: 8),
