@@ -107,7 +107,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
     final homeId = (selectedHome?['home_id'] ?? selectedHome?['id'] ?? selectedHome?['homeid'])?.toString();
     
     if (homeId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Home ID not found.', style: TextStyle(color: AppColors.text(context))), backgroundColor: AppColors.card(context)));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Home ID not found.', style: TextStyle(color: Colors.white)), backgroundColor: AppColors.cardDark));
       return;
     }
 
@@ -195,9 +195,9 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
     return Container(
       padding: padding ?? const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.card(context),
+        color: AppColors.cardDark,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.borderCol(context)),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
       ),
       child: child,
     );
@@ -206,21 +206,21 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg(context),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text(widget.existingData != null ? 'Edit Automation' : 'New Automation', style: TextStyle(color: AppColors.text(context), fontWeight: FontWeight.bold)),
+        title: Text(widget.existingData != null ? 'Edit Automation' : 'New Automation', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        iconTheme: IconThemeData(color: AppColors.text(context)),
+        iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           Row(
             children: [
-              Text(_isActive ? "ACTIVE" : "INACTIVE", style: TextStyle(color: _isActive ? AppColors.accentGreen : AppColors.textSub(context), fontSize: 13, fontWeight: FontWeight.w800)),
+              Text(_isActive ? "ACTIVE" : "INACTIVE", style: TextStyle(color: _isActive ? AppColors.accentGreen : Colors.white54, fontSize: 13, fontWeight: FontWeight.w800)),
               Switch(
                 value: _isActive,
                 activeColor: AppColors.accentGreen,
                 inactiveThumbColor: Colors.grey,
-                inactiveTrackColor: AppColors.borderCol(context),
+                inactiveTrackColor: Colors.white12,
                 onChanged: (val) => setState(() => _isActive = val),
               ),
               const SizedBox(width: 12),
@@ -237,7 +237,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
               child: TextField(
                 controller: _nameController,
-                style: TextStyle(color: AppColors.text(context), fontSize: 18, fontWeight: FontWeight.bold),
+                style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                 cursorColor: AppColors.primaryBlue,
                 decoration: const InputDecoration(
                   hintText: 'Automation Name (e.g. Night Mode)',
@@ -261,7 +261,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
                   child: const Icon(Icons.bolt, color: AppColors.accentOrange, size: 22),
                 ),
                 const SizedBox(width: 16),
-                Text("Trigger (IF)", style: TextStyle(color: AppColors.text(context), fontSize: 18, fontWeight: FontWeight.bold)),
+                const Text("Trigger (IF)", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
               ],
             ),
             
@@ -281,7 +281,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
                           borderRadius: BorderRadius.circular(12),
                         ),
                         alignment: Alignment.center,
-                        child: Text("Yapay Zeka (Duygu)", style: TextStyle(color: _triggerType == 'ai' ? Colors.white : AppColors.textSub(context), fontWeight: FontWeight.bold, fontSize: 14)),
+                        child: Text("Yapay Zeka (Duygu)", style: TextStyle(color: _triggerType == 'ai' ? Colors.white : Colors.white54, fontWeight: FontWeight.bold, fontSize: 14)),
                       ),
                     ),
                   ),
@@ -295,7 +295,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
                           borderRadius: BorderRadius.circular(12),
                         ),
                         alignment: Alignment.center,
-                        child: Text("Sensor Data", style: TextStyle(color: _triggerType == 'sensor' ? Colors.white : AppColors.textSub(context), fontWeight: FontWeight.bold, fontSize: 14)),
+                        child: Text("Sensor Data", style: TextStyle(color: _triggerType == 'sensor' ? Colors.white : Colors.white54, fontWeight: FontWeight.bold, fontSize: 14)),
                       ),
                     ),
                   ),
@@ -322,7 +322,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
                   child: const Icon(Icons.play_arrow_rounded, color: AppColors.primaryBlue, size: 24),
                 ),
                 const SizedBox(width: 16),
-                Text("Aksiyon (O ZAMAN)", style: TextStyle(color: AppColors.text(context), fontSize: 18, fontWeight: FontWeight.bold)),
+                const Text("Aksiyon (O ZAMAN)", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
               ],
             ),
             
@@ -386,7 +386,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               decoration: BoxDecoration(
-                color: isSelected ? baseColor.withOpacity(0.2) : AppColors.card(context),
+                color: isSelected ? baseColor.withOpacity(0.2) : Colors.white.withOpacity(0.05),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: isSelected ? baseColor : Colors.transparent, width: 2),
               ),
@@ -395,7 +395,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
                 children: [
                   Text(emo['icon'] as String, style: TextStyle(fontSize: isSelected ? 36 : 30)),
                   const SizedBox(height: 8),
-                  Text(emo['label'] as String, style: TextStyle(color: isSelected ? AppColors.text(context) : AppColors.textSub(context), fontWeight: isSelected ? FontWeight.bold : FontWeight.w500)),
+                  Text(emo['label'] as String, style: TextStyle(color: isSelected ? Colors.white : Colors.white60, fontWeight: isSelected ? FontWeight.bold : FontWeight.w500)),
                 ],
               ),
             ),
@@ -411,18 +411,18 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Sensor Selection", style: TextStyle(color: AppColors.textSub(context), fontSize: 13, fontWeight: FontWeight.w600)),
+          const Text("Sensor Selection", style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(color: AppColors.card(context), borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.borderCol(context))),
+            decoration: BoxDecoration(color: Colors.white.withOpacity(0.05), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white.withOpacity(0.1))),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
                 isExpanded: true,
-                dropdownColor: AppColors.card(context),
+                dropdownColor: AppColors.cardDark,
                 value: _sensorType,
-                icon: Icon(Icons.arrow_drop_down, color: AppColors.textSub(context)),
-                style: TextStyle(color: AppColors.text(context), fontSize: 15, fontWeight: FontWeight.w500),
+                icon: const Icon(Icons.arrow_drop_down, color: Colors.white54),
+                style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w500),
                 items: const [
                   DropdownMenuItem(value: 'temperature', child: Text('Temperature (°C)')),
                   DropdownMenuItem(value: 'humidity', child: Text('Humidity (%)')),
@@ -433,7 +433,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
             ),
           ),
           const SizedBox(height: 20),
-          Text("Condition & Value", style: TextStyle(color: AppColors.textSub(context), fontSize: 13, fontWeight: FontWeight.w600)),
+          const Text("Condition & Value", style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           Row(
             children: [
@@ -441,14 +441,14 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
                 flex: 3,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  decoration: BoxDecoration(color: AppColors.card(context), borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.borderCol(context))),
+                  decoration: BoxDecoration(color: Colors.white.withOpacity(0.05), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white.withOpacity(0.1))),
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<String>(
                       isExpanded: true,
-                      dropdownColor: AppColors.card(context),
+                      dropdownColor: AppColors.cardDark,
                       value: _sensorOperator,
-                      icon: Icon(Icons.arrow_drop_down, color: AppColors.textSub(context)),
-                      style: TextStyle(color: AppColors.text(context), fontSize: 15, fontWeight: FontWeight.w500),
+                      icon: const Icon(Icons.arrow_drop_down, color: Colors.white54),
+                      style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w500),
                       items: const [
                         DropdownMenuItem(value: '>=', child: Text('Greater than (>=)')),
                         DropdownMenuItem(value: '<=', child: Text('Less than (<=)')),
@@ -463,10 +463,10 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
               Expanded(
                 flex: 2,
                 child: Container(
-                  decoration: BoxDecoration(color: AppColors.card(context), borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.borderCol(context))),
+                  decoration: BoxDecoration(color: Colors.white.withOpacity(0.05), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white.withOpacity(0.1))),
                   child: TextField(
                     controller: _sensorValueController,
-                    style: TextStyle(color: AppColors.text(context), fontSize: 16, fontWeight: FontWeight.bold),
+                    style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
                     keyboardType: TextInputType.number,
                     textAlign: TextAlign.center,
                     decoration: const InputDecoration(
@@ -504,9 +504,9 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 16),
             decoration: BoxDecoration(
-              border: Border.all(color: AppColors.borderCol(context), style: BorderStyle.solid),
+              border: Border.all(color: Colors.white.withOpacity(0.2), style: BorderStyle.solid),
               borderRadius: BorderRadius.circular(16),
-              color: AppColors.card(context).withOpacity(0.5),
+              color: Colors.white.withOpacity(0.02),
             ),
             child: const Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -526,7 +526,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.card(context),
+      backgroundColor: AppColors.cardDark,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (context) {
         return Container(
@@ -534,7 +534,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
           height: MediaQuery.of(context).size.height * 0.6,
           child: Column(
             children: [
-              Text("Select Device", style: TextStyle(color: AppColors.text(context), fontSize: 18, fontWeight: FontWeight.bold)),
+              const Text("Select Device", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
               Expanded(
                 child: Builder(
@@ -544,9 +544,9 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
                     ).toList();
                     
                     if (_availableDevices.isEmpty) {
-                      return Center(child: Text("No devices found.", style: TextStyle(color: AppColors.textSub(context))));
+                      return const Center(child: Text("No devices found.", style: TextStyle(color: Colors.white54)));
                     } else if (unaddedDevices.isEmpty) {
-                      return Center(child: Text("All devices are already added.", style: TextStyle(color: AppColors.textSub(context))));
+                      return const Center(child: Text("All devices are already added.", style: TextStyle(color: Colors.white54)));
                     }
 
                     return ListView.builder(
@@ -554,8 +554,8 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
                       itemBuilder: (context, index) {
                         final dev = unaddedDevices[index];
                         return ListTile(
-                          title: Text(dev['device_name'].toString(), style: TextStyle(color: AppColors.text(context))),
-                          subtitle: Text(dev['device_type'].toString(), style: TextStyle(color: AppColors.textSub(context))),
+                          title: Text(dev['device_name'].toString(), style: const TextStyle(color: Colors.white)),
+                          subtitle: Text(dev['device_type'].toString(), style: const TextStyle(color: Colors.white54)),
                           trailing: const Icon(Icons.add, color: AppColors.primaryBlue),
                           onTap: () {
                             setState(() {
@@ -598,9 +598,9 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.card(context),
+        color: AppColors.cardDark,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.borderCol(context)),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -609,12 +609,12 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
             children: [
               Container(
                 padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: AppColors.borderCol(context), borderRadius: BorderRadius.circular(8)),
-                child: Icon(isLed ? Icons.lightbulb : isSpk ? Icons.speaker : Icons.blinds, color: AppColors.iconDefault(context), size: 20),
+                decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                child: Icon(isLed ? Icons.lightbulb : isSpk ? Icons.speaker : Icons.blinds, color: Colors.white, size: 20),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(act['device_name'].toString(), style: TextStyle(color: AppColors.text(context), fontWeight: FontWeight.bold, fontSize: 16)),
+                child: Text(act['device_name'].toString(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
               ),
               Switch(
                 value: act['power'] as bool,
@@ -645,7 +645,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
             const SizedBox(height: 8),
             Row(
               children: [
-                Icon(Icons.brightness_low, color: AppColors.textSub(context), size: 16),
+                const Icon(Icons.brightness_low, color: Colors.grey, size: 16),
                 Expanded(
                   child: Slider(
                     value: (act['brightness'] as num).toDouble(),
@@ -655,7 +655,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
                     onChanged: (val) => setState(() { _addedActions[index]['brightness'] = val.toInt(); }),
                   ),
                 ),
-                Icon(Icons.brightness_high, color: AppColors.textSub(context), size: 16),
+                const Icon(Icons.brightness_high, color: Colors.grey, size: 16),
               ],
             ),
           ] else if (isSpk) ...[
@@ -671,7 +671,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
             const SizedBox(height: 8),
             Row(
               children: [
-                Icon(Icons.volume_down, color: AppColors.textSub(context), size: 16),
+                const Icon(Icons.volume_down, color: Colors.grey, size: 16),
                 Expanded(
                   child: Slider(
                     value: (act['volume'] as num).toDouble(),
@@ -681,14 +681,14 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
                     onChanged: (val) => setState(() { _addedActions[index]['volume'] = val.toInt(); }),
                   ),
                 ),
-                Icon(Icons.volume_up, color: AppColors.textSub(context), size: 16),
+                const Icon(Icons.volume_up, color: Colors.grey, size: 16),
               ],
             ),
           ] else if (isBld) ...[
             const SizedBox(height: 16),
             Row(
               children: [
-                Text("0%", style: TextStyle(color: AppColors.textSub(context), fontSize: 12)),
+                Text("0%", style: TextStyle(color: Colors.grey[500], fontSize: 12)),
                 Expanded(
                   child: Slider(
                     value: (act['position'] as num).toDouble(),
@@ -698,7 +698,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
                     onChanged: (val) => setState(() { _addedActions[index]['position'] = val.toInt(); }),
                   ),
                 ),
-                Text("100%", style: TextStyle(color: AppColors.textSub(context), fontSize: 12)),
+                Text("100%", style: TextStyle(color: Colors.grey[500], fontSize: 12)),
               ],
             ),
           ]
@@ -731,11 +731,11 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
       child: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.pinkAccent.withOpacity(0.2) : AppColors.card(context),
+          color: isSelected ? Colors.pinkAccent.withOpacity(0.2) : Colors.white.withOpacity(0.05),
           shape: BoxShape.circle,
           border: isSelected ? Border.all(color: Colors.pinkAccent) : null,
         ),
-        child: Icon(icon, color: isSelected ? Colors.pinkAccent : AppColors.textSub(context), size: 20),
+        child: Icon(icon, color: isSelected ? Colors.pinkAccent : Colors.grey, size: 20),
       ),
     );
   }

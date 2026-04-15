@@ -35,15 +35,15 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg(context),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: AppColors.iconDefault(context)),
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text("Reset Password", style: TextStyle(color: AppColors.text(context), fontSize: 16)),
+        title: const Text("Reset Password", style: TextStyle(color: Colors.white, fontSize: 16)),
         centerTitle: true,
       ),
       body: SafeArea(
@@ -59,7 +59,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   width: 80,
                   height: 80,
                   decoration: BoxDecoration(
-                    color: AppColors.card(context),
+                    color: AppColors.cardDark,
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
@@ -79,23 +79,23 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               
               const SizedBox(height: 30),
 
-              Center(
+              const Center(
                 child: Text(
                   "Forgot Password?",
                   style: TextStyle(
-                    color: AppColors.text(context),
+                    color: AppColors.textWhite,
                     fontSize: 26,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
               const SizedBox(height: 12),
-              Center(
+              const Center(
                 child: Text(
                   "Don't worry, it happens to the best of us. Enter the email address linked to your Smart Home Hub below, and we'll send you rescue instructions.",
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: AppColors.textSub(context),
+                    color: AppColors.textGrey,
                     fontSize: 14,
                     height: 1.5,
                   ),
@@ -105,17 +105,17 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               const SizedBox(height: 40),
 
               // 3. EMAIL ALANI
-              Text("Email Address", style: TextStyle(color: AppColors.text(context), fontWeight: FontWeight.bold)),
+              const Text("Email Address", style: TextStyle(color: AppColors.textWhite, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               TextField(
                 controller: _emailController,
-                style: TextStyle(color: AppColors.text(context)),
+                style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
                   filled: true,
-                  fillColor: AppColors.card(context),
+                  fillColor: AppColors.cardDark,
                   hintText: "name@example.com",
-                  hintStyle: TextStyle(color: AppColors.textSub(context)),
-                  prefixIcon: Icon(Icons.email_outlined, color: AppColors.textSub(context)),
+                  hintStyle: const TextStyle(color: Colors.grey),
+                  prefixIcon: const Icon(Icons.email_outlined, color: Colors.grey),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(30),
                     borderSide: BorderSide.none,
@@ -157,7 +157,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text("Remembered your password? ", style: TextStyle(color: AppColors.textSub(context))),
+                    const Text("Remembered your password? ", style: TextStyle(color: AppColors.textGrey)),
                     GestureDetector(
                       onTap: () => Navigator.pop(context),
                       child: const Text(
@@ -178,12 +178,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.shield_outlined, size: 14, color: AppColors.textSub(context)),
+                    const Icon(Icons.shield_outlined, size: 14, color: Colors.grey),
                     const SizedBox(width: 6),
                     Text(
                       "SECURED BY MQTT",
                       style: TextStyle(
-                        color: AppColors.textSub(context).withOpacity(0.5),
+                        color: Colors.grey.withOpacity(0.5),
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 1.2,

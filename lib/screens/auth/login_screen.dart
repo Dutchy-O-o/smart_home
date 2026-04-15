@@ -70,7 +70,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final isLoading = authState == AuthState.loading;
 
     return Scaffold(
-      backgroundColor: AppColors.bg(context),
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40),
@@ -83,26 +83,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: AppColors.card(context),
+                  color: AppColors.cardDark,
                   shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.borderCol(context)),
+                  border: Border.all(color: Colors.white12),
                 ),
-                child: Icon(Icons.home, size: 50, color: AppColors.iconDefault(context)),
+                child: const Icon(Icons.home, size: 50, color: AppColors.textWhite),
               ),
               const SizedBox(height: 24),
-              Text(
+              const Text(
                 "Welcome Home",
                 style: TextStyle(
-                  color: AppColors.text(context),
+                  color: AppColors.textWhite,
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 8),
-              Text(
+              const Text(
                 "Securely access your emotional intelligence hub.",
                 textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.textSub(context), fontSize: 14),
+                style: TextStyle(color: AppColors.textGrey, fontSize: 14),
               ),
               const SizedBox(height: 48),
 
@@ -117,22 +117,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("Password", style: TextStyle(color: AppColors.text(context), fontSize: 14, fontWeight: FontWeight.bold)),
+                  const Text("Password", style: TextStyle(color: AppColors.textWhite, fontSize: 14, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   TextField(
                     controller: _passwordController,
                     obscureText: _isObscured,
-                    style: TextStyle(color: AppColors.text(context)),
+                    style: const TextStyle(color: Colors.white),
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: AppColors.card(context),
+                      fillColor: AppColors.cardDark,
                       hintText: "••••••••",
-                      hintStyle: TextStyle(color: AppColors.textSub(context)),
-                      prefixIcon: Icon(Icons.lock_outline, color: AppColors.textSub(context)),
+                      hintStyle: const TextStyle(color: Colors.grey),
+                      prefixIcon: const Icon(Icons.lock_outline, color: Colors.grey),
                       suffixIcon: IconButton(
                         icon: Icon(
                           _isObscured ? Icons.visibility_off : Icons.visibility,
-                          color: AppColors.textSub(context),
+                          color: Colors.grey,
                         ),
                         onPressed: () {
                           setState(() {
@@ -210,11 +210,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               
               const SizedBox(height: 30),
 
-              Column(
+              const Column(
                 children: [
-                  Icon(Icons.face, size: 40, color: AppColors.textSub(context)),
-                  const SizedBox(height: 4),
-                  Text("Face ID", style: TextStyle(color: AppColors.textSub(context), fontSize: 12)),
+                  Icon(Icons.face, size: 40, color: Colors.grey),
+                  SizedBox(height: 4),
+                  Text("Face ID", style: TextStyle(color: Colors.grey, fontSize: 12)),
                 ],
               ),
 
@@ -223,7 +223,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text("Don't have an account? ", style: TextStyle(color: AppColors.textSub(context))),
+                  const Text("Don't have an account? ", style: TextStyle(color: AppColors.textGrey)),
                   GestureDetector(
                     onTap: () {
                       Navigator.push(
@@ -257,17 +257,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(color: AppColors.text(context), fontSize: 14, fontWeight: FontWeight.bold)),
+        Text(label, style: const TextStyle(color: AppColors.textWhite, fontSize: 14, fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         TextField(
           controller: controller,
-          style: TextStyle(color: AppColors.text(context)),
+          style: const TextStyle(color: Colors.white),
           decoration: InputDecoration(
             filled: true,
-            fillColor: AppColors.card(context),
+            fillColor: AppColors.cardDark,
             hintText: hintText,
-            hintStyle: TextStyle(color: AppColors.textSub(context)),
-            prefixIcon: Icon(icon, color: AppColors.textSub(context)),
+            hintStyle: const TextStyle(color: Colors.grey),
+            prefixIcon: Icon(icon, color: Colors.grey),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(30),
               borderSide: BorderSide.none,

@@ -22,6 +22,7 @@ class AiAgentService {
     required List<Map<String, dynamic>> messages,
     required String homeId,
     void Function(String action)? onToolAction,
+    void Function(String mood, double confidence)? onSetMood,
   }) async {
     if (!isConfigured) {
       return 'API key is not configured. Set it in lib/config/env.dart';
@@ -56,9 +57,28 @@ class AiAgentService {
         'description': 'Get list of all automation rules configured in the smart home.',
         'input_schema': {'type': 'object', 'properties': {}, 'required': []},
       },
+      {
+        'name': 'set_mood',
+        'description': 'Update the user\'s current emotional state. Use this when the user tells you how they feel, OR when they say the previous emotion detection (from face scan) was wrong and want to correct it. This will update the Emotion Hub and trigger new mood-based music recommendations.',
+        'input_schema': {
+          'type': 'object',
+          'properties': {
+            'mood': {
+              'type': 'string',
+              'description': 'One of: happy, sad, melancholy, angry, calm, excited, neutral, fearful, surprised, disgusted',
+              'enum': ['happy', 'sad', 'melancholy', 'angry', 'calm', 'excited', 'neutral', 'fearful', 'surprised', 'disgusted'],
+            },
+            'confidence': {
+              'type': 'number',
+              'description': 'How certain you are (0.0-1.0). Use 1.0 if user explicitly stated their mood.',
+            },
+          },
+          'required': ['mood', 'confidence'],
+        },
+      },
     ];
 
-    const systemPrompt = '''You are a helpful smart home AI assistant. You control devices, read sensors, and manage automations.
+    const systemPrompt = '''You are a helpful smart home AI assistant. You control devices, read sensors, manage automations, and track the user's emotional state.
 
 CRITICAL RULES:
 1. To control ANY device, ALWAYS call get_devices FIRST to get the exact "deviceid" field value.
@@ -69,7 +89,8 @@ CRITICAL RULES:
 6. ALWAYS send the control_device command when the user asks, even if the device appears to already be in that state. Device state data may be stale. Never skip a command because you think the device is already in the desired state.
 7. Report sensor data with proper units.
 8. Respond in the same language the user speaks (Turkish or English).
-9. Be concise and friendly.''';
+9. Be concise and friendly.
+10. If the user mentions feeling something (e.g. "üzgünüm", "I'm happy", "the scanner thought I was sad but I'm calm"), call set_mood to update their emotional state. Always confirm in your reply what you set.''';
 
     var currentMessages = List<Map<String, dynamic>>.from(messages);
 
@@ -101,6 +122,25 @@ CRITICAL RULES:
 
             onToolAction?.call(_describeAction(toolName, input));
 
+            // Handle set_mood directly via callback — no API call needed
+            if (toolName == 'set_mood' && onSetMood != null) {
+              final mood = (input['mood'] ?? '').toString();
+              final conf = (input['confidence'] is num)
+                  ? (input['confidence'] as num).toDouble()
+                  : 1.0;
+              onSetMood(mood, conf);
+              toolResults.add({
+                'type': 'tool_result',
+                'tool_use_id': toolId,
+                'content': jsonEncode({
+                  'success': true,
+                  'mood': mood,
+                  'confidence': conf,
+                }),
+              });
+              continue;
+            }
+
             final result = await _executeTool(toolName, input, homeId);
             toolResults.add({
               'type': 'tool_result',
@@ -129,6 +169,7 @@ CRITICAL RULES:
       case 'get_devices': return 'Fetching devices...';
       case 'control_device': return 'Controlling: ${input['action']} → ${input['value']}';
       case 'get_automations': return 'Fetching automations...';
+      case 'set_mood': return 'Updating mood: ${input['mood']}';
       default: return 'Processing...';
     }
   }

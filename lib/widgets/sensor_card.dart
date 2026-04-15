@@ -26,7 +26,7 @@ class SensorCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: cardColor ?? AppColors.card(context),
+      color: cardColor ?? AppColors.cardDark,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -37,7 +37,7 @@ class SensorCard extends StatelessWidget {
             Text(
               title,
               style: TextStyle(
-                color: AppColors.text(context),
+                color: AppColors.textWhite,
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
@@ -49,7 +49,7 @@ class SensorCard extends StatelessWidget {
                 Text(
                   value,
                   style: TextStyle(
-                    color: AppColors.textSub(context),
+                    color: AppColors.textGrey,
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
@@ -58,7 +58,7 @@ class SensorCard extends StatelessWidget {
                   Text(
                     unit!,
                     style: TextStyle(
-                      color: AppColors.textSub(context),
+                      color: AppColors.textGrey,
                       fontSize: 14,
                     ),
                   ),

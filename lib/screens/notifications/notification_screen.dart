@@ -1,41 +1,68 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/app_colors.dart';
-import '../../providers/alert_provider.dart';
+import '../dashboard/dashboard_screen.dart';
+import '../ai_hub/emotion_hub_screen.dart';
+import '../security/monitoring_screen.dart';
+import '../devices/device_control_screen.dart';
+import '../profile/profile_screen.dart';
+import '../automations/automations_list_screen.dart';
 
-class NotificationScreen extends ConsumerWidget {
+class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final filter = ref.watch(alertFilterProvider);
-    final alerts = ref.watch(filteredAlertsProvider);
-    final allAlerts = ref.watch(alertListProvider);
+  State<NotificationScreen> createState() => _NotificationScreenState();
+}
 
-    final criticalCount = allAlerts.where((a) => a.level == AlertLevel.critical && !a.isRead).length;
+class _NotificationScreenState extends State<NotificationScreen> {
+  String _selectedType = "All";
+  String _selectedLevel = "Any";
 
+  void _onBottomNavTapped(int index) {
+    if (index == 0) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const DashboardScreen()),
+        (route) => false,
+      );
+    } else if (index == 1) {
+      Navigator.push(context, MaterialPageRoute(builder: (context) => const EmotionHubScreen()));
+    } else if (index == 2) {
+      Navigator.push(context, MaterialPageRoute(builder: (context) => const AutomationsListScreen()));
+    } else if (index == 3) {
+      Navigator.push(context, MaterialPageRoute(builder: (context) => const MonitoringScreen()));
+    } else if (index == 4) {
+      Navigator.push(context, MaterialPageRoute(builder: (context) => const DeviceControlScreen()));
+    } else if (index == 5) {
+      // Already on Alerts
+    } else if (index == 6) {
+      Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen()));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg(context),
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Column(
           children: [
-            // --- HEADER ---
+            // --- 1. HEADER SECTION ---
             Padding(
               padding: const EdgeInsets.all(20.0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
+                  const Text(
                     "Notification Center",
                     style: TextStyle(
-                      color: AppColors.text(context),
+                      color: Colors.white,
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   TextButton(
                     onPressed: () {
-                      ref.read(alertListProvider.notifier).markAllRead();
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text("All notifications marked as read.")),
                       );
@@ -49,7 +76,7 @@ class NotificationScreen extends ConsumerWidget {
               ),
             ),
 
-            // --- FILTERS ---
+            // --- 2. FILTERS ---
             SizedBox(
               height: 100,
               child: Column(
@@ -60,12 +87,12 @@ class NotificationScreen extends ConsumerWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Row(
                       children: [
-                        Text("TYPE", style: TextStyle(color: AppColors.textSub(context), fontSize: 10, fontWeight: FontWeight.bold)),
+                        const Text("TYPE", style: TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold)),
                         const SizedBox(width: 12),
-                        _buildFilterBtn(context, "All", filter.type == "All", () => ref.read(alertFilterProvider.notifier).setType("All")),
-                        _buildFilterBtn(context, "Security", filter.type == "Security", () => ref.read(alertFilterProvider.notifier).setType("Security")),
-                        _buildFilterBtn(context, "Emotion", filter.type == "Emotion", () => ref.read(alertFilterProvider.notifier).setType("Emotion")),
-                        _buildFilterBtn(context, "Device", filter.type == "Device", () => ref.read(alertFilterProvider.notifier).setType("Device")),
+                        _buildFilterBtn("All", _selectedType == "All", () => setState(() => _selectedType = "All")),
+                        _buildFilterBtn("Security", _selectedType == "Security", () => setState(() => _selectedType = "Security")),
+                        _buildFilterBtn("Emotion", _selectedType == "Emotion", () => setState(() => _selectedType = "Emotion")),
+                        _buildFilterBtn("Device", _selectedType == "Device", () => setState(() => _selectedType = "Device")),
                       ],
                     ),
                   ),
@@ -76,12 +103,12 @@ class NotificationScreen extends ConsumerWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Row(
                       children: [
-                        Text("LEVEL", style: TextStyle(color: AppColors.textSub(context), fontSize: 10, fontWeight: FontWeight.bold)),
+                        const Text("LEVEL", style: TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold)),
                         const SizedBox(width: 8),
-                        _buildFilterBtn(context, "Any", filter.level == "Any", () => ref.read(alertFilterProvider.notifier).setLevel("Any")),
-                        _buildLevelBtn(context, "Critical", AppColors.accentRed, filter.level == "Critical", () => ref.read(alertFilterProvider.notifier).setLevel("Critical")),
-                        _buildLevelBtn(context, "Warning", AppColors.accentOrange, filter.level == "Warning", () => ref.read(alertFilterProvider.notifier).setLevel("Warning")),
-                        _buildLevelBtn(context, "Info", AppColors.primaryBlue, filter.level == "Info", () => ref.read(alertFilterProvider.notifier).setLevel("Info")),
+                        _buildFilterBtn("Any", _selectedLevel == "Any", () => setState(() => _selectedLevel = "Any")),
+                        _buildLevelBtn("Critical", AppColors.accentRed, _selectedLevel == "Critical", () => setState(() => _selectedLevel = "Critical")),
+                        _buildLevelBtn("Warning", AppColors.accentOrange, _selectedLevel == "Warning", () => setState(() => _selectedLevel = "Warning")),
+                        _buildLevelBtn("Info", AppColors.primaryBlue, _selectedLevel == "Info", () => setState(() => _selectedLevel = "Info")),
                       ],
                     ),
                   ),
@@ -89,218 +116,133 @@ class NotificationScreen extends ConsumerWidget {
               ),
             ),
 
-            // --- NOTIFICATION LIST ---
+            // --- 3. NOTIFICATION LIST ---
             Expanded(
-              child: alerts.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.notifications_off_outlined, color: AppColors.textSub(context), size: 64),
-                          const SizedBox(height: 16),
-                          Text(
-                            filter.type == "All" && filter.level == "Any"
-                                ? "No notifications yet.\nAlerts from your sensors will appear here."
-                                : "No notifications match this filter.",
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: AppColors.textSub(context), fontSize: 15),
-                          ),
-                        ],
-                      ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                      itemCount: alerts.length + 1, // +1 for header
-                      itemBuilder: (context, index) {
-                        if (index == 0) {
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 16),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  "${alerts.length} Alert${alerts.length == 1 ? '' : 's'}",
-                                  style: TextStyle(color: AppColors.text(context), fontSize: 18, fontWeight: FontWeight.bold),
-                                ),
-                                if (criticalCount > 0)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.accentRed.withOpacity(0.2),
-                                      borderRadius: BorderRadius.circular(4),
-                                      border: Border.all(color: AppColors.accentRed.withOpacity(0.5)),
-                                    ),
-                                    child: Text(
-                                      "$criticalCount CRITICAL",
-                                      style: const TextStyle(color: AppColors.accentRed, fontSize: 10, fontWeight: FontWeight.bold),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          );
-                        }
-
-                        final alert = alerts[index - 1];
-                        return _buildAlertCard(context, ref, alert);
-                      },
-                    ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // --- ALERT CARD ---
-  Widget _buildAlertCard(BuildContext context, WidgetRef ref, AlertItem alert) {
-    final color = _colorForLevel(alert.level);
-    final icon = _iconForType(alert.type, alert.level);
-
-    return Dismissible(
-      key: Key(alert.id),
-      direction: DismissDirection.endToStart,
-      onDismissed: (_) => ref.read(alertListProvider.notifier).dismiss(alert.id),
-      background: Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        decoration: BoxDecoration(
-          color: AppColors.accentRed.withOpacity(0.8),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: const Icon(Icons.delete_outline, color: Colors.white, size: 28),
-      ),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        decoration: BoxDecoration(
-          color: AppColors.card(context),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: IntrinsicHeight(
-            child: Row(
-              children: [
-                Container(width: 6, color: color),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: color.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Icon(icon, color: color, size: 20),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    alert.title,
-                                    style: TextStyle(
-                                      color: AppColors.text(context),
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    alert.description,
-                                    style: TextStyle(
-                                      color: AppColors.textSub(context),
-                                      fontSize: 13,
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(alert.time, style: TextStyle(color: AppColors.textSub(context), fontSize: 11)),
-                                if (!alert.isRead)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 8.0),
-                                    child: Container(
-                                      width: 8, height: 8,
-                                      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ],
+              child: ListView(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                children: [
+                  // TODAY HEADER
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text("Today", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.accentRed.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: AppColors.accentRed.withOpacity(0.5)),
                         ),
-
-                        // Security alert actions
-                        if (alert.level == AlertLevel.critical) ...[
-                          const SizedBox(height: 16),
-                          Row(
-                            children: [
-                              OutlinedButton(
-                                onPressed: () {
-                                  ref.read(alertListProvider.notifier).markRead(alert.id);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text("Alarm silenced.")),
-                                  );
-                                },
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: AppColors.text(context),
-                                  side: BorderSide(color: AppColors.borderCol(context)),
-                                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                                  minimumSize: const Size(0, 36),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                ),
-                                child: const Text("Silence Alarm", style: TextStyle(fontSize: 12)),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ],
-                    ),
+                        child: const Text(
+                          "3 CRITICAL ALERTS",
+                          style: TextStyle(color: AppColors.accentRed, fontSize: 10, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 16),
+
+                  // CARD 1: Earthquake (Critical)
+                  _buildNotificationCard(
+                    title: "Earthquake Tremor Detected",
+                    time: "Just now",
+                    description: "Emergency Protocols Active. Seismic activity detected in local grid via MQTT.",
+                    color: AppColors.accentRed,
+                    icon: Icons.landslide,
+                    isCritical: true,
+                    hasButtons: true,
+                    onPrimaryAction: () {
+                      // View Camera Logic -> Monitoring Screen
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const MonitoringScreen()));
+                    },
+                    onSecondaryAction: () {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Alarm silenced.")));
+                    },
+                  ),
+
+                  // CARD 2: Gas Leak (Warning)
+                  _buildNotificationCard(
+                    title: "Gas Leak Detected",
+                    time: "5m ago",
+                    description: "Kitchen Sensor: High Methane Levels (400ppm). Ventilation triggered automatically.",
+                    color: AppColors.accentOrange,
+                    icon: Icons.gas_meter,
+                    isCritical: false,
+                  ),
+
+                  // CARD 3: Mood (Info)
+                  _buildNotificationCard(
+                    title: "Home Mood Updated",
+                    time: "1h ago",
+                    description: "Lighting adjusted to 'Relaxed' due to quiet activity detection in Living Room.",
+                    color: AppColors.primaryBlue,
+                    icon: Icons.sentiment_satisfied_alt,
+                    isCritical: false,
+                  ),
+
+                  const SizedBox(height: 24),
+                  const Text("Yesterday", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 16),
+
+                  // CARD 4: Device Malfunction (Grey)
+                  _buildNotificationCard(
+                    title: "Bedroom Blind Motor",
+                    time: "2:30 PM",
+                    description: "Malfunction - Device not responding MQTT ping. Check power supply.",
+                    color: Colors.grey,
+                    icon: Icons.blinds_closed,
+                    isCritical: false,
+                    hasRefresh: true,
+                  ),
+                  
+                  const SizedBox(height: 20),
+                ],
+              ),
             ),
-          ),
+          ],
         ),
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        backgroundColor: AppColors.cardDark,
+        selectedItemColor: AppColors.accentRed,
+        unselectedItemColor: Colors.grey,
+        type: BottomNavigationBarType.fixed,
+        currentIndex: 5,
+        onTap: _onBottomNavTapped,
+        showSelectedLabels: true,
+        showUnselectedLabels: true,
+        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
+        unselectedLabelStyle: const TextStyle(fontSize: 10),
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.grid_view), label: 'Dash'),
+          BottomNavigationBarItem(icon: Icon(Icons.sentiment_satisfied_alt), label: 'Emotion'),
+          BottomNavigationBarItem(icon: Icon(Icons.auto_awesome), label: 'Automate'),
+          BottomNavigationBarItem(icon: Icon(Icons.security), label: 'Security'),
+          BottomNavigationBarItem(icon: Icon(Icons.devices), label: 'Devices'),
+          BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Alerts'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+        ],
       ),
     );
   }
 
-  // --- FILTER WIDGETS ---
-  Widget _buildFilterBtn(BuildContext context, String text, bool isActive, VoidCallback onTap) {
+  // --- WIDGETS ---
+
+  Widget _buildFilterBtn(String text, bool isActive, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(right: 8),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isActive ? AppColors.primaryBlue : AppColors.card(context),
+          color: isActive ? AppColors.primaryBlue : AppColors.cardDark,
           borderRadius: BorderRadius.circular(20),
-          border: isActive ? null : Border.all(color: AppColors.borderCol(context)),
+          border: isActive ? null : Border.all(color: Colors.grey.shade800),
         ),
         child: Text(
           text,
           style: TextStyle(
-            color: isActive ? Colors.white : AppColors.textSub(context),
+            color: isActive ? Colors.white : Colors.grey,
             fontSize: 12,
             fontWeight: FontWeight.bold,
           ),
@@ -309,14 +251,14 @@ class NotificationScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildLevelBtn(BuildContext context, String text, Color color, bool isActive, VoidCallback onTap) {
+  Widget _buildLevelBtn(String text, Color color, bool isActive, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(right: 8),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: AppColors.card(context),
+          color: AppColors.cardDark,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: isActive ? color : color.withOpacity(0.3), width: 1.5),
         ),
@@ -327,7 +269,7 @@ class NotificationScreen extends ConsumerWidget {
             Text(
               text,
               style: TextStyle(
-                color: AppColors.text(context),
+                color: Colors.white,
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
               ),
@@ -338,21 +280,146 @@ class NotificationScreen extends ConsumerWidget {
     );
   }
 
-  // --- HELPERS ---
-  Color _colorForLevel(AlertLevel level) {
-    switch (level) {
-      case AlertLevel.critical: return AppColors.accentRed;
-      case AlertLevel.warning: return AppColors.accentOrange;
-      case AlertLevel.info: return AppColors.primaryBlue;
-    }
-  }
+  Widget _buildNotificationCard({
+    required String title,
+    required String time,
+    required String description,
+    required Color color,
+    required IconData icon,
+    bool isCritical = false,
+    bool hasButtons = false,
+    bool hasRefresh = false,
+    VoidCallback? onPrimaryAction,
+    VoidCallback? onSecondaryAction,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: AppColors.cardDark,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: IntrinsicHeight(
 
-  IconData _iconForType(AlertType type, AlertLevel level) {
-    if (level == AlertLevel.critical) return Icons.warning_amber_rounded;
-    switch (type) {
-      case AlertType.security: return Icons.security;
-      case AlertType.emotion: return Icons.sentiment_satisfied_alt;
-      case AlertType.device: return Icons.devices;
-    }
+          child: Row(
+            children: [
+              Container(
+                width: 6,
+                color: color,
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: color.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(icon, color: color, size: 20),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  title,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  description,
+                                  style: const TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 13,
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(time, style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                              if (isCritical)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 8.0),
+                                  child: Icon(Icons.warning, color: AppColors.accentRed.withOpacity(0.6), size: 16),
+                                ),
+                              if (hasRefresh)
+                                IconButton(
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                  icon: const Icon(Icons.refresh, color: AppColors.primaryBlue),
+                                  onPressed: () {
+                                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Checking status...")));
+                                  },
+                                ),
+                            ],
+                          )
+                        ],
+                      ),
+                      
+                      // Action Buttons (Varsa)
+                      if (hasButtons) ...[
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            ElevatedButton(
+                              onPressed: onPrimaryAction,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: color,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                                minimumSize: const Size(0, 36),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                              child: const Text("View Camera", style: TextStyle(fontSize: 12)),
+                            ),
+                            const SizedBox(width: 12),
+                            ElevatedButton(
+                              onPressed: onSecondaryAction,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.grey[800],
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                                minimumSize: const Size(0, 36),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                              child: const Text("Silence Alarm", style: TextStyle(fontSize: 12)),
+                            ),
+                          ],
+                        )
+                      ]
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

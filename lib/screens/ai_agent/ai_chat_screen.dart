@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/app_colors.dart';
 import '../../providers/home_provider.dart';
+import '../../providers/mood_provider.dart';
 import '../../services/ai_agent_service.dart';
 
 class AiChatScreen extends ConsumerStatefulWidget {
@@ -45,6 +46,9 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
           });
           _scrollToBottom();
         }
+      },
+      onSetMood: (mood, confidence) {
+        ref.read(moodProvider.notifier).set(mood, confidence, source: 'chatbot');
       },
     );
 

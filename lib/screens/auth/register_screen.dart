@@ -118,9 +118,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
         height: MediaQuery.of(context).size.height * 0.85,
-        decoration: BoxDecoration(
-          color: AppColors.card(context),
-          borderRadius: const BorderRadius.only(
+        decoration: const BoxDecoration(
+          color: AppColors.cardDark,
+          borderRadius: BorderRadius.only(
             topLeft: Radius.circular(20),
             topRight: Radius.circular(20),
           ),
@@ -140,8 +140,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             ),
             Text(
               title,
-              style: TextStyle(
-                color: AppColors.text(context),
+              style: const TextStyle(
+                color: Colors.white,
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
               ),
@@ -152,8 +152,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
                 child: Text(
                   content,
-                  style: TextStyle(
-                    color: AppColors.textSub(context),
+                  style: const TextStyle(
+                    color: AppColors.textGrey,
                     fontSize: 14,
                     height: 1.6,
                   ),
@@ -202,15 +202,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             : (_passwordStrength <= 0.75 ? "Good" : "Strong"));
 
     return Scaffold(
-      backgroundColor: AppColors.bg(context),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: AppColors.iconDefault(context)),
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text("Sign Up", style: TextStyle(color: AppColors.text(context))),
+        title: const Text("Sign Up", style: TextStyle(color: Colors.white)),
         centerTitle: true,
       ),
       body: SafeArea(
@@ -220,18 +220,18 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // HEADER
-              Text(
+              const Text(
                 "Create your Sanctuary",
                 style: TextStyle(
-                  color: AppColors.text(context),
+                  color: AppColors.textWhite,
                   fontSize: 26,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 8),
-              Text(
+              const Text(
                 "Connect to your secure smart home network.",
-                style: TextStyle(color: AppColors.textSub(context), fontSize: 14),
+                style: TextStyle(color: AppColors.textGrey, fontSize: 14),
               ),
               const SizedBox(height: 32),
 
@@ -251,14 +251,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 controller: _passwordController,
                 obscureText: _isObscured,
                 onChanged: _checkPasswordStrength,
-                style: TextStyle(color: AppColors.text(context)),
+                style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
                   filled: true,
-                  fillColor: AppColors.card(context),
+                  fillColor: AppColors.cardDark,
                   hintText: "••••••••",
-                  hintStyle: TextStyle(color: AppColors.textSub(context)),
+                  hintStyle: const TextStyle(color: Colors.grey),
                   suffixIcon: IconButton(
-                    icon: Icon(_isObscured ? Icons.visibility_off : Icons.visibility, color: AppColors.textSub(context)),
+                    icon: Icon(_isObscured ? Icons.visibility_off : Icons.visibility, color: Colors.grey),
                     onPressed: () => setState(() => _isObscured = !_isObscured),
                   ),
                   border: OutlineInputBorder(
@@ -288,12 +288,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               TextField(
                 controller: _confirmPasswordController,
                 obscureText: true,
-                style: TextStyle(color: AppColors.text(context)),
+                style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
                   filled: true,
-                  fillColor: AppColors.card(context),
+                  fillColor: AppColors.cardDark,
                   hintText: "••••••••",
-                  hintStyle: TextStyle(color: AppColors.textSub(context)),
+                  hintStyle: const TextStyle(color: Colors.grey),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
@@ -310,7 +310,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     value: _agreedToTerms,
                     activeColor: AppColors.primaryBlue,
                     checkColor: Colors.white,
-                    side: BorderSide(color: AppColors.textSub(context)),
+                    side: const BorderSide(color: Colors.grey),
                     onChanged: (value) {
                       setState(() {
                         _agreedToTerms = value ?? false;
@@ -320,7 +320,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   Expanded(
                     child: Wrap(
                       children: [
-                        Text("I agree to the ", style: TextStyle(color: AppColors.textSub(context), fontSize: 13)),
+                        const Text("I agree to the ", style: TextStyle(color: AppColors.textGrey, fontSize: 13)),
                         // Terms Linki
                         GestureDetector(
                           onTap: () {
@@ -332,7 +332,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           },
                           child: const Text("Terms of Service", style: TextStyle(color: AppColors.primaryBlue, fontWeight: FontWeight.bold, fontSize: 13)),
                         ),
-                        Text(" and ", style: TextStyle(color: AppColors.textSub(context), fontSize: 13)),
+                        const Text(" and ", style: TextStyle(color: AppColors.textGrey, fontSize: 13)),
                         // Privacy Linki
                         GestureDetector(
                           onTap: () {
@@ -344,7 +344,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           },
                           child: const Text("Privacy Policy", style: TextStyle(color: AppColors.primaryBlue, fontWeight: FontWeight.bold, fontSize: 13)),
                         ),
-                        Text(".", style: TextStyle(color: AppColors.textSub(context), fontSize: 13)),
+                        const Text(".", style: TextStyle(color: AppColors.textGrey, fontSize: 13)),
                       ],
                     ),
                   ),
@@ -398,7 +398,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text("Already have an account? ", style: TextStyle(color: AppColors.textSub(context))),
+                  const Text("Already have an account? ", style: TextStyle(color: AppColors.textGrey)),
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
                     child: const Text(
@@ -424,7 +424,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       padding: const EdgeInsets.only(bottom: 8.0),
       child: Text(
         text,
-        style: TextStyle(color: AppColors.text(context), fontWeight: FontWeight.bold),
+        style: const TextStyle(color: AppColors.textWhite, fontWeight: FontWeight.bold),
       ),
     );
   }
@@ -432,13 +432,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   Widget _buildInput(TextEditingController controller, String hint, [IconData? suffixIcon]) {
     return TextField(
       controller: controller,
-      style: TextStyle(color: AppColors.text(context)),
+      style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         filled: true,
-        fillColor: AppColors.card(context),
+        fillColor: AppColors.cardDark,
         hintText: hint,
-        hintStyle: TextStyle(color: AppColors.textSub(context)),
-        suffixIcon: suffixIcon != null ? Icon(suffixIcon, color: AppColors.textSub(context)) : null,
+        hintStyle: const TextStyle(color: Colors.grey),
+        suffixIcon: suffixIcon != null ? Icon(suffixIcon, color: Colors.grey) : null,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,

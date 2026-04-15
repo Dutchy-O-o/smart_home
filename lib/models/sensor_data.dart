@@ -25,7 +25,7 @@ class SensorCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.card(context),
+        color: AppColors.cardDark,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
@@ -48,21 +48,21 @@ class SensorCard extends StatelessWidget {
                 Icon(Icons.circle, size: 8, color: statusColor),
             ],
           ),
-
+          
           const Spacer(),
-
+          
           Text(
             title,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: AppColors.textSub(context),
+            style: const TextStyle(
+              color: AppColors.textGrey,
               fontSize: 14,
             ),
           ),
-
+          
           const SizedBox(height: 4),
-
+          
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
@@ -71,8 +71,8 @@ class SensorCard extends StatelessWidget {
               children: [
                 Text(
                   value,
-                  style: TextStyle(
-                    color: AppColors.text(context),
+                  style: const TextStyle(
+                    color: AppColors.textWhite,
                     fontSize: 26,
                     fontWeight: FontWeight.bold,
                   ),
@@ -82,13 +82,13 @@ class SensorCard extends StatelessWidget {
                     padding: const EdgeInsets.only(bottom: 4, left: 2),
                     child: Text(
                       unit,
-                      style: TextStyle(color: AppColors.textSub(context), fontSize: 14),
+                      style: const TextStyle(color: AppColors.textGrey, fontSize: 14),
                     ),
                   ),
               ],
             ),
           ),
-
+          
           if (status.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 4),
