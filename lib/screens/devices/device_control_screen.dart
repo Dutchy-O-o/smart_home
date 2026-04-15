@@ -79,7 +79,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
     _dataPollingTimer?.cancel();
     _dataPollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
       _fetchLatestSensorData();
-      _fetchDevices(); // Actuatorlar da 5 sn'de bir tablodan çekilsin
+      _fetchDevices(); // Also fetch actuators from the table every 5 seconds
     });
   }
 
@@ -106,15 +106,15 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
             String pName = prop['property_name'];
             var val = prop['current_value'];
 
-            // Gelişmiş Default Değer Atama (Değer DB'den null geldiyse)
+            // Advanced default value assignment (if value came null from DB)
             if (val == null || val == "null" || val == "") {
               if (pName == 'power') val = 'off';
               else if (pName == 'brightness' || pName == 'volume') val = 50;
               else if (pName == 'color') val = '#FFFFFF';
-              else if (pName == 'position') val = 100; // Blinds varsayılan %100 açık
-              else if (pName == 'playback') val = 'stop'; // Speaker varsayılan kapalı
+              else if (pName == 'position') val = 100; // Blinds default 100% open
+              else if (pName == 'playback') val = 'stop'; // Speaker default off
             } else {
-              // Değer geldiyse küçük harfe çevirerek normalize et (ON -> on)
+              // If a value came through, normalize by lowercasing (ON -> on)
               if (val is String && (val.toUpperCase() == "ON" || val.toUpperCase() == "OFF")) {
                 val = val.toLowerCase();
               } else if (val is String && double.tryParse(val) != null && !pName.contains("color")) {
@@ -122,8 +122,8 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
               }
             }
 
-            // Sadece null değilse veya biz default bir değer atadıysak (isimli property'ler) kaydet
-            // Böylece diğer kaynaktan (sensörden) gelen tazedata null ile EZİLMEZ.
+            // Only save if value is not null, or we assigned a default (named properties)
+            // This way fresh data from another source (sensor) isn't OVERWRITTEN by null.
             if (val != null && val != "null" && val != "") {
               _deviceStates[id]![pName] = val;
             }
@@ -147,7 +147,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
       
       if (mounted) {
         setState(() {
-          // Gelen her sensör verisini kendi cihaz ID'sine göre state'e kaydet
+          // Save each incoming sensor data into state by its device ID
           for (var entry in sensors.entries) {
             String devId = entry.key;
             var deviceData = entry.value;
@@ -159,7 +159,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
               
               if (deviceData.containsKey('temperature')) {
                 _deviceStates[devId]!['temperature'] = deviceData['temperature'];
-                _insideTemp = deviceData['temperature'].toString(); // Dashboard vs için globale de yazalım
+                _insideTemp = deviceData['temperature'].toString(); // Also write globally for Dashboard etc.
               }
               if (deviceData.containsKey('humidity')) {
                 _deviceStates[devId]!['humidity'] = deviceData['humidity'];
