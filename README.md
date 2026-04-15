@@ -47,53 +47,34 @@ A Flutter-based smart home companion app with mood-aware automation, AI assistan
 
 ```mermaid
 flowchart TB
-    subgraph App["📱 Flutter App"]
-        direction TB
-        UI["<b>UI Screens</b><br/>Auth · Dashboard · Devices<br/>Automations · Emotion Hub · AI Chat"]
-        ST["<b>Riverpod State</b><br/>auth · mood · home · alerts · theme"]
-        SV["<b>Services</b><br/>api · ai_agent · spotify · emotion · fcm"]
-        UI <--> ST
-        UI --> SV
-        ST <--> SV
-    end
+    App["📱 Flutter App"]
 
-    subgraph AWS["☁️ AWS Backend"]
-        direction TB
-        CG["<b>Cognito</b><br/>auth + tokens"]
-        GW["<b>API Gateway + Lambda</b>"]
-        IOT["<b>IoT Core</b><br/>device shadows"]
-        DB[("<b>DynamoDB</b><br/>devices · sensors · automations")]
-        GW --> IOT
-        GW --> DB
-        IOT -. syncs .-> DB
-    end
+    Cognito["🔐 AWS Cognito"]
+    Gateway["⚡ API Gateway + Lambda"]
+    IoT["📡 AWS IoT Core"]
+    DDB[("🗃️ DynamoDB")]
 
-    subgraph LAN["🏠 Home LAN"]
-        PI["<b>Raspberry Pi</b><br/>FastAPI /predict<br/>Keras emotion model"]
-    end
+    Pi["🏠 Raspberry Pi<br/>/predict (emotion)"]
+    Claude["🤖 Anthropic Claude"]
+    Spotify["🎵 Spotify Web API"]
+    FCM["🔔 Firebase FCM"]
 
-    subgraph EXT["🌐 External APIs"]
-        direction TB
-        AN["<b>Anthropic</b><br/>Claude Haiku 4.5<br/>(tool use)"]
-        SP["<b>Spotify Web API</b><br/>top tracks · OAuth PKCE"]
-        FB["<b>Firebase</b><br/>Cloud Messaging"]
-    end
+    App --> Cognito
+    App --> Gateway
+    App --> Pi
+    App --> Claude
+    App --> Spotify
+    FCM --> App
 
-    SV -->|Amplify SDK| CG
-    SV -->|REST + Bearer JWT| GW
-    SV -->|HTTPS multipart JPEG| PI
-    SV -->|chat loop| AN
-    SV -->|OAuth + REST| SP
-    FB -->|push| SV
+    Gateway --> IoT
+    Gateway --> DDB
 
-    classDef app fill:#1E3A8A,stroke:#2563EB,color:#fff
-    classDef aws fill:#FF9900,stroke:#cc7a00,color:#111
-    classDef lan fill:#10B981,stroke:#047857,color:#fff
-    classDef ext fill:#7C3AED,stroke:#5B21B6,color:#fff
-    class UI,ST,SV app
-    class CG,GW,IOT,DB aws
-    class PI lan
-    class AN,SP,FB ext
+    classDef app fill:#2563EB,stroke:#1E3A8A,color:#fff,stroke-width:2px
+    classDef aws fill:#FF9900,stroke:#B36B00,color:#111
+    classDef ext fill:#6B7280,stroke:#374151,color:#fff
+    class App app
+    class Cognito,Gateway,IoT,DDB aws
+    class Pi,Claude,Spotify,FCM ext
 ```
 
 Device control commands flow `Flutter → API Gateway → Lambda → IoT Core`. Sensor data is read from DynamoDB populated by device-side handlers. Emotion detection is **local** (Pi on the home Wi-Fi) to keep imagery off the cloud. Mood state lives in a Riverpod `NotifierProvider` so both the Emotion Hub and the chatbot can read/write it atomically.
