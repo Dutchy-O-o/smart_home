@@ -24,7 +24,6 @@ A Flutter-based smart home companion app with mood-aware automation, AI assistan
 - [Environment Variables](#environment-variables)
 - [Running on Device](#running-on-device)
 - [Known Limitations](#known-limitations)
-- [Contributing](#contributing)
 
 ---
 
@@ -314,10 +313,3 @@ For Windows developers targeting a real Samsung phone: use a **USB-A to USB-C** 
 - **Ambient tiles:** the Emotion Hub's "Ambient" section currently only displays suggested light/curtain states. Wiring them to real IoT commands is the next step.
 - **Network:** AWS `execute-api` errors are suppressed after the first log — this keeps the console readable but means silent failures until the network recovers.
 
----
-
-## Contributing
-
-- Branching: feature work lives on feature branches that merge into `Test-Branch` for integration, then `Test-Branch` merges into `main`.
-- Before opening a PR: run `flutter analyze` and make sure UI copy is in English (Turkish keyword lists in `spotify_service.dart` and device-name matching constants in `device_control_screen.dart` stay as-is for matching real data).
-- If you touch the Pi `/predict` contract, keep the Flutter side (`emotion_api_service.dart`) and the optional `all_scores` field forward-compatible.
