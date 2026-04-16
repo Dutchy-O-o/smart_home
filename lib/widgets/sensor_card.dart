@@ -1,16 +1,8 @@
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 
+/// Theme-aware sensor summary card used on the dashboard.
 class SensorCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData icon;
-  final Color? cardColor;
-  final String? unit;
-  final Color? iconColor;
-  final String? status;
-  final Color? statusColor;
-
   const SensorCard({
     super.key,
     required this.title,
@@ -23,10 +15,23 @@ class SensorCard extends StatelessWidget {
     this.statusColor,
   });
 
+  final String title;
+  final String value;
+  final IconData icon;
+  final Color? cardColor;
+  final String? unit;
+  final Color? iconColor;
+  final String? status;
+  final Color? statusColor;
+
   @override
   Widget build(BuildContext context) {
-    return Card(
-      color: cardColor ?? AppColors.cardDark,
+    return Container(
+      decoration: BoxDecoration(
+        color: cardColor ?? AppColors.card(context),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.borderCol(context)),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -37,7 +42,7 @@ class SensorCard extends StatelessWidget {
             Text(
               title,
               style: TextStyle(
-                color: AppColors.textWhite,
+                color: AppColors.text(context),
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
@@ -49,7 +54,7 @@ class SensorCard extends StatelessWidget {
                 Text(
                   value,
                   style: TextStyle(
-                    color: AppColors.textGrey,
+                    color: AppColors.textSub(context),
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
@@ -58,7 +63,7 @@ class SensorCard extends StatelessWidget {
                   Text(
                     unit!,
                     style: TextStyle(
-                      color: AppColors.textGrey,
+                      color: AppColors.textSub(context),
                       fontSize: 14,
                     ),
                   ),
@@ -67,11 +72,14 @@ class SensorCard extends StatelessWidget {
             if (status != null)
               Container(
                 margin: const EdgeInsets.only(top: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: statusColor?.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: statusColor ?? AppColors.accentGreen),
+                  border: Border.all(
+                    color: statusColor ?? AppColors.accentGreen,
+                  ),
                 ),
                 child: Text(
                   status!,
