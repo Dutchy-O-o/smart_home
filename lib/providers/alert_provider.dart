@@ -63,6 +63,10 @@ class AlertListNotifier extends Notifier<List<AlertItem>> {
   void dismiss(String id) {
     state = state.where((a) => a.id != id).toList();
   }
+
+  void clearAll() {
+    state = [];
+  }
 }
 
 final alertListProvider =

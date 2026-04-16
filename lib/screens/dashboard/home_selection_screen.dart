@@ -11,7 +11,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../constants/app_colors.dart';
 import '../../providers/home_provider.dart';
 import '../../providers/auth_provider.dart';
-import 'dashboard_screen.dart';
+import '../../widgets/main_shell.dart';
 import '../auth/login_screen.dart';
 
 class HomeSelectionScreen extends ConsumerStatefulWidget {
@@ -100,10 +100,10 @@ class _HomeSelectionScreenState extends ConsumerState<HomeSelectionScreen> {
 
   void _selectHome(Map<String, dynamic> home) {
     ref.read(selectedHomeProvider.notifier).setHome(home);
-    
+
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => const DashboardScreen()),
+      MaterialPageRoute(builder: (context) => const MainShell()),
     );
   }
 

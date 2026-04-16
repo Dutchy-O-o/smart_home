@@ -7,6 +7,23 @@ enum AuthState { initial, loading, authenticated, unauthenticated }
 // Riverpod provider for AuthNotifier
 final authProvider = NotifierProvider<AuthNotifier, AuthState>(AuthNotifier.new);
 
+/// Cognito user attributes (email, given_name, preferred_username, sub, etc.)
+/// Refreshed whenever the auth state flips back to authenticated.
+final userAttributesProvider =
+    FutureProvider<Map<String, String>>((ref) async {
+  final auth = ref.watch(authProvider);
+  if (auth != AuthState.authenticated) return const {};
+  try {
+    final attrs = await Amplify.Auth.fetchUserAttributes();
+    return {
+      for (final a in attrs) a.userAttributeKey.key: a.value,
+    };
+  } catch (e) {
+    safePrint('Error fetching user attributes: $e');
+    return const {};
+  }
+});
+
 class AuthNotifier extends Notifier<AuthState> {
   @override
   AuthState build() {

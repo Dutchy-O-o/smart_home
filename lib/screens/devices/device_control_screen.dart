@@ -1,16 +1,10 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'dart:ui';
 import '../../constants/app_colors.dart';
 import '../../providers/home_provider.dart';
 import '../../services/api_service.dart';
-import '../dashboard/dashboard_screen.dart';
-import '../ai_hub/emotion_hub_screen.dart';
-import '../security/monitoring_screen.dart';
-import '../automations/automations_list_screen.dart';
-import '../notifications/notification_screen.dart';
-import '../profile/profile_screen.dart';
 
 class DeviceControlScreen extends ConsumerStatefulWidget {
   const DeviceControlScreen({super.key});
@@ -226,39 +220,44 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.bg(context),
       body: Stack(
         children: [
-          // Premium Background Gradient Effects
-          Positioned(
-            top: -100,
-            left: -100,
-            child: Container(
-              width: 300,
-              height: 300,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.primaryBlue.withValues(alpha: 0.15),
+          // Premium gradient blobs — only in dark mode for the frosted look.
+          // The light theme uses a clean flat background to match the rest of
+          // the app.
+          if (isDark) ...[
+            Positioned(
+              top: -100,
+              left: -100,
+              child: Container(
+                width: 300,
+                height: 300,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.primaryBlue.withValues(alpha: 0.15),
+                ),
               ),
             ),
-          ),
-          Positioned(
-            bottom: -50,
-            right: -50,
-            child: Container(
-              width: 250,
-              height: 250,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.accentGreen.withValues(alpha: 0.1),
+            Positioned(
+              bottom: -50,
+              right: -50,
+              child: Container(
+                width: 250,
+                height: 250,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.accentGreen.withValues(alpha: 0.1),
+                ),
               ),
             ),
-          ),
-          BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
-            child: Container(color: Colors.transparent),
-          ),
+            BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
+              child: Container(color: Colors.transparent),
+            ),
+          ],
 
           SafeArea(
             child: FadeTransition(
@@ -274,7 +273,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                     _buildHeader(),
                     const SizedBox(height: 32),
                     if (_devices.isEmpty)
-                      const Center(child: Text("No devices found.", style: TextStyle(color: Colors.grey))),
+                      Center(child: Text("No devices found.", style: TextStyle(color: AppColors.textSub(context)))),
                     ..._devices.map((device) {
                       Widget card;
                       String type = (device['device_type'] ?? '').toString().toLowerCase();
@@ -312,34 +311,54 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
           ),
         ],
       ),
-      bottomNavigationBar: _buildPremiumBottomNav(),
     );
   }
 
   // ====================== UI COMPONENTS ====================== //
 
   Widget _buildGlassCard({required Widget child, EdgeInsetsGeometry padding = const EdgeInsets.all(24)}) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(32),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          padding: padding,
-          decoration: BoxDecoration(
-            color: AppColors.cardDark.withValues(alpha: 0.6),
-            borderRadius: BorderRadius.circular(32),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.08), width: 1.5),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.2),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              )
-            ],
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    // In dark mode keep the frosted-glass look; in light mode use a clean
+    // solid card with a soft shadow that matches the rest of the app.
+    if (isDark) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(32),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            padding: padding,
+            decoration: BoxDecoration(
+              color: AppColors.card(context).withValues(alpha: 0.6),
+              borderRadius: BorderRadius.circular(32),
+              border: Border.all(color: AppColors.borderCol(context), width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.2),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: child,
           ),
-          child: child,
         ),
+      );
+    }
+    return Container(
+      padding: padding,
+      decoration: BoxDecoration(
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.borderCol(context)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
+      child: child,
     );
   }
 
@@ -352,22 +371,22 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
           child: Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppColors.cardDark.withValues(alpha: 0.5),
+              color: AppColors.card(context),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white10),
+              border: Border.all(color: AppColors.borderCol(context)),
             ),
-            child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+            child: Icon(Icons.arrow_back_ios_new, color: AppColors.text(context), size: 20),
           ),
         ),
         Column(
           children: [
-            const Text("Living Room", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+            Text("Living Room", style: TextStyle(color: AppColors.text(context), fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
             const SizedBox(height: 4),
             Row(
               children: [
                 Container(width: 8, height: 8, decoration: const BoxDecoration(color: AppColors.accentGreen, shape: BoxShape.circle)),
                 const SizedBox(width: 6),
-                const Text("4 Devices Connected", style: TextStyle(color: AppColors.textGrey, fontSize: 13, fontWeight: FontWeight.w500)),
+                Text("4 Devices Connected", style: TextStyle(color: AppColors.textSub(context), fontSize: 13, fontWeight: FontWeight.w500)),
               ],
             ),
           ],
@@ -375,11 +394,11 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: AppColors.cardDark.withValues(alpha: 0.5),
+            color: AppColors.card(context).withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white10),
+            border: Border.all(color: AppColors.borderCol(context)),
           ),
-          child: const Icon(Icons.more_vert, color: Colors.white, size: 20),
+          child: Icon(Icons.more_vert, color: AppColors.text(context), size: 20),
         ),
       ],
     );
@@ -403,7 +422,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(deviceName, overflow: TextOverflow.ellipsis, maxLines: 1, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                    Text(deviceName, overflow: TextOverflow.ellipsis, maxLines: 1, style: TextStyle(color: AppColors.text(context), fontSize: 22, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 4),
                     Text(isEngineOn ? "Airflow Active" : "Standby Mode", style: const TextStyle(color: AppColors.primaryBlue, fontSize: 13, fontWeight: FontWeight.w600)),
                   ],
@@ -412,7 +431,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
               const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: isEngineOn ? AppColors.primaryBlue.withValues(alpha: 0.3) : Colors.white10, shape: BoxShape.circle),
+                decoration: BoxDecoration(color: isEngineOn ? AppColors.primaryBlue.withValues(alpha: 0.3) : AppColors.borderCol(context), shape: BoxShape.circle),
                 child: Icon(Icons.air, color: isEngineOn ? AppColors.primaryBlue : Colors.grey, size: 28),
               ),
             ],
@@ -457,7 +476,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                       duration: const Duration(milliseconds: 300),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: isLightOn ? lightColor.withValues(alpha: 0.2) : Colors.white10,
+                        color: isLightOn ? lightColor.withValues(alpha: 0.2) : AppColors.borderCol(context),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Icon(Icons.lightbulb, color: isLightOn ? lightColor : Colors.grey, size: 24),
@@ -467,7 +486,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(deviceName, overflow: TextOverflow.ellipsis, maxLines: 1, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                          Text(deviceName, overflow: TextOverflow.ellipsis, maxLines: 1, style: TextStyle(color: AppColors.text(context), fontSize: 18, fontWeight: FontWeight.bold)),
                           AnimatedDefaultTextStyle(
                             duration: const Duration(milliseconds: 200),
                             style: TextStyle(color: isLightOn ? lightColor : Colors.grey, fontSize: 13, fontWeight: FontWeight.w600),
@@ -512,13 +531,13 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
           const SizedBox(height: 16),
           Row(
             children: [
-              const Icon(Icons.brightness_low, color: Colors.grey, size: 20),
+              Icon(Icons.brightness_low, color: AppColors.textSub(context), size: 20),
               Expanded(
                 child: SliderTheme(
                   data: SliderTheme.of(context).copyWith(
                     trackHeight: 6,
                     activeTrackColor: lightColor,
-                    inactiveTrackColor: Colors.white10,
+                    inactiveTrackColor: AppColors.borderCol(context),
                     thumbColor: lightColor,
                   ),
                   child: Slider(
@@ -529,7 +548,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                   ),
                 ),
               ),
-              const Icon(Icons.brightness_high, color: Colors.grey, size: 20),
+              Icon(Icons.brightness_high, color: AppColors.textSub(context), size: 20),
             ],
           ),
         ],
@@ -565,7 +584,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(deviceName, overflow: TextOverflow.ellipsis, maxLines: 1, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                          Text(deviceName, overflow: TextOverflow.ellipsis, maxLines: 1, style: TextStyle(color: AppColors.text(context), fontSize: 18, fontWeight: FontWeight.bold)),
                           Text(isEngineOn ? "Volume: $volume%" : "Offline", style: TextStyle(color: isEngineOn ? Colors.pinkAccent : Colors.grey, fontSize: 13, fontWeight: FontWeight.w600)),
                         ],
                       ),
@@ -592,13 +611,13 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
           const SizedBox(height: 16),
           Row(
             children: [
-              const Icon(Icons.volume_down, color: Colors.grey, size: 20),
+              Icon(Icons.volume_down, color: AppColors.textSub(context), size: 20),
               Expanded(
                 child: SliderTheme(
                   data: SliderTheme.of(context).copyWith(
                     trackHeight: 6,
                     activeTrackColor: Colors.pinkAccent,
-                    inactiveTrackColor: Colors.white10,
+                    inactiveTrackColor: AppColors.borderCol(context),
                     thumbColor: Colors.pinkAccent,
                   ),
                   child: Slider(
@@ -609,7 +628,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                   ),
                 ),
               ),
-              const Icon(Icons.volume_up, color: Colors.grey, size: 20),
+              Icon(Icons.volume_up, color: AppColors.textSub(context), size: 20),
             ],
           ),
         ],
@@ -644,7 +663,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(deviceName, overflow: TextOverflow.ellipsis, maxLines: 1, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                          Text(deviceName, overflow: TextOverflow.ellipsis, maxLines: 1, style: TextStyle(color: AppColors.text(context), fontSize: 18, fontWeight: FontWeight.bold)),
                           Text("Position: $currentPosition%", style: const TextStyle(color: Colors.cyanAccent, fontSize: 13, fontWeight: FontWeight.w600)),
                         ],
                       ),
@@ -657,14 +676,14 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
           const SizedBox(height: 24),
           Row(
             children: [
-              Text("0%", style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+              Text("0%", style: TextStyle(color: AppColors.textSub(context), fontSize: 12)),
               Expanded(
                 child: SliderTheme(
                   data: SliderTheme.of(context).copyWith(
                     trackHeight: 12,
                     activeTrackColor: Colors.cyanAccent.withValues(alpha: 0.8),
-                    inactiveTrackColor: Colors.white10,
-                    thumbColor: Colors.white,
+                    inactiveTrackColor: AppColors.borderCol(context),
+                    thumbColor: AppColors.text(context),
                     overlayColor: Colors.cyanAccent.withValues(alpha: 0.2),
                     trackShape: const RoundedRectSliderTrackShape(),
                     thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10, elevation: 5),
@@ -677,7 +696,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                   ),
                 ),
               ),
-              Text("100%", style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+              Text("100%", style: TextStyle(color: AppColors.textSub(context), fontSize: 12)),
             ],
           ),
         ],
@@ -713,7 +732,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(deviceName, overflow: TextOverflow.ellipsis, maxLines: 1, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                      Text(deviceName, overflow: TextOverflow.ellipsis, maxLines: 1, style: TextStyle(color: AppColors.text(context), fontSize: 18, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 4),
                       Text("Status: $statusText", style: TextStyle(color: statusColor, fontSize: 13, fontWeight: FontWeight.w600)),
                     ],
@@ -726,8 +745,8 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              const Text("Last Scan:", style: TextStyle(color: AppColors.textGrey, fontSize: 12)),
-              Text(lastScan, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
+              Text("Last Scan:", style: TextStyle(color: AppColors.textSub(context), fontSize: 12)),
+              Text(lastScan, style: TextStyle(color: AppColors.text(context), fontSize: 14, fontWeight: FontWeight.w500)),
             ],
           ),
         ],
@@ -773,7 +792,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(deviceName, overflow: TextOverflow.ellipsis, maxLines: 1, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                Text(deviceName, overflow: TextOverflow.ellipsis, maxLines: 1, style: TextStyle(color: AppColors.text(context), fontSize: 18, fontWeight: FontWeight.bold)),
                 Text(isEngineOn ? 'Power: ON' : 'Power: OFF', style: TextStyle(color: iconColor, fontSize: 13)),
               ],
             ),
@@ -812,13 +831,13 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(deviceName, overflow: TextOverflow.ellipsis, maxLines: 1, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                      Text(deviceName, overflow: TextOverflow.ellipsis, maxLines: 1, style: TextStyle(color: AppColors.text(context), fontSize: 18, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 4),
                       Row(
                         children: [
                           Container(width: 8, height: 8, decoration: const BoxDecoration(color: AppColors.accentGreen, shape: BoxShape.circle)),
                           const SizedBox(width: 6),
-                          const Text("Status: Working", style: TextStyle(color: AppColors.textGrey, fontSize: 13, fontWeight: FontWeight.w600)),
+                          Text("Status: Working", style: TextStyle(color: AppColors.textSub(context), fontSize: 13, fontWeight: FontWeight.w600)),
                         ],
                       ),
                     ],
@@ -868,9 +887,9 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(deviceName, overflow: TextOverflow.ellipsis, maxLines: 1, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                      Text(deviceName, overflow: TextOverflow.ellipsis, maxLines: 1, style: TextStyle(color: AppColors.text(context), fontSize: 18, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 4),
-                      Text("Air Quality • Gas Level: $gasLevel", style: const TextStyle(color: AppColors.textGrey, fontSize: 13, fontWeight: FontWeight.w500)),
+                      Text("Air Quality • Gas Level: $gasLevel", style: TextStyle(color: AppColors.textSub(context), fontSize: 13, fontWeight: FontWeight.w500)),
                     ],
                   ),
                 ),
@@ -920,9 +939,9 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(deviceName, overflow: TextOverflow.ellipsis, maxLines: 1, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                      Text(deviceName, overflow: TextOverflow.ellipsis, maxLines: 1, style: TextStyle(color: AppColors.text(context), fontSize: 18, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 4),
-                      Text("Seismic Activity • Intensity: $intensity", style: const TextStyle(color: AppColors.textGrey, fontSize: 13, fontWeight: FontWeight.w500)),
+                      Text("Seismic Activity • Intensity: $intensity", style: TextStyle(color: AppColors.textSub(context), fontSize: 13, fontWeight: FontWeight.w500)),
                     ],
                   ),
                 ),
@@ -946,57 +965,17 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
 
   // --- Premium Mini Widgets --- //
 
-  void _onBottomNavTapped(int index) {
-    if (index == 4) return; // Current (Devices)
-    final routes = [
-      const DashboardScreen(), // Dash
-      const EmotionHubScreen(), // Emotion
-      const AutomationsListScreen(), // Automate
-      const MonitoringScreen(), // Security
-      null, // Current Devices
-      const NotificationScreen(), // Alerts
-      const ProfileScreen(), // Profile
-    ];
-    if (index < routes.length && routes[index] != null) {
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => routes[index]!));
-    }
-  }
-
-  Widget _buildPremiumBottomNav() {
-    return BottomNavigationBar(
-      backgroundColor: AppColors.cardDark,
-      selectedItemColor: AppColors.primaryBlue,
-      unselectedItemColor: Colors.grey,
-      type: BottomNavigationBarType.fixed,
-      currentIndex: 4,
-      onTap: _onBottomNavTapped,
-      showSelectedLabels: true,
-      showUnselectedLabels: true,
-      selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-      unselectedLabelStyle: const TextStyle(fontSize: 12),
-      items: const [
-        BottomNavigationBarItem(icon: Icon(Icons.grid_view), label: 'Dash'),
-        BottomNavigationBarItem(icon: Icon(Icons.sentiment_satisfied_alt), label: 'Emotion'),
-        BottomNavigationBarItem(icon: Icon(Icons.auto_awesome), label: 'Automate'),
-        BottomNavigationBarItem(icon: Icon(Icons.security), label: 'Security'),
-        BottomNavigationBarItem(icon: Icon(Icons.devices), label: 'Devices'),
-        BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Alerts'),
-        BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-      ],
-    );
-  }
-
   Widget _buildModernIconButton(IconData icon, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         width: 56, height: 56,
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.05),
+          color: AppColors.card(context),
           shape: BoxShape.circle,
-          border: Border.all(color: Colors.white10),
+          border: Border.all(color: AppColors.borderCol(context)),
         ),
-        child: Icon(icon, color: Colors.white, size: 28),
+        child: Icon(icon, color: AppColors.text(context), size: 28),
       ),
     );
   }

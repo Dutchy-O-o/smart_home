@@ -1,15 +1,12 @@
+import 'package:amplify_flutter/amplify_flutter.dart';
 import 'package:flutter/material.dart';
-import '../../constants/app_colors.dart';
-import '../dashboard/dashboard_screen.dart';
-import '../ai_hub/emotion_hub_screen.dart';
-import '../security/monitoring_screen.dart';
-import '../devices/device_control_screen.dart';
-import '../notifications/notification_screen.dart';
-import '../automations/automations_list_screen.dart';
-import '../auth/login_screen.dart';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../constants/app_colors.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/theme_provider.dart';
+import '../auth/login_screen.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -20,211 +17,418 @@ class ProfileScreen extends ConsumerStatefulWidget {
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool _pushNotifications = true;
+  static const _kPushPrefsKey = 'profile_push_notifications';
 
-  void _onBottomNavTapped(int index) {
-    if (index == 0) {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => const DashboardScreen()),
-        (route) => false,
-      );
-    } else if (index == 1) {
-      Navigator.push(context, MaterialPageRoute(builder: (context) => const EmotionHubScreen()));
-    } else if (index == 2) {
-      Navigator.push(context, MaterialPageRoute(builder: (context) => const AutomationsListScreen()));
-    } else if (index == 3) {
-      Navigator.push(context, MaterialPageRoute(builder: (context) => const MonitoringScreen()));
-    } else if (index == 4) {
-      Navigator.push(context, MaterialPageRoute(builder: (context) => const DeviceControlScreen()));
-    } else if (index == 5) {
-      Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationScreen()));
-    } else if (index == 6) {
-      // Already on Profile
+  @override
+  void initState() {
+    super.initState();
+    _loadPrefs();
+  }
+
+  Future<void> _loadPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _pushNotifications = prefs.getBool(_kPushPrefsKey) ?? true;
+      });
     }
   }
 
-  void _handleLogout() {
-    showDialog(
+  Future<void> _setPush(bool value) async {
+    setState(() => _pushNotifications = value);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kPushPrefsKey, value);
+  }
+
+  Future<void> _changePassword() async {
+    final oldCtrl = TextEditingController();
+    final newCtrl = TextEditingController();
+    final ok = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.cardDark,
-        title: const Text("Log Out", style: TextStyle(color: Colors.white)),
-        content: const Text("Are you sure you want to log out?", style: TextStyle(color: Colors.grey)),
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.card(context),
+        title: Text('Change Password',
+            style: TextStyle(color: AppColors.text(context))),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: oldCtrl,
+              obscureText: true,
+              style: TextStyle(color: AppColors.text(context)),
+              decoration: const InputDecoration(labelText: 'Current password'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: newCtrl,
+              obscureText: true,
+              style: TextStyle(color: AppColors.text(context)),
+              decoration: const InputDecoration(labelText: 'New password'),
+            ),
+          ],
+        ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () async {
-              // perform actual sign out via provider before leaving
-              await ref.read(authProvider.notifier).signOut();
-              if (!context.mounted) return;
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => const LoginScreen()),
-                (route) => false,
-              );
-            },
-            child: const Text("Log Out", style: TextStyle(color: AppColors.accentRed)),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Update',
+                style: TextStyle(color: AppColors.primaryBlue)),
           ),
         ],
       ),
+    );
+    if (ok != true) return;
+    if (oldCtrl.text.isEmpty || newCtrl.text.isEmpty) return;
+    try {
+      await Amplify.Auth.updatePassword(
+        oldPassword: oldCtrl.text,
+        newPassword: newCtrl.text,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password updated.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Update failed: $e'),
+          backgroundColor: AppColors.accentRed,
+        ),
+      );
+    }
+  }
+
+  Future<void> _changeName(String currentName) async {
+    final ctrl = TextEditingController(text: currentName);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.card(context),
+        title: Text('Change Name',
+            style: TextStyle(color: AppColors.text(context))),
+        content: TextField(
+          controller: ctrl,
+          style: TextStyle(color: AppColors.text(context)),
+          decoration: const InputDecoration(labelText: 'Name'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Save',
+                style: TextStyle(color: AppColors.primaryBlue)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || ctrl.text.trim().isEmpty) return;
+    try {
+      await Amplify.Auth.updateUserAttribute(
+        userAttributeKey: AuthUserAttributeKey.givenName,
+        value: ctrl.text.trim(),
+      );
+      ref.invalidate(userAttributesProvider);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Name updated.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Update failed: $e'),
+          backgroundColor: AppColors.accentRed,
+        ),
+      );
+    }
+  }
+
+  void _showTerms() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.bg(context),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.8,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (_, controller) => SingleChildScrollView(
+          controller: controller,
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.textSub(context),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Terms of Service',
+                style: TextStyle(
+                  color: AppColors.text(context),
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                '''By using Smart Home you agree to the following terms:
+
+1. You are responsible for any device actions triggered via the app.
+2. Facial emotion data is processed locally on your Raspberry Pi and never leaves your home network without your explicit consent.
+3. Spotify integration is subject to Spotify\'s terms. Tokens are stored locally on this device only.
+4. Cognito credentials and FCM tokens are stored on AWS. We do not sell any personal data.
+5. Automations are executed on a best-effort basis; always keep a physical backup for safety-critical devices.
+6. You may delete your account at any time; doing so removes your homes, devices, and automation rules from AWS.
+
+These terms may be updated. Continued use after an update constitutes acceptance of the new terms.''',
+                style: TextStyle(
+                  color: AppColors.textSub(context),
+                  fontSize: 14,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleLogout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.card(context),
+        title: Text('Log Out',
+            style: TextStyle(color: AppColors.text(context))),
+        content: Text('Are you sure you want to log out?',
+            style: TextStyle(color: AppColors.textSub(context))),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Log Out',
+                style: TextStyle(color: AppColors.accentRed)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    await ref.read(authProvider.notifier).signOut();
+    if (!mounted) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final attrsAsync = ref.watch(userAttributesProvider);
+    final attrs = attrsAsync.value ?? const <String, String>{};
+    final email = attrs['email'] ?? '';
+    final givenName = attrs['given_name'] ?? attrs['name'] ?? '';
+    final displayName = givenName.isNotEmpty
+        ? givenName
+        : (email.isNotEmpty ? email.split('@').first : 'User');
+    final themeMode = ref.watch(themeProvider);
+    final isDark = themeMode == ThemeMode.dark;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.bg(context),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // --- HEADER & NAV ---
+              // Header
               Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
-                    onPressed: () => Navigator.pop(context),
+                    icon: Icon(Icons.arrow_back_ios,
+                        color: AppColors.text(context), size: 20),
+                    onPressed: () => Navigator.maybePop(context),
                   ),
-                  const Expanded(
+                  Expanded(
                     child: Center(
                       child: Text(
-                        "Profile & Settings",
-                        style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                        'Profile & Settings',
+                        style: TextStyle(
+                          color: AppColors.text(context),
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
                   const SizedBox(width: 40),
-
                 ],
               ),
               const SizedBox(height: 20),
 
-              // --- USER PROFILE SECTION ---
+              // Avatar initial + name + email
               Center(
                 child: Column(
                   children: [
-                    Stack(
-                      children: [
-                        const CircleAvatar(
-                          radius: 50,
-                          backgroundImage: NetworkImage("https://img.freepik.com/free-photo/portrait-white-man-isolated_53876-40306.jpg"),
+                    CircleAvatar(
+                      radius: 48,
+                      backgroundColor: AppColors.primaryBlue.withValues(alpha: 0.15),
+                      child: Text(
+                        displayName.isNotEmpty
+                            ? displayName[0].toUpperCase()
+                            : '?',
+                        style: const TextStyle(
+                          color: AppColors.primaryBlue,
+                          fontSize: 36,
+                          fontWeight: FontWeight.bold,
                         ),
-                        Positioned(
-                          bottom: 0,
-                          right: 0,
-                          child: Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: const BoxDecoration(
-                              color: AppColors.primaryBlue,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.edit, color: Colors.white, size: 16),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    const Text("Alex Doe", style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-                    const Text("alex.doe@iot-mail.com", style: TextStyle(color: Colors.grey, fontSize: 14)),
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: AppColors.cardDark,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.white10),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: const [
-                          Icon(Icons.circle, color: AppColors.accentGreen, size: 10),
-                          SizedBox(width: 8),
-                          Text("System: Happy & Secure", style: TextStyle(color: AppColors.accentGreen, fontWeight: FontWeight.bold, fontSize: 12)),
-                        ],
                       ),
                     ),
+                    const SizedBox(height: 14),
+                    Text(
+                      displayName,
+                      style: TextStyle(
+                        color: AppColors.text(context),
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    if (email.isNotEmpty)
+                      Text(
+                        email,
+                        style: TextStyle(
+                          color: AppColors.textSub(context),
+                          fontSize: 14,
+                        ),
+                      ),
                   ],
                 ),
               ),
 
-              const SizedBox(height: 30),
+              const SizedBox(height: 28),
 
-              // --- GENERAL SETTINGS ---
-              const Text("GENERAL", style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 10),
-              Container(
-                decoration: BoxDecoration(color: AppColors.cardDark, borderRadius: BorderRadius.circular(16)),
-                child: Column(
-                  children: [
-                    _buildListTile(Icons.person, Colors.blue, "Account Details", onTap: () {}),
-                    const Divider(color: Colors.white10, height: 1),
-                    _buildListTile(Icons.lock, Colors.blue, "Security & Password", onTap: () {}),
-                  ],
+              _sectionLabel('ACCOUNT'),
+              _card([
+                _tile(
+                  icon: Icons.person,
+                  color: AppColors.primaryBlue,
+                  title: 'Change Name',
+                  subtitle: givenName.isNotEmpty ? givenName : 'Not set',
+                  onTap: () => _changeName(givenName),
                 ),
-              ),
+                _divider(),
+                _tile(
+                  icon: Icons.lock,
+                  color: AppColors.primaryBlue,
+                  title: 'Change Password',
+                  onTap: _changePassword,
+                ),
+              ]),
 
               const SizedBox(height: 24),
 
-              // --- SMART HOME PREFERENCES ---
-              const Text("SMART HOME PREFERENCES", style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 10),
-              Container(
-                decoration: BoxDecoration(color: AppColors.cardDark, borderRadius: BorderRadius.circular(16)),
-                child: Column(
-                  children: [
-                    SwitchListTile(
-                      activeThumbColor: AppColors.primaryBlue,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                      secondary: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(color: Colors.purple.withValues(alpha: 0.2), shape: BoxShape.circle),
-                        child: const Icon(Icons.notifications, color: Colors.purple),
-                      ),
-                      title: const Text("Push Notifications", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                      subtitle: const Text("Alerts for security events", style: TextStyle(color: Colors.grey, fontSize: 12)),
-                      value: _pushNotifications,
-                      onChanged: (val) => setState(() => _pushNotifications = val),
+              _sectionLabel('PREFERENCES'),
+              _card([
+                SwitchListTile(
+                  activeThumbColor: AppColors.primaryBlue,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  secondary: _iconBadge(
+                      Icons.notifications_active, Colors.purple),
+                  title: Text(
+                    'Push Notifications',
+                    style: TextStyle(
+                      color: AppColors.text(context),
+                      fontWeight: FontWeight.bold,
                     ),
-                    const Divider(color: Colors.white10, height: 1),
-                    _buildListTile(Icons.sentiment_satisfied, Colors.pink, "Emotional Feedback", trailingText: "High", onTap: () {}),
-                    const Divider(color: Colors.white10, height: 1),
-                    _buildListTile(Icons.dark_mode, Colors.amber, "App Theme", trailingText: "Dark", onTap: () {}),
-                  ],
+                  ),
+                  subtitle: Text(
+                    'Alerts for security and home events',
+                    style: TextStyle(
+                      color: AppColors.textSub(context),
+                      fontSize: 12,
+                    ),
+                  ),
+                  value: _pushNotifications,
+                  onChanged: _setPush,
                 ),
-              ),
+                _divider(),
+                SwitchListTile(
+                  activeThumbColor: AppColors.primaryBlue,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  secondary: _iconBadge(
+                      isDark ? Icons.dark_mode : Icons.light_mode,
+                      Colors.amber),
+                  title: Text(
+                    'Dark Theme',
+                    style: TextStyle(
+                      color: AppColors.text(context),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  subtitle: Text(
+                    isDark ? 'Dark appearance' : 'Light appearance',
+                    style: TextStyle(
+                      color: AppColors.textSub(context),
+                      fontSize: 12,
+                    ),
+                  ),
+                  value: isDark,
+                  onChanged: (_) =>
+                      ref.read(themeProvider.notifier).toggle(),
+                ),
+              ]),
 
               const SizedBox(height: 24),
 
-              // --- CONNECTED NODES ---
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: const [
-                  Text("CONNECTED NODES", style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
-                  Text("MANAGE", style: TextStyle(color: AppColors.primaryBlue, fontSize: 12, fontWeight: FontWeight.bold)),
-                ],
-              ),
-              const SizedBox(height: 10),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    _buildNodeCard("Living Room Pi", "MQTT Master", Icons.memory, Colors.green, true),
-                    const SizedBox(width: 12),
-                    _buildNodeCard("Garage Cam", "ESP32-Cam", Icons.videocam, Colors.blue, true),
-                    const SizedBox(width: 12),
-                    _buildNodeCard("Entry Sensor", "Offline", Icons.sensors, Colors.grey, false),
-                  ],
+              _sectionLabel('LEGAL'),
+              _card([
+                _tile(
+                  icon: Icons.description,
+                  color: Colors.teal,
+                  title: 'Terms of Service',
+                  onTap: _showTerms,
                 ),
-              ),
+                _divider(),
+                _tile(
+                  icon: Icons.article_outlined,
+                  color: Colors.teal,
+                  title: 'Open-Source Licenses',
+                  onTap: () => showLicensePage(
+                    context: context,
+                    applicationName: 'Smart Home',
+                  ),
+                ),
+              ]),
 
               const SizedBox(height: 30),
 
-              // --- LOGOUT ---
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -233,87 +437,102 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.accentRed.withValues(alpha: 0.1),
                     foregroundColor: AppColors.accentRed,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     side: const BorderSide(color: AppColors.accentRed),
                   ),
-                  child: const Text("Log Out", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  child: const Text(
+                    'Log Out',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
-              const Center(child: Text("v1.0.4 (MQTT-Build)", style: TextStyle(color: Colors.grey, fontSize: 12))),
+              Center(
+                child: Text(
+                  'Smart Home v2.0',
+                  style: TextStyle(
+                    color: AppColors.textSub(context),
+                    fontSize: 12,
+                  ),
+                ),
+              ),
               const SizedBox(height: 20),
             ],
           ),
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: AppColors.cardDark,
-        selectedItemColor: AppColors.primaryBlue,
-        unselectedItemColor: Colors.grey,
-        type: BottomNavigationBarType.fixed,
-        currentIndex: 6,
-        onTap: _onBottomNavTapped,
-        showSelectedLabels: true,
-        showUnselectedLabels: true,
-        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
-        unselectedLabelStyle: const TextStyle(fontSize: 10),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.grid_view), label: 'Dash'),
-          BottomNavigationBarItem(icon: Icon(Icons.sentiment_satisfied_alt), label: 'Emotion'),
-          BottomNavigationBarItem(icon: Icon(Icons.auto_awesome), label: 'Automate'),
-          BottomNavigationBarItem(icon: Icon(Icons.security), label: 'Security'),
-          BottomNavigationBarItem(icon: Icon(Icons.devices), label: 'Devices'),
-          BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Alerts'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-        ],
-      ),
     );
   }
 
-  Widget _buildListTile(IconData icon, Color color, String title, {String? trailingText, required VoidCallback onTap}) {
+  // ── helpers ────────────────────────────────────────────────────────
+
+  Widget _sectionLabel(String text) => Text(
+        text,
+        style: TextStyle(
+          color: AppColors.textSub(context),
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 0.5,
+        ),
+      );
+
+  Widget _card(List<Widget> children) => Container(
+        margin: const EdgeInsets.only(top: 10),
+        decoration: BoxDecoration(
+          color: AppColors.card(context),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.borderCol(context)),
+        ),
+        child: Column(children: children),
+      );
+
+  Widget _divider() => Divider(
+        color: AppColors.borderCol(context),
+        height: 1,
+      );
+
+  Widget _iconBadge(IconData icon, Color color) => Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.2),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: color, size: 20),
+      );
+
+  Widget _tile({
+    required IconData icon,
+    required Color color,
+    required String title,
+    String? subtitle,
+    required VoidCallback onTap,
+  }) {
     return ListTile(
       onTap: onTap,
-      leading: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(color: color.withValues(alpha: 0.2), shape: BoxShape.circle),
-        child: Icon(icon, color: color, size: 20),
+      leading: _iconBadge(icon, color),
+      title: Text(
+        title,
+        style: TextStyle(
+          color: AppColors.text(context),
+          fontWeight: FontWeight.bold,
+          fontSize: 14,
+        ),
       ),
-      title: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (trailingText != null) Text(trailingText, style: const TextStyle(color: Colors.grey, fontSize: 12)),
-          if (trailingText != null) const SizedBox(width: 8),
-          const Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 14),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNodeCard(String title, String subtitle, IconData icon, Color color, bool isOnline) {
-    return Container(
-      width: 140,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.cardDark,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Icon(icon, color: color, size: 24),
-              Icon(Icons.circle, size: 8, color: isOnline ? AppColors.accentGreen : Colors.grey),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
-          const SizedBox(height: 4),
-          Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 11)),
-        ],
+      subtitle: subtitle != null
+          ? Text(
+              subtitle,
+              style: TextStyle(
+                color: AppColors.textSub(context),
+                fontSize: 12,
+              ),
+            )
+          : null,
+      trailing: Icon(
+        Icons.arrow_forward_ios,
+        color: AppColors.textSub(context),
+        size: 14,
       ),
     );
   }
