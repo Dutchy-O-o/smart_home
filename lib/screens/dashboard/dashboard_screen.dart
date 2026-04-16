@@ -15,6 +15,10 @@ import '../../providers/auth_provider.dart';
 import '../../providers/navigation_provider.dart';
 import 'home_selection_screen.dart';
 import '../../services/api_service.dart';
+import 'widgets/dimmer_tile.dart';
+import 'widgets/my_homes_list.dart';
+import 'widgets/quick_access_button.dart';
+import 'widgets/system_status_card.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -361,106 +365,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
               Text("My Homes", style: TextStyle(color: AppColors.text(context), fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
-              _isLoadingHomes 
-                ? const Center(child: CircularProgressIndicator(color: AppColors.primaryBlue))
-                : _errorMessage.isNotEmpty
-                  ? Text(_errorMessage, style: const TextStyle(color: AppColors.accentRed))
-                  : _userHomes.isEmpty 
-                    ? Text("No homes found.", style: TextStyle(color: AppColors.textSub(context)))
-                    : SizedBox(
-                        height: 100,
-                        child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _userHomes.length,
-                        itemBuilder: (context, index) {
-                          final home = _userHomes[index];
-                          final role = home['role'] ?? 'Unknown Role';
-                          final isGuest = role.toString().toLowerCase() == 'guest';
-                          
-                          return Container(
-                            width: 140,
-                            margin: const EdgeInsets.only(right: 16),
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: AppColors.card(context),
-                              border: Border.all(color: isGuest ? AppColors.accentOrange.withValues(alpha: 0.5) : AppColors.primaryBlue.withValues(alpha: 0.5)),
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(
-                                      isGuest ? Icons.vpn_key_outlined : Icons.admin_panel_settings,
-                                      color: isGuest ? AppColors.accentOrange : AppColors.primaryBlue,
-                                      size: 18,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        home['home_name'] ?? 'Home $index',
-                                        style: TextStyle(color: AppColors.text(context), fontWeight: FontWeight.bold),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: isGuest ? AppColors.accentOrange.withValues(alpha: 0.2) : AppColors.primaryBlue.withValues(alpha: 0.2),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Text(
-                                    role.toString().toUpperCase(),
-                                    style: TextStyle(
-                                      color: isGuest ? AppColors.accentOrange : AppColors.primaryBlue,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold
-                                    ),
-                                  ),
-                                )
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-
-              const SizedBox(height: 24),
-
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AppColors.card(context),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: AppColors.primaryBlue.withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.sentiment_satisfied_alt, color: AppColors.primaryBlue, size: 36),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text("System Online", style: TextStyle(color: AppColors.primaryBlue, fontSize: 16, fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 4),
-                          Text(
-                            "The house feels cozy and secure. No anomalies detected in the last hour.",
-                            style: TextStyle(color: AppColors.textSub(context), fontSize: 12, height: 1.4),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+              MyHomesList(
+                homes: _userHomes,
+                isLoading: _isLoadingHomes,
+                errorMessage: _errorMessage,
               ),
 
+              const SizedBox(height: 24),
+              const SystemStatusCard(),
               const SizedBox(height: 24),
 
               Row(
@@ -530,88 +442,39 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _buildQuickAccessBtn(Icons.lightbulb, "Lights", AppColors.primaryBlue),
-                  _buildQuickAccessBtn(Icons.curtains, "Curtains", Colors.white24),
-                  _buildQuickAccessBtn(Icons.ac_unit, "AC On", Colors.white24, iconColor: AppColors.primaryBlue),
-                  _buildQuickAccessBtn(Icons.palette, "Mood", Colors.white24, iconColor: Colors.pinkAccent, onTap: () {
-                    ref.read(tabIndexProvider.notifier).setTab(1);
-                  }),
+                  const QuickAccessButton(
+                    icon: Icons.lightbulb,
+                    label: 'Lights',
+                    highlighted: true,
+                  ),
+                  const QuickAccessButton(
+                    icon: Icons.curtains,
+                    label: 'Curtains',
+                  ),
+                  const QuickAccessButton(
+                    icon: Icons.ac_unit,
+                    label: 'AC On',
+                    iconColor: AppColors.primaryBlue,
+                  ),
+                  QuickAccessButton(
+                    icon: Icons.palette,
+                    label: 'Mood',
+                    iconColor: Colors.pinkAccent,
+                    onTap: () => ref.read(tabIndexProvider.notifier).setTab(1),
+                  ),
                 ],
               ),
 
               const SizedBox(height: 24),
 
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.card(context),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.amber.withValues(alpha: 0.1),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.wb_sunny, color: Colors.amber, size: 24),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text("Living Room Dimmer", style: TextStyle(color: AppColors.text(context), fontWeight: FontWeight.bold)),
-                          Text("80% Brightness", style: TextStyle(color: AppColors.textSub(context), fontSize: 12)),
-                        ],
-                      ),
-                    ),
-                    Switch(
-                      value: isDimmerOn,
-                      activeThumbColor: AppColors.primaryBlue,
-                      onChanged: (val) {
-                        setState(() {
-                          isDimmerOn = val;
-                        });
-                      },
-                    ),
-                  ],
-                ),
+              DimmerTile(
+                value: isDimmerOn,
+                onChanged: (val) => setState(() => isDimmerOn = val),
               ),
               const SizedBox(height: 20),
             ],
           ),
         ),
-      ),
-      
-    );
-  }
-
-  Widget _buildQuickAccessBtn(IconData icon, String label, Color bg, {Color iconColor = Colors.white, VoidCallback? onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        children: [
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              color: bg == AppColors.primaryBlue ? AppColors.primaryBlue : AppColors.card(context),
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.2),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                )
-              ],
-            ),
-            child: Icon(icon, color: iconColor, size: 28),
-          ),
-          const SizedBox(height: 8),
-          Text(label, style: TextStyle(color: AppColors.textSub(context), fontSize: 12)),
-        ],
       ),
     );
   }
