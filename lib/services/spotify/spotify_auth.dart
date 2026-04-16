@@ -63,14 +63,15 @@ class SpotifyAuth {
         return false;
       }
 
-      return await _exchangeCodeForToken(code);
+      return await exchangeCodeForToken(code);
     } catch (e) {
       await SpotifyLogger.log('LOGIN_ERROR', {'error': e.toString()});
       return false;
     }
   }
 
-  static Future<bool> _exchangeCodeForToken(String code) async {
+  /// Exchange an auth code captured from the redirect URL for tokens.
+  static Future<bool> exchangeCodeForToken(String code) async {
     try {
       final response = await http.post(
         Uri.parse(_tokenUrl),
