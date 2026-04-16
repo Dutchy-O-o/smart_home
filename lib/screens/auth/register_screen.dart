@@ -308,7 +308,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 children: [
                   Checkbox(
                     value: _agreedToTerms,
-                    activeThumbColor: AppColors.primaryBlue,
+                    activeColor: AppColors.primaryBlue,
                     checkColor: Colors.white,
                     side: const BorderSide(color: Colors.grey),
                     onChanged: (value) {
