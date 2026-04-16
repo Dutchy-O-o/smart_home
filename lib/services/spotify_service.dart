@@ -17,6 +17,8 @@ class SpotifyService {
   static bool get isAuthenticated => SpotifyAuth.isAuthenticated;
   static Future<bool> login() => SpotifyAuth.login();
   static Future<bool> loadSavedToken() => SpotifyAuth.loadSavedToken();
+  static Future<bool> exchangeCodeForToken(String code) =>
+      SpotifyAuth.exchangeCodeForToken(code);
   static Future<void> disconnect() => SpotifyAuth.disconnect();
 
   // ── API (proxied) ─────────────────────────────────────────────────
