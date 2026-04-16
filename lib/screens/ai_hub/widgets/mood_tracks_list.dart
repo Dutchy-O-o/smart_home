@@ -179,7 +179,7 @@ class _TrackRow extends StatelessWidget {
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-              color: moodColor.withOpacity(0.15),
+              color: moodColor.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(Icons.music_note, color: moodColor, size: 20),

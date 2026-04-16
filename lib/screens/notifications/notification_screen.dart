@@ -129,9 +129,9 @@ class _NotificationScreenState extends State<NotificationScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: AppColors.accentRed.withOpacity(0.2),
+                          color: AppColors.accentRed.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: AppColors.accentRed.withOpacity(0.5)),
+                          border: Border.all(color: AppColors.accentRed.withValues(alpha: 0.5)),
                         ),
                         child: const Text(
                           "3 CRITICAL ALERTS",
@@ -260,7 +260,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
         decoration: BoxDecoration(
           color: AppColors.cardDark,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: isActive ? color : color.withOpacity(0.3), width: 1.5),
+          border: Border.all(color: isActive ? color : color.withValues(alpha: 0.3), width: 1.5),
         ),
         child: Row(
           children: [
@@ -299,7 +299,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withValues(alpha: 0.2),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -327,7 +327,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                           Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: color.withOpacity(0.2),
+                              color: color.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Icon(icon, color: color, size: 20),
@@ -365,7 +365,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                               if (isCritical)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 8.0),
-                                  child: Icon(Icons.warning, color: AppColors.accentRed.withOpacity(0.6), size: 16),
+                                  child: Icon(Icons.warning, color: AppColors.accentRed.withValues(alpha: 0.6), size: 16),
                                 ),
                               if (hasRefresh)
                                 IconButton(

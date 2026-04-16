@@ -27,7 +27,7 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // Firebase needs to be initialized again in the background isolate
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  print("Background notification received: ${message.notification?.title}");
+  debugPrint("Background notification received: ${message.notification?.title}");
 }
 
 Future<void> main() async {
@@ -52,7 +52,7 @@ Future<void> main() async {
       String title = message.notification?.title ?? message.data['title'] ?? 'EMERGENCY ALERT';
       String body = message.notification?.body ?? message.data['body'] ?? 'An unexpected event was detected at home!';
 
-      print("Foreground notification received: $title");
+      debugPrint("Foreground notification received: $title");
 
       // Get the current page context from the global key
       final currentContext = navigatorKey.currentContext;
@@ -124,11 +124,11 @@ Future<void> main() async {
           },
         );
       } else {
-        print("Error: Context not found, could not show alert dialog.");
+        debugPrint("Error: Context not found, could not show alert dialog.");
       }
     });
   } catch (e) {
-    print("Firebase init error: $e");
+    debugPrint("Firebase init error: $e");
   }
 
   // --- 4. INIT AWS AMPLIFY ---

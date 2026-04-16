@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/app_colors.dart';
@@ -197,7 +196,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
       decoration: BoxDecoration(
         color: AppColors.cardDark,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       child: child,
     );
@@ -218,7 +217,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
               Text(_isActive ? "ACTIVE" : "INACTIVE", style: TextStyle(color: _isActive ? AppColors.accentGreen : Colors.white54, fontSize: 13, fontWeight: FontWeight.w800)),
               Switch(
                 value: _isActive,
-                activeColor: AppColors.accentGreen,
+                activeThumbColor: AppColors.accentGreen,
                 inactiveThumbColor: Colors.grey,
                 inactiveTrackColor: Colors.white12,
                 onChanged: (val) => setState(() => _isActive = val),
@@ -255,7 +254,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: AppColors.accentOrange.withOpacity(0.2),
+                    color: AppColors.accentOrange.withValues(alpha: 0.2),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(Icons.bolt, color: AppColors.accentOrange, size: 22),
@@ -316,7 +315,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: AppColors.primaryBlue.withOpacity(0.2),
+                    color: AppColors.primaryBlue.withValues(alpha: 0.2),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(Icons.play_arrow_rounded, color: AppColors.primaryBlue, size: 24),
@@ -386,7 +385,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               decoration: BoxDecoration(
-                color: isSelected ? baseColor.withOpacity(0.2) : Colors.white.withOpacity(0.05),
+                color: isSelected ? baseColor.withValues(alpha: 0.2) : Colors.white.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: isSelected ? baseColor : Colors.transparent, width: 2),
               ),
@@ -415,7 +414,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(color: Colors.white.withOpacity(0.05), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white.withOpacity(0.1))),
+            decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white.withValues(alpha: 0.1))),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
                 isExpanded: true,
@@ -441,7 +440,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
                 flex: 3,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  decoration: BoxDecoration(color: Colors.white.withOpacity(0.05), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white.withOpacity(0.1))),
+                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white.withValues(alpha: 0.1))),
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<String>(
                       isExpanded: true,
@@ -463,7 +462,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
               Expanded(
                 flex: 2,
                 child: Container(
-                  decoration: BoxDecoration(color: Colors.white.withOpacity(0.05), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white.withOpacity(0.1))),
+                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white.withValues(alpha: 0.1))),
                   child: TextField(
                     controller: _sensorValueController,
                     style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
@@ -504,9 +503,9 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 16),
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.white.withOpacity(0.2), style: BorderStyle.solid),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.2), style: BorderStyle.solid),
               borderRadius: BorderRadius.circular(16),
-              color: Colors.white.withOpacity(0.02),
+              color: Colors.white.withValues(alpha: 0.02),
             ),
             child: const Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -600,7 +599,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
       decoration: BoxDecoration(
         color: AppColors.cardDark,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -609,7 +608,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
             children: [
               Container(
                 padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
                 child: Icon(isLed ? Icons.lightbulb : isSpk ? Icons.speaker : Icons.blinds, color: Colors.white, size: 20),
               ),
               const SizedBox(width: 12),
@@ -618,7 +617,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
               ),
               Switch(
                 value: act['power'] as bool,
-                activeColor: AppColors.primaryBlue,
+                activeThumbColor: AppColors.primaryBlue,
                 onChanged: (val) {
                   setState(() { _addedActions[index]['power'] = val; });
                 },
@@ -651,7 +650,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
                     value: (act['brightness'] as num).toDouble(),
                     min: 0,
                     max: 100,
-                    activeColor: AppColors.primaryBlue,
+                    activeThumbColor: AppColors.primaryBlue,
                     onChanged: (val) => setState(() { _addedActions[index]['brightness'] = val.toInt(); }),
                   ),
                 ),
@@ -677,7 +676,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
                     value: (act['volume'] as num).toDouble(),
                     min: 0,
                     max: 100,
-                    activeColor: Colors.pinkAccent,
+                    activeThumbColor: Colors.pinkAccent,
                     onChanged: (val) => setState(() { _addedActions[index]['volume'] = val.toInt(); }),
                   ),
                 ),
@@ -694,7 +693,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
                     value: (act['position'] as num).toDouble(),
                     min: 0,
                     max: 100,
-                    activeColor: Colors.cyanAccent,
+                    activeThumbColor: Colors.cyanAccent,
                     onChanged: (val) => setState(() { _addedActions[index]['position'] = val.toInt(); }),
                   ),
                 ),
@@ -718,7 +717,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
           color: color,
           shape: BoxShape.circle,
           border: isSelected ? Border.all(color: Colors.white, width: 2) : null,
-          boxShadow: isSelected ? [BoxShadow(color: color.withOpacity(0.5), blurRadius: 6)] : [],
+          boxShadow: isSelected ? [BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 6)] : [],
         ),
       ),
     );
@@ -731,7 +730,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
       child: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.pinkAccent.withOpacity(0.2) : Colors.white.withOpacity(0.05),
+          color: isSelected ? Colors.pinkAccent.withValues(alpha: 0.2) : Colors.white.withValues(alpha: 0.05),
           shape: BoxShape.circle,
           border: isSelected ? Border.all(color: Colors.pinkAccent) : null,
         ),

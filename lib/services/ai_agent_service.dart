@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'api_service.dart';
@@ -191,14 +192,14 @@ CRITICAL RULES:
           final deviceId = input['device_id'] as String;
           final action = input['action'] as String;
           final value = input['value'];
-          print('AI Agent: control_device($deviceId, $action, $value) homeId=$homeId');
+          debugPrint('AI Agent: control_device($deviceId, $action, $value) homeId=$homeId');
           final success = await ApiService.sendCommand(
             homeId: homeId,
             deviceId: deviceId,
             action: action,
             value: value,
           );
-          print('AI Agent: control_device result: $success');
+          debugPrint('AI Agent: control_device result: $success');
           return jsonEncode({'success': success, 'device_id': deviceId, 'action': action, 'value': value});
 
         case 'get_automations':
@@ -239,11 +240,11 @@ CRITICAL RULES:
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       } else {
-        print('Claude API error: ${response.statusCode} ${response.body}');
+        debugPrint('Claude API error: ${response.statusCode} ${response.body}');
         return null;
       }
     } catch (e) {
-      print('Claude API connection error: $e');
+      debugPrint('Claude API connection error: $e');
       return null;
     }
   }

@@ -32,13 +32,13 @@ class ScanArea extends StatelessWidget {
             shape: BoxShape.circle,
             gradient: RadialGradient(
               colors: [
-                moodColor.withOpacity(0.35),
-                moodColor.withOpacity(0.05),
+                moodColor.withValues(alpha: 0.35),
+                moodColor.withValues(alpha: 0.05),
               ],
             ),
             boxShadow: [
               BoxShadow(
-                color: moodColor.withOpacity(isScanning ? 0.5 : 0.25),
+                color: moodColor.withValues(alpha: isScanning ? 0.5 : 0.25),
                 blurRadius: isScanning ? 50 : 30,
                 spreadRadius: isScanning ? 6 : 2,
               ),
@@ -53,7 +53,7 @@ class ScanArea extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: AppColors.card(context),
-                  border: Border.all(color: moodColor.withOpacity(0.6), width: 2),
+                  border: Border.all(color: moodColor.withValues(alpha: 0.6), width: 2),
                 ),
                 child: ClipOval(
                   child: Container(
@@ -73,7 +73,7 @@ class ScanArea extends StatelessWidget {
                   height: 190,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.black.withOpacity(0.5),
+                    color: Colors.black.withValues(alpha: 0.5),
                   ),
                   child: Center(
                     child: CircularProgressIndicator(color: moodColor),

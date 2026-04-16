@@ -308,7 +308,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 children: [
                   Checkbox(
                     value: _agreedToTerms,
-                    activeColor: AppColors.primaryBlue,
+                    activeThumbColor: AppColors.primaryBlue,
                     checkColor: Colors.white,
                     side: const BorderSide(color: Colors.grey),
                     onChanged: (value) {
@@ -361,7 +361,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryBlue,
-                    disabledBackgroundColor: AppColors.primaryBlue.withOpacity(0.3),
+                    disabledBackgroundColor: AppColors.primaryBlue.withValues(alpha: 0.3),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30),
                     ),
