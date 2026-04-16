@@ -89,8 +89,8 @@ Future<void> main() async {
           ),
         );
 
-        // ignore: use_build_context_synchronously
         showDialog(
+          // ignore: use_build_context_synchronously
           context: currentContext,
           barrierDismissible: false, // user can't tap outside to close
           builder: (BuildContext context) {
