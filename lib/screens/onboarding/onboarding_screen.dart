@@ -75,7 +75,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           color: const Color(0xFF1E2746),
                           boxShadow: [
                             BoxShadow(
-                              color: AppColors.primaryBlue.withOpacity(0.2),
+                              color: AppColors.primaryBlue.withValues(alpha: 0.2),
                               blurRadius: 40,
                               spreadRadius: 10,
                             ),
@@ -157,7 +157,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             borderRadius: BorderRadius.circular(30),
                           ),
                           elevation: 10,
-                          shadowColor: AppColors.primaryBlue.withOpacity(0.4),
+                          shadowColor: AppColors.primaryBlue.withValues(alpha: 0.4),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,

@@ -236,7 +236,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
               height: 300,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.primaryBlue.withOpacity(0.15),
+                color: AppColors.primaryBlue.withValues(alpha: 0.15),
               ),
             ),
           ),
@@ -248,7 +248,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
               height: 250,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.accentGreen.withOpacity(0.1),
+                color: AppColors.accentGreen.withValues(alpha: 0.1),
               ),
             ),
           ),
@@ -323,12 +323,12 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
         child: Container(
           padding: padding,
           decoration: BoxDecoration(
-            color: AppColors.cardDark.withOpacity(0.6),
+            color: AppColors.cardDark.withValues(alpha: 0.6),
             borderRadius: BorderRadius.circular(32),
-            border: Border.all(color: Colors.white.withOpacity(0.08), width: 1.5),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08), width: 1.5),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.2),
+                color: Colors.black.withValues(alpha: 0.2),
                 blurRadius: 20,
                 offset: const Offset(0, 10),
               )
@@ -349,7 +349,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
           child: Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppColors.cardDark.withOpacity(0.5),
+              color: AppColors.cardDark.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: Colors.white10),
             ),
@@ -372,7 +372,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: AppColors.cardDark.withOpacity(0.5),
+            color: AppColors.cardDark.withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: Colors.white10),
           ),
@@ -409,7 +409,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
               const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: isEngineOn ? AppColors.primaryBlue.withOpacity(0.3) : Colors.white10, shape: BoxShape.circle),
+                decoration: BoxDecoration(color: isEngineOn ? AppColors.primaryBlue.withValues(alpha: 0.3) : Colors.white10, shape: BoxShape.circle),
                 child: Icon(Icons.air, color: isEngineOn ? AppColors.primaryBlue : Colors.grey, size: 28),
               ),
             ],
@@ -454,7 +454,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                       duration: const Duration(milliseconds: 300),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: isLightOn ? lightColor.withOpacity(0.2) : Colors.white10,
+                        color: isLightOn ? lightColor.withValues(alpha: 0.2) : Colors.white10,
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Icon(Icons.lightbulb, color: isLightOn ? lightColor : Colors.grey, size: 24),
@@ -479,7 +479,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
               const SizedBox(width: 8),
               Switch.adaptive(
                 value: isLightOn,
-                activeColor: lightColor,
+                activeThumbColor: lightColor,
                 onChanged: (val) => _updateDeviceState(deviceId, 'power', val ? 'on' : 'off'),
               ),
             ],
@@ -555,7 +555,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                   children: [
                     Container(
                       padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(color: Colors.pinkAccent.withOpacity(0.15), borderRadius: BorderRadius.circular(16)),
+                      decoration: BoxDecoration(color: Colors.pinkAccent.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(16)),
                       child: Icon(Icons.speaker_group, color: isEngineOn ? Colors.pinkAccent : Colors.grey, size: 24),
                     ),
                     const SizedBox(width: 16),
@@ -573,7 +573,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
               ),
               Switch.adaptive(
                 value: isEngineOn,
-                activeColor: Colors.pinkAccent,
+                activeThumbColor: Colors.pinkAccent,
                 onChanged: (val) => _updateDeviceState(deviceId, 'power', val ? 'on' : 'off'),
               ),
             ],
@@ -634,7 +634,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                   children: [
                     Container(
                       padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(color: Colors.cyanAccent.withOpacity(0.15), borderRadius: BorderRadius.circular(16)),
+                      decoration: BoxDecoration(color: Colors.cyanAccent.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(16)),
                       child: const Icon(Icons.blinds, color: Colors.cyanAccent, size: 24),
                     ),
                     const SizedBox(width: 16),
@@ -660,10 +660,10 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                 child: SliderTheme(
                   data: SliderTheme.of(context).copyWith(
                     trackHeight: 12,
-                    activeTrackColor: Colors.cyanAccent.withOpacity(0.8),
+                    activeTrackColor: Colors.cyanAccent.withValues(alpha: 0.8),
                     inactiveTrackColor: Colors.white10,
                     thumbColor: Colors.white,
-                    overlayColor: Colors.cyanAccent.withOpacity(0.2),
+                    overlayColor: Colors.cyanAccent.withValues(alpha: 0.2),
                     trackShape: const RoundedRectSliderTrackShape(),
                     thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10, elevation: 5),
                   ),
@@ -703,7 +703,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
               children: [
                 Container(
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: statusColor.withOpacity(0.15), shape: BoxShape.circle),
+                  decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.15), shape: BoxShape.circle),
                   child: Icon(Icons.nfc, color: statusColor, size: 28),
                 ),
                 const SizedBox(width: 16),
@@ -755,7 +755,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
         children: [
           Container(
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: iconColor.withOpacity(0.15), borderRadius: BorderRadius.circular(16)),
+            decoration: BoxDecoration(color: iconColor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(16)),
             child: Icon(iconData, color: iconColor, size: 24),
           ),
           const SizedBox(width: 16),
@@ -770,7 +770,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
           ),
           Switch.adaptive(
             value: isEngineOn,
-            activeColor: iconColor,
+            activeThumbColor: iconColor,
             onChanged: (val) => _updateDeviceState(deviceId, 'power', val ? 'on' : 'off'),
           ),
         ],
@@ -794,7 +794,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
               children: [
                 Container(
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: Colors.orangeAccent.withOpacity(0.15), shape: BoxShape.circle),
+                  decoration: BoxDecoration(color: Colors.orangeAccent.withValues(alpha: 0.15), shape: BoxShape.circle),
                   child: const Icon(Icons.thermostat, color: Colors.orangeAccent, size: 28),
                 ),
                 const SizedBox(width: 16),
@@ -850,7 +850,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
               children: [
                 Container(
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: statusColor.withOpacity(0.15), shape: BoxShape.circle),
+                  decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.15), shape: BoxShape.circle),
                   child: Icon(Icons.cloud, color: statusColor, size: 28),
                 ),
                 const SizedBox(width: 16),
@@ -871,9 +871,9 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
           Container(
              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
              decoration: BoxDecoration(
-               color: statusColor.withOpacity(0.2),
+               color: statusColor.withValues(alpha: 0.2),
                borderRadius: BorderRadius.circular(20),
-               border: Border.all(color: statusColor.withOpacity(0.5), width: 1.5)
+               border: Border.all(color: statusColor.withValues(alpha: 0.5), width: 1.5)
              ),
              child: Text(statusText, style: TextStyle(color: statusColor, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
           ),
@@ -902,7 +902,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
               children: [
                 Container(
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: statusColor.withOpacity(0.15), shape: BoxShape.circle),
+                  decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.15), shape: BoxShape.circle),
                   child: Icon(Icons.vibration, color: statusColor, size: 28),
                 ),
                 const SizedBox(width: 16),
@@ -923,9 +923,9 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
           Container(
              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
              decoration: BoxDecoration(
-               color: statusColor.withOpacity(0.2),
+               color: statusColor.withValues(alpha: 0.2),
                borderRadius: BorderRadius.circular(20),
-               border: Border.all(color: statusColor.withOpacity(0.5), width: 1.5)
+               border: Border.all(color: statusColor.withValues(alpha: 0.5), width: 1.5)
              ),
              child: Text(statusText, style: TextStyle(color: statusColor, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
           ),
@@ -982,7 +982,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
       child: Container(
         width: 56, height: 56,
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.05),
+          color: Colors.white.withValues(alpha: 0.05),
           shape: BoxShape.circle,
           border: Border.all(color: Colors.white10),
         ),
@@ -1000,9 +1000,9 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
         curve: Curves.easeOut,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? activeColor.withOpacity(0.15) : Colors.transparent,
+          color: isSelected ? activeColor.withValues(alpha: 0.15) : Colors.transparent,
           borderRadius: BorderRadius.circular(30),
-          border: Border.all(color: isSelected ? activeColor.withOpacity(0.5) : Colors.white10),
+          border: Border.all(color: isSelected ? activeColor.withValues(alpha: 0.5) : Colors.white10),
         ),
         child: Row(
           children: [
@@ -1029,7 +1029,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
           color: color,
           shape: BoxShape.circle,
           border: isSelected ? Border.all(color: Colors.white, width: 3) : Border.all(color: Colors.transparent),
-          boxShadow: isSelected ? [BoxShadow(color: color.withOpacity(0.5), blurRadius: 10, spreadRadius: 2)] : [],
+          boxShadow: isSelected ? [BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 10, spreadRadius: 2)] : [],
         ),
       ),
     );

@@ -53,11 +53,11 @@ class _HomeSelectionScreenState extends ConsumerState<HomeSelectionScreen> {
         );
 
         if (response.statusCode == 200) {
-          print("✅ Success: FCM Token saved to AWS.");
+          debugPrint("✅ Success: FCM Token saved to AWS.");
         }
       }
     } catch (e) {
-      print("⚠️ Error while updating FCM Token: $e");
+      debugPrint("⚠️ Error while updating FCM Token: $e");
     }
   }
 
@@ -227,10 +227,10 @@ class _HomeSelectionScreenState extends ConsumerState<HomeSelectionScreen> {
                                       width: 120,
                                       height: 120,
                                       decoration: BoxDecoration(
-                                        color: isGuest ? AppColors.accentOrange.withOpacity(0.1) : AppColors.primaryBlue.withOpacity(0.1),
+                                        color: isGuest ? AppColors.accentOrange.withValues(alpha: 0.1) : AppColors.primaryBlue.withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(20),
                                         border: Border.all(
-                                          color: isGuest ? AppColors.accentOrange.withOpacity(0.6) : AppColors.primaryBlue.withOpacity(0.6),
+                                          color: isGuest ? AppColors.accentOrange.withValues(alpha: 0.6) : AppColors.primaryBlue.withValues(alpha: 0.6),
                                           width: 2,
                                         ),
                                       ),

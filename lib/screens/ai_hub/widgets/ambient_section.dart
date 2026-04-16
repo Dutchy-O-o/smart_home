@@ -67,7 +67,7 @@ class AmbientSection extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           decoration: BoxDecoration(
-            color: AppColors.textSub(context).withOpacity(0.15),
+            color: AppColors.textSub(context).withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(6),
           ),
           child: Text(
@@ -85,7 +85,7 @@ class AmbientSection extends StatelessWidget {
   }
 
   static String _hexOf(Color c) =>
-      c.value.toRadixString(16).substring(2).toUpperCase();
+      c.toARGB32().toRadixString(16).substring(2).toUpperCase();
 
   static String _suggestCurtainState(String mood) {
     switch (mood.toLowerCase()) {
@@ -124,10 +124,10 @@ class _AmbientTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.card(context).withOpacity(0.6),
+        color: AppColors.card(context).withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: AppColors.borderCol(context).withOpacity(0.5),
+          color: AppColors.borderCol(context).withValues(alpha: 0.5),
         ),
       ),
       child: Column(
@@ -153,7 +153,7 @@ class _AmbientTile extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: muted.withOpacity(0.8),
+              color: muted.withValues(alpha: 0.8),
               fontSize: 11,
             ),
           ),

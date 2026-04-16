@@ -124,16 +124,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   // --- FUNCTION THAT FETCHES THE ENCRYPTED QR TOKEN FROM THE REAL API ---
   Future<void> _generateAndShowQr(String homeId, String homeName) async {
-    print("🕵️‍♂️ 3. API REQUEST FUNCTION STARTED. Target Home: $homeId");
+    debugPrint("🕵️‍♂️ 3. API REQUEST FUNCTION STARTED. Target Home: $homeId");
     showDialog(context: context, barrierDismissible: false, builder: (c) => const Center(child: CircularProgressIndicator(color: AppColors.primaryBlue)));
 
     try {
       final session = await Amplify.Auth.fetchAuthSession() as CognitoAuthSession;
       final token = session.userPoolTokensResult.value.idToken.raw;
-      print("🕵️‍♂️ 4. COGNITO TOKEN RECEIVED, CONNECTING TO AWS...");
+      debugPrint("🕵️‍♂️ 4. COGNITO TOKEN RECEIVED, CONNECTING TO AWS...");
 
       final url = Uri.parse("https://zz3kr12z0f.execute-api.us-east-1.amazonaws.com/prod/$homeId/generate-invite");
-      print("🕵️‍♂️ 5. REQUESTED URL: $url");
+      debugPrint("🕵️‍♂️ 5. REQUESTED URL: $url");
       
       final response = await http.post(
         url,
@@ -144,22 +144,22 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       if (!mounted) return;
       Navigator.pop(context); // Close the loading spinner
 
-      print("🕵️‍♂️ 6. RESPONSE RECEIVED FROM AWS! Status Code: ${response.statusCode}");
-      print("🕵️‍♂️ 7. AWS RESPONSE BODY: ${response.body}");
+      debugPrint("🕵️‍♂️ 6. RESPONSE RECEIVED FROM AWS! Status Code: ${response.statusCode}");
+      debugPrint("🕵️‍♂️ 7. AWS RESPONSE BODY: ${response.body}");
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final secureToken = data['secure_token'];
-        print("✅ 8. ENCRYPTED TOKEN RECEIVED, OPENING MODAL!");
+        debugPrint("✅ 8. ENCRYPTED TOKEN RECEIVED, OPENING MODAL!");
         _showQrInviteModal(context, secureToken, homeName);
       } else {
-        print("❌ ERROR: AWS rejected the request.");
+        debugPrint("❌ ERROR: AWS rejected the request.");
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Could not generate QR: ${response.body}"), backgroundColor: AppColors.accentRed));
       }
     } catch (e) {
       if (!mounted) return;
       Navigator.pop(context);
-      print("❌ SYSTEM ERROR (Catch): $e");
+      debugPrint("❌ SYSTEM ERROR (Catch): $e");
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Connection error: $e"), backgroundColor: AppColors.accentRed));
     }
   }
@@ -208,7 +208,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   width: double.infinity,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryBlue.withOpacity(0.2),
+                      backgroundColor: AppColors.primaryBlue.withValues(alpha: 0.2),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
@@ -232,7 +232,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.15),
+          color: color.withValues(alpha: 0.15),
           shape: BoxShape.circle,
         ),
         child: Icon(icon, color: color, size: 20),
@@ -313,7 +313,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                     const SizedBox(width: 8),
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                      decoration: BoxDecoration(color: AppColors.primaryBlue.withOpacity(0.2), borderRadius: BorderRadius.circular(4)),
+                                      decoration: BoxDecoration(color: AppColors.primaryBlue.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(4)),
                                       child: Text(homeRole, style: const TextStyle(color: AppColors.primaryBlue, fontSize: 10, fontWeight: FontWeight.bold)),
                                     ),
                                   ],
@@ -339,7 +339,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           if (currentHomeId != null) {
                             _generateAndShowQr(currentHomeId.toString(), homeName);
                           } else {
-                            print("❌ ERROR: Home ID still not found!");
+                            debugPrint("❌ ERROR: Home ID still not found!");
                           }
                         }),
                         const SizedBox(width: 8),
@@ -383,7 +383,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
                               color: AppColors.card(context),
-                              border: Border.all(color: isGuest ? AppColors.accentOrange.withOpacity(0.5) : AppColors.primaryBlue.withOpacity(0.5)),
+                              border: Border.all(color: isGuest ? AppColors.accentOrange.withValues(alpha: 0.5) : AppColors.primaryBlue.withValues(alpha: 0.5)),
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: Column(
@@ -411,7 +411,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                   decoration: BoxDecoration(
-                                    color: isGuest ? AppColors.accentOrange.withOpacity(0.2) : AppColors.primaryBlue.withOpacity(0.2),
+                                    color: isGuest ? AppColors.accentOrange.withValues(alpha: 0.2) : AppColors.primaryBlue.withValues(alpha: 0.2),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
@@ -438,7 +438,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 decoration: BoxDecoration(
                   color: AppColors.card(context),
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: AppColors.primaryBlue.withOpacity(0.3)),
+                  border: Border.all(color: AppColors.primaryBlue.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   children: [
@@ -552,7 +552,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.amber.withOpacity(0.1),
+                        color: Colors.amber.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.wb_sunny, color: Colors.amber, size: 24),
@@ -569,7 +569,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     ),
                     Switch(
                       value: isDimmerOn,
-                      activeColor: AppColors.primaryBlue,
+                      activeThumbColor: AppColors.primaryBlue,
                       onChanged: (val) {
                         setState(() {
                           isDimmerOn = val;
@@ -601,7 +601,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
+                  color: Colors.black.withValues(alpha: 0.2),
                   blurRadius: 8,
                   offset: const Offset(0, 4),
                 )

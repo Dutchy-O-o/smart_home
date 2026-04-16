@@ -3,7 +3,6 @@ import '../../constants/app_colors.dart';
 import '../dashboard/home_selection_screen.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
-import 'package:amplify_auth_cognito/amplify_auth_cognito.dart';
 import 'package:amplify_flutter/amplify_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
@@ -180,7 +179,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       borderRadius: BorderRadius.circular(30),
                     ),
                     elevation: 5,
-                    shadowColor: AppColors.primaryBlue.withOpacity(0.4),
+                    shadowColor: AppColors.primaryBlue.withValues(alpha: 0.4),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,

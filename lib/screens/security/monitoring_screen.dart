@@ -107,7 +107,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                   image: DecorationImage(
                     image: const NetworkImage("https://images.unsplash.com/photo-1550989460-0adf9ea622e2?q=80&w=600&auto=format&fit=crop"),
                     fit: BoxFit.cover,
-                    colorFilter: ColorFilter.mode(Colors.black.withOpacity(0.4), BlendMode.darken),
+                    colorFilter: ColorFilter.mode(Colors.black.withValues(alpha: 0.4), BlendMode.darken),
                   ),
                 ),
                 child: Stack(
@@ -142,7 +142,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: AppColors.primaryBlue.withOpacity(0.8),
+                          color: AppColors.primaryBlue.withValues(alpha: 0.8),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(Icons.play_arrow, color: Colors.white, size: 32),
@@ -183,7 +183,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                 decoration: BoxDecoration(
                   color: const Color(0xFF2C1E24),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppColors.accentRed.withOpacity(0.3)),
+                  border: Border.all(color: AppColors.accentRed.withValues(alpha: 0.3)),
                 ),
                 child: Column(
                   children: [
@@ -192,7 +192,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: AppColors.accentRed.withOpacity(0.2),
+                            color: AppColors.accentRed.withValues(alpha: 0.2),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(Icons.warning_amber_rounded, color: AppColors.accentRed),
@@ -275,7 +275,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                           border: Border.all(color: Colors.white24),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
+                              color: Colors.black.withValues(alpha: 0.2),
                               blurRadius: 8,
                               offset: const Offset(0, 4),
                             )
@@ -308,7 +308,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                               backgroundColor: AppColors.primaryBlue,
                               elevation: 4,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                              shadowColor: AppColors.primaryBlue.withOpacity(0.5),
+                              shadowColor: AppColors.primaryBlue.withValues(alpha: 0.5),
                             ),
                           ),
                         ),
@@ -353,7 +353,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
       decoration: BoxDecoration(
         color: AppColors.cardDark,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: isGreen ? dotColor.withOpacity(0.3) : Colors.transparent),
+        border: Border.all(color: isGreen ? dotColor.withValues(alpha: 0.3) : Colors.transparent),
       ),
       child: Row(
         children: [
@@ -401,7 +401,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: isTrendPositive ? AppColors.accentGreen.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
+                  color: isTrendPositive ? AppColors.accentGreen.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -485,7 +485,7 @@ class ChartPainter extends CustomPainter {
 
     var fillPaint = Paint()
       ..shader = LinearGradient(
-        colors: [color.withOpacity(0.3), color.withOpacity(0.0)],
+        colors: [color.withValues(alpha: 0.3), color.withValues(alpha: 0.0)],
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height))

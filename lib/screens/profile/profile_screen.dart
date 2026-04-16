@@ -177,11 +177,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 child: Column(
                   children: [
                     SwitchListTile(
-                      activeColor: AppColors.primaryBlue,
+                      activeThumbColor: AppColors.primaryBlue,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                       secondary: Container(
                         padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(color: Colors.purple.withOpacity(0.2), shape: BoxShape.circle),
+                        decoration: BoxDecoration(color: Colors.purple.withValues(alpha: 0.2), shape: BoxShape.circle),
                         child: const Icon(Icons.notifications, color: Colors.purple),
                       ),
                       title: const Text("Push Notifications", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
@@ -230,7 +230,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 child: ElevatedButton(
                   onPressed: _handleLogout,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.accentRed.withOpacity(0.1),
+                    backgroundColor: AppColors.accentRed.withValues(alpha: 0.1),
                     foregroundColor: AppColors.accentRed,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     side: const BorderSide(color: AppColors.accentRed),
@@ -274,7 +274,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       onTap: onTap,
       leading: Container(
         padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(color: color.withOpacity(0.2), shape: BoxShape.circle),
+        decoration: BoxDecoration(color: color.withValues(alpha: 0.2), shape: BoxShape.circle),
         child: Icon(icon, color: color, size: 20),
       ),
       title: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),

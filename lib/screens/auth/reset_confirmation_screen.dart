@@ -27,7 +27,7 @@ class ResetConfirmationScreen extends StatelessWidget {
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
+                          color: Colors.black.withValues(alpha: 0.2),
                           blurRadius: 20,
                           offset: const Offset(0, 10),
                         ),
@@ -100,7 +100,7 @@ class ResetConfirmationScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(30),
                     ),
                     elevation: 5,
-                    shadowColor: AppColors.primaryBlue.withOpacity(0.4),
+                    shadowColor: AppColors.primaryBlue.withValues(alpha: 0.4),
                   ),
                   child: const Text(
                     "Return to Login",

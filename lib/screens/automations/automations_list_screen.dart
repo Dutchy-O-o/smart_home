@@ -227,7 +227,7 @@ class _AutomationsListScreenState extends ConsumerState<AutomationsListScreen> {
             Container(
               width: 28, height: 28,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.15),
+                color: color.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(icon, color: color, size: 16),
@@ -357,7 +357,7 @@ class _AutomationsListScreenState extends ConsumerState<AutomationsListScreen> {
             Container(
               width: 72, height: 72,
               decoration: BoxDecoration(
-                color: AppColors.accentRed.withOpacity(0.12),
+                color: AppColors.accentRed.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.cloud_off,
@@ -401,8 +401,8 @@ class _AutomationsListScreenState extends ConsumerState<AutomationsListScreen> {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    AppColors.primaryBlue.withOpacity(0.3),
-                    AppColors.primaryBlue.withOpacity(0.05),
+                    AppColors.primaryBlue.withValues(alpha: 0.3),
+                    AppColors.primaryBlue.withValues(alpha: 0.05),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -501,7 +501,7 @@ class _AutomationsListScreenState extends ConsumerState<AutomationsListScreen> {
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: isEnabled
-                  ? accent.withOpacity(0.35)
+                  ? accent.withValues(alpha: 0.35)
                   : AppColors.borderCol(context),
               width: isEnabled ? 1.2 : 1,
             ),
@@ -516,7 +516,7 @@ class _AutomationsListScreenState extends ConsumerState<AutomationsListScreen> {
                     Container(
                       width: 42, height: 42,
                       decoration: BoxDecoration(
-                        color: accent.withOpacity(0.15),
+                        color: accent.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
@@ -594,9 +594,9 @@ class _AutomationsListScreenState extends ConsumerState<AutomationsListScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: accent.withOpacity(0.08),
+        color: accent.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: accent.withOpacity(0.25)),
+        border: Border.all(color: accent.withValues(alpha: 0.25)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
