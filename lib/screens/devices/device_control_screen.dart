@@ -24,14 +24,11 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
   
   // Dynamic States
   List<dynamic> _devices = [];
-  Map<String, Map<String, dynamic>> _deviceStates = {};
+  final Map<String, Map<String, dynamic>> _deviceStates = {};
   bool _isLoading = true;
 
-  String _insideTemp = "--";
-  String _insideHumidity = "--";
-
   // Timers
-  Map<String, Timer?> _debounceTimers = {};
+  final Map<String, Timer?> _debounceTimers = {};
   Timer? _dataPollingTimer;
 
   // Animation Controller
@@ -60,7 +57,9 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
     WidgetsBinding.instance.removeObserver(this);
     _fadeController.dispose();
     _dataPollingTimer?.cancel();
-    _debounceTimers.values.forEach((timer) => timer?.cancel());
+    for (final timer in _debounceTimers.values) {
+      timer?.cancel();
+    }
     super.dispose();
   }
 
@@ -108,11 +107,17 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
 
             // Advanced default value assignment (if value came null from DB)
             if (val == null || val == "null" || val == "") {
-              if (pName == 'power') val = 'off';
-              else if (pName == 'brightness' || pName == 'volume') val = 50;
-              else if (pName == 'color') val = '#FFFFFF';
-              else if (pName == 'position') val = 100; // Blinds default 100% open
-              else if (pName == 'playback') val = 'stop'; // Speaker default off
+              if (pName == 'power') {
+                val = 'off';
+              } else if (pName == 'brightness' || pName == 'volume') {
+                val = 50;
+              } else if (pName == 'color') {
+                val = '#FFFFFF';
+              } else if (pName == 'position') {
+                val = 100; // Blinds default 100% open
+              } else if (pName == 'playback') {
+                val = 'stop'; // Speaker default off
+              }
             } else {
               // If a value came through, normalize by lowercasing (ON -> on)
               if (val is String && (val.toUpperCase() == "ON" || val.toUpperCase() == "OFF")) {
@@ -300,7 +305,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                         padding: const EdgeInsets.only(bottom: 24),
                         child: card,
                       );
-                    }).toList(),
+                    }),
                     const SizedBox(height: 40),
                   ],
                 ),
@@ -541,7 +546,6 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
     
     bool isEngineOn = state['power'] == 'on';
     int volume = state['volume'] != null ? (state['volume'] is num ? state['volume'].toInt() : int.tryParse(state['volume'].toString()) ?? 50) : 50;
-    String playback = state['playback'] ?? 'stop';
 
     return _buildGlassCard(
       child: Column(
@@ -744,11 +748,19 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
     Color iconColor = Colors.purpleAccent;
     String nameLr = deviceName.toLowerCase();
 
-    if (nameLr.contains('door') || nameLr.contains('kapı')) iconData = Icons.door_front_door;
-    else if (nameLr.contains('window') || nameLr.contains('pencere')) iconData = Icons.window;
-    else if (nameLr.contains('fan')) { iconData = Icons.mode_fan_off; iconColor = Colors.blueAccent; }
-    else if (nameLr.contains('plug') || nameLr.contains('priz')) iconData = Icons.power;
-    else if (nameLr.contains('stove') || nameLr.contains('fırın')) { iconData = Icons.soup_kitchen; iconColor = Colors.deepOrangeAccent; }
+    if (nameLr.contains('door') || nameLr.contains('kapı')) {
+      iconData = Icons.door_front_door;
+    } else if (nameLr.contains('window') || nameLr.contains('pencere')) {
+      iconData = Icons.window;
+    } else if (nameLr.contains('fan')) {
+      iconData = Icons.mode_fan_off;
+      iconColor = Colors.blueAccent;
+    } else if (nameLr.contains('plug') || nameLr.contains('priz')) {
+      iconData = Icons.power;
+    } else if (nameLr.contains('stove') || nameLr.contains('fırın')) {
+      iconData = Icons.soup_kitchen;
+      iconColor = Colors.deepOrangeAccent;
+    }
 
     return _buildGlassCard(
       child: Row(
@@ -987,50 +999,6 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
           border: Border.all(color: Colors.white10),
         ),
         child: Icon(icon, color: Colors.white, size: 28),
-      ),
-    );
-  }
-
-  Widget _buildDynamicPillToggle(String text, IconData icon, Color activeColor, String currentMode, VoidCallback onTap) {
-    bool isSelected = currentMode == text;
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected ? activeColor.withValues(alpha: 0.15) : Colors.transparent,
-          borderRadius: BorderRadius.circular(30),
-          border: Border.all(color: isSelected ? activeColor.withValues(alpha: 0.5) : Colors.white10),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 18, color: isSelected ? activeColor : Colors.grey),
-            const SizedBox(width: 8),
-            Text(text, style: TextStyle(color: isSelected ? activeColor : Colors.grey, fontWeight: FontWeight.bold, fontSize: 13)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDynamicColorSelector(Color color, String deviceId, Color selectedColor) {
-    bool isSelected = selectedColor.value == color.value;
-    return GestureDetector(
-      onTap: () {
-        String hex = "#${color.value.toRadixString(16).substring(2).toUpperCase()}";
-        _updateDeviceState(deviceId, 'color', hex);
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        width: 45, height: 45,
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-          border: isSelected ? Border.all(color: Colors.white, width: 3) : Border.all(color: Colors.transparent),
-          boxShadow: isSelected ? [BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 10, spreadRadius: 2)] : [],
-        ),
       ),
     );
   }

@@ -60,6 +60,7 @@ Future<void> main() async {
       if (currentContext != null) {
         // FCM bildirimini alert listesine ekle
         final eventType = message.data['event'] ?? 'alert';
+        // ignore: use_build_context_synchronously
         final container = ProviderScope.containerOf(currentContext);
         final now = DateTime.now();
         final timeStr = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
@@ -88,6 +89,7 @@ Future<void> main() async {
           ),
         );
 
+        // ignore: use_build_context_synchronously
         showDialog(
           context: currentContext,
           barrierDismissible: false, // user can't tap outside to close
