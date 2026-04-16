@@ -29,7 +29,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
 
   // Action State (MVP: List of predefined devices to pick from)
   List<dynamic> _availableDevices = [];
-  List<Map<String, dynamic>> _addedActions = [];
+  final List<Map<String, dynamic>> _addedActions = [];
 
   @override
   void initState() {
@@ -43,10 +43,15 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
       
       if (condition.contains('emotion')) {
         _triggerType = 'ai';
-        if (condition.contains('sad')) _selectedEmotion = 'sad';
-        else if (condition.contains('angry')) _selectedEmotion = 'angry';
-        else if (condition.contains('neutral')) _selectedEmotion = 'neutral';
-        else _selectedEmotion = 'happy';
+        if (condition.contains('sad')) {
+          _selectedEmotion = 'sad';
+        } else if (condition.contains('angry')) {
+          _selectedEmotion = 'angry';
+        } else if (condition.contains('neutral')) {
+          _selectedEmotion = 'neutral';
+        } else {
+          _selectedEmotion = 'happy';
+        }
       } else {
         _triggerType = 'sensor';
         // Basic parser for 'temperature >= 28'

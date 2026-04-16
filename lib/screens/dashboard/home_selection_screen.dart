@@ -126,6 +126,7 @@ class _HomeSelectionScreenState extends ConsumerState<HomeSelectionScreen> {
     );
 
     if (scannedToken != null && scannedToken is String) {
+      if (!mounted) return;
       showDialog(context: context, barrierDismissible: false, builder: (c) => const Center(child: CircularProgressIndicator(color: AppColors.accentGreen)));
 
       try {
