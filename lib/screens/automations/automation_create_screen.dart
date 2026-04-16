@@ -218,7 +218,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
               Switch(
                 value: _isActive,
                 activeColor: AppColors.accentGreen,
-                inactiveColor: Colors.grey,
+                inactiveThumbColor: Colors.grey,
                 inactiveTrackColor: Colors.white12,
                 onChanged: (val) => setState(() => _isActive = val),
               ),
