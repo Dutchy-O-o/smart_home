@@ -164,11 +164,9 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
               
               if (deviceData.containsKey('temperature')) {
                 _deviceStates[devId]!['temperature'] = deviceData['temperature'];
-                _insideTemp = deviceData['temperature'].toString(); // Also write globally for Dashboard etc.
               }
               if (deviceData.containsKey('humidity')) {
                 _deviceStates[devId]!['humidity'] = deviceData['humidity'];
-                _insideHumidity = deviceData['humidity'].toString();
               }
               if (deviceData.containsKey('gas_level')) {
                 _deviceStates[devId]!['gas_level'] = deviceData['gas_level'];
