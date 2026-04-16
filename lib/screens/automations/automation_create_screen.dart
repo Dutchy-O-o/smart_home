@@ -217,8 +217,8 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
               Text(_isActive ? "ACTIVE" : "INACTIVE", style: TextStyle(color: _isActive ? AppColors.accentGreen : Colors.white54, fontSize: 13, fontWeight: FontWeight.w800)),
               Switch(
                 value: _isActive,
-                activeThumbColor: AppColors.accentGreen,
-                inactiveThumbColor: Colors.grey,
+                activeColor: AppColors.accentGreen,
+                inactiveColor: Colors.grey,
                 inactiveTrackColor: Colors.white12,
                 onChanged: (val) => setState(() => _isActive = val),
               ),
@@ -617,7 +617,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
               ),
               Switch(
                 value: act['power'] as bool,
-                activeThumbColor: AppColors.primaryBlue,
+                activeColor: AppColors.primaryBlue,
                 onChanged: (val) {
                   setState(() { _addedActions[index]['power'] = val; });
                 },
@@ -650,7 +650,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
                     value: (act['brightness'] as num).toDouble(),
                     min: 0,
                     max: 100,
-                    activeThumbColor: AppColors.primaryBlue,
+                    activeColor: AppColors.primaryBlue,
                     onChanged: (val) => setState(() { _addedActions[index]['brightness'] = val.toInt(); }),
                   ),
                 ),
@@ -676,7 +676,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
                     value: (act['volume'] as num).toDouble(),
                     min: 0,
                     max: 100,
-                    activeThumbColor: Colors.pinkAccent,
+                    activeColor: Colors.pinkAccent,
                     onChanged: (val) => setState(() { _addedActions[index]['volume'] = val.toInt(); }),
                   ),
                 ),
@@ -693,7 +693,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
                     value: (act['position'] as num).toDouble(),
                     min: 0,
                     max: 100,
-                    activeThumbColor: Colors.cyanAccent,
+                    activeColor: Colors.cyanAccent,
                     onChanged: (val) => setState(() { _addedActions[index]['position'] = val.toInt(); }),
                   ),
                 ),
