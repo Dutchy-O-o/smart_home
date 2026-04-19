@@ -355,7 +355,7 @@ These terms may be updated. Continued use after an update constitutes acceptance
               _sectionLabel('PREFERENCES'),
               _card([
                 SwitchListTile(
-                  activeThumbColor: AppColors.primaryBlue,
+                  activeColor: AppColors.primaryBlue,
                   contentPadding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   secondary: _iconBadge(
@@ -379,7 +379,7 @@ These terms may be updated. Continued use after an update constitutes acceptance
                 ),
                 _divider(),
                 SwitchListTile(
-                  activeThumbColor: AppColors.primaryBlue,
+                  activeColor: AppColors.primaryBlue,
                   contentPadding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   secondary: _iconBadge(

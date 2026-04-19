@@ -7,6 +7,8 @@ import '../../constants/mood_palette.dart';
 import '../../providers/mood_provider.dart';
 import '../../services/emotion_api_service.dart';
 import '../../services/spotify_service.dart';
+import '../../services/api_service.dart';
+import '../../providers/auth_provider.dart';
 import 'widgets/ambient_section.dart';
 import 'widgets/mood_card.dart';
 import 'widgets/mood_picker_sheet.dart';
@@ -31,6 +33,21 @@ class _EmotionHubScreenState extends ConsumerState<EmotionHubScreen> {
   void initState() {
     super.initState();
     _initSpotify();
+    _fetchLastEmotion();
+  }
+
+  Future<void> _fetchLastEmotion() async {
+    // Biraz bekle provider render olsun
+    await Future.delayed(Duration.zero);
+    final selectedHome = ref.read(selectedHomeProvider);
+    final homeId = (selectedHome?['home_id'] ?? selectedHome?['id'] ?? selectedHome?['homeid'])?.toString();
+    if (homeId != null) {
+      final lastEmotion = await ApiService.fetchLatestEmotion(homeId);
+      if (lastEmotion != null && lastEmotion['emotion'] != null && mounted) {
+        // Zaten sette api istegi atan listen var, onu tetiklememek için source="init" yolluyoruz ve listen ona göre davranacak.
+        ref.read(moodProvider.notifier).set(lastEmotion['emotion'], lastEmotion['confidence']?.toDouble() ?? 1.0, source: 'init');
+      }
+    }
   }
 
   Future<void> _initSpotify() async {
@@ -150,9 +167,19 @@ class _EmotionHubScreenState extends ConsumerState<EmotionHubScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Refresh Spotify recommendations when mood changes (manual/scan/chatbot)
+    // Refresh Spotify recommendations and DB when mood changes (manual/scan/chatbot)
     ref.listen<MoodState>(moodProvider, (prev, next) {
-      if (next.mood != null && next.mood != prev?.mood) _fetchMoodTracks();
+      if (next.mood != null && next.mood != prev?.mood) {
+        _fetchMoodTracks();
+        
+        if (next.source != 'init') {
+          final selectedHome = ref.read(selectedHomeProvider);
+          final homeId = (selectedHome?['home_id'] ?? selectedHome?['id'] ?? selectedHome?['homeid'])?.toString();
+          if (homeId != null) {
+            ApiService.saveEmotion(homeId, next.mood!, confidence: next.confidence);
+          }
+        }
+      }
     });
 
     final mood = ref.watch(moodProvider);

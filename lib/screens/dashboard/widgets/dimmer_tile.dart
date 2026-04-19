@@ -55,7 +55,7 @@ class DimmerTile extends StatelessWidget {
           ),
           Switch(
             value: value,
-            activeThumbColor: AppColors.primaryBlue,
+            activeColor: AppColors.primaryBlue,
             onChanged: onChanged,
           ),
         ],
