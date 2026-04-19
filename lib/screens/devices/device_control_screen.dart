@@ -501,7 +501,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
               const SizedBox(width: 8),
               Switch.adaptive(
                 value: isLightOn,
-                activeThumbColor: lightColor,
+                activeColor: lightColor,
                 onChanged: (val) => _updateDeviceState(deviceId, 'power', val ? 'on' : 'off'),
               ),
             ],
@@ -594,7 +594,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
               ),
               Switch.adaptive(
                 value: isEngineOn,
-                activeThumbColor: Colors.pinkAccent,
+                activeColor: Colors.pinkAccent,
                 onChanged: (val) => _updateDeviceState(deviceId, 'power', val ? 'on' : 'off'),
               ),
             ],
@@ -799,7 +799,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
           ),
           Switch.adaptive(
             value: isEngineOn,
-            activeThumbColor: iconColor,
+            activeColor: iconColor,
             onChanged: (val) => _updateDeviceState(deviceId, 'power', val ? 'on' : 'off'),
           ),
         ],

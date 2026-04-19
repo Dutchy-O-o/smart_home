@@ -198,4 +198,44 @@ class ApiService {
       return false;
     }
   }
+
+  /// POST /prod/{homeID}/emotion
+  static Future<bool> saveEmotion(String homeId, String emotion, {double confidence = 1.0}) async {
+    final url = Uri.parse('$baseUrl/$homeId/emotion');
+    final headers = await _getHeaders();
+
+    try {
+      final response = await http.post(
+        url,
+        headers: headers,
+        body: jsonEncode({"emotion": emotion, "confidence": confidence}),
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        _markNetworkUp();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      _logNetworkError('saveEmotion', e);
+      return false;
+    }
+  }
+
+  /// GET /prod/{homeID}/emotion
+  static Future<Map<String, dynamic>?> fetchLatestEmotion(String homeId) async {
+    final url = Uri.parse('$baseUrl/$homeId/emotion');
+    final headers = await _getHeaders();
+
+    try {
+      final response = await http.get(url, headers: headers);
+      if (response.statusCode == 200) {
+        _markNetworkUp();
+        return jsonDecode(response.body);
+      }
+      return null;
+    } catch (e) {
+      _logNetworkError('fetchLatestEmotion', e);
+      return null;
+    }
+  }
 }
