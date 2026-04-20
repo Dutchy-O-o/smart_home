@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../constants/app_colors.dart';
 import '../../constants/mood_palette.dart';
 import '../../providers/mood_provider.dart';
+import '../../providers/home_provider.dart';
 import '../../services/emotion_api_service.dart';
 import '../../services/spotify_service.dart';
 import '../../services/api_service.dart';
@@ -46,6 +47,8 @@ class _EmotionHubScreenState extends ConsumerState<EmotionHubScreen> {
       if (lastEmotion != null && lastEmotion['emotion'] != null && mounted) {
         // Zaten sette api istegi atan listen var, onu tetiklememek için source="init" yolluyoruz ve listen ona göre davranacak.
         ref.read(moodProvider.notifier).set(lastEmotion['emotion'], lastEmotion['confidence']?.toDouble() ?? 1.0, source: 'init');
+      } else if (mounted) {
+        ref.read(moodProvider.notifier).clear();
       }
     }
   }
@@ -169,14 +172,16 @@ class _EmotionHubScreenState extends ConsumerState<EmotionHubScreen> {
   Widget build(BuildContext context) {
     // Refresh Spotify recommendations and DB when mood changes (manual/scan/chatbot)
     ref.listen<MoodState>(moodProvider, (prev, next) {
-      if (next.mood != null && next.mood != prev?.mood) {
-        _fetchMoodTracks();
+      if (next.mood != null && next.updatedAt != prev?.updatedAt) {
+        if (next.mood != prev?.mood) {
+          _fetchMoodTracks();
+        }
         
         if (next.source != 'init') {
           final selectedHome = ref.read(selectedHomeProvider);
           final homeId = (selectedHome?['home_id'] ?? selectedHome?['id'] ?? selectedHome?['homeid'])?.toString();
           if (homeId != null) {
-            ApiService.saveEmotion(homeId, next.mood!, confidence: next.confidence);
+            ApiService.evaluateEmotion(homeId, next.mood!, confidenceScore: next.confidence);
           }
         }
       }

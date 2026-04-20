@@ -12,6 +12,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../providers/home_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/mood_provider.dart';
 import '../../providers/navigation_provider.dart';
 import 'home_selection_screen.dart';
 import '../../services/api_service.dart';
@@ -89,6 +90,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Future<void> _handleLogout() async {
+    ref.read(moodProvider.notifier).clear();
     await ref.read(authProvider.notifier).signOut();
     if (mounted) {
       Navigator.pushAndRemoveUntil(

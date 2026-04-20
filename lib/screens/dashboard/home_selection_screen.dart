@@ -11,6 +11,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../constants/app_colors.dart';
 import '../../providers/home_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/mood_provider.dart';
 import '../../widgets/main_shell.dart';
 import '../auth/login_screen.dart';
 
@@ -108,6 +109,7 @@ class _HomeSelectionScreenState extends ConsumerState<HomeSelectionScreen> {
   }
 
   Future<void> _handleLogout() async {
+    ref.read(moodProvider.notifier).clear();
     await ref.read(authProvider.notifier).signOut();
     if (mounted) {
       Navigator.pushAndRemoveUntil(

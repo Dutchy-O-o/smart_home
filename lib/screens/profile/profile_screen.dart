@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../constants/app_colors.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/mood_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../auth/login_screen.dart';
 
@@ -237,6 +238,7 @@ These terms may be updated. Continued use after an update constitutes acceptance
     );
     if (confirm != true) return;
 
+    ref.read(moodProvider.notifier).clear();
     await ref.read(authProvider.notifier).signOut();
     if (!mounted) return;
     Navigator.pushAndRemoveUntil(
