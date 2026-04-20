@@ -46,9 +46,9 @@ class MoodPalette {
     'calm',
     'excited',
     'neutral',
-    'fearful',
-    'surprised',
-    'disgusted',
+    'fear',
+    'surprise',
+    'disgust',
   ];
 
   static Color colorFor(String? mood) =>

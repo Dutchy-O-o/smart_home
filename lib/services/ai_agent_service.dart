@@ -66,8 +66,8 @@ class AiAgentService {
           'properties': {
             'mood': {
               'type': 'string',
-              'description': 'One of: happy, sad, melancholy, angry, calm, excited, neutral, fearful, surprised, disgusted',
-              'enum': ['happy', 'sad', 'melancholy', 'angry', 'calm', 'excited', 'neutral', 'fearful', 'surprised', 'disgusted'],
+              'description': 'One of: happy, sad, melancholy, angry, calm, excited, neutral, fear, surprise, disgust',
+              'enum': ['happy', 'sad', 'melancholy', 'angry', 'calm', 'excited', 'neutral', 'fear', 'surprise', 'disgust'],
             },
             'confidence': {
               'type': 'number',
