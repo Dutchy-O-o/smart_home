@@ -1,6 +1,23 @@
 import json
 import psycopg2
 import os
+import uuid
+
+# --- WARM START OPTİMİZASYONU ---
+# Bağlantıyı globalde tutarak 3 saniyelik timeout riskini ortadan kaldırıyoruz
+conn = None
+
+def get_connection():
+    global conn
+    if conn is None or conn.closed != 0:
+        conn = psycopg2.connect(
+            host=os.environ.get('DB_HOST'),
+            database=os.environ.get('DB_NAME'),
+            user=os.environ.get('DB_USER'),
+            password=os.environ.get('DB_PASSWORD'),
+            port=os.environ.get('DB_PORT', '5432')
+        )
+    return conn
 
 def lambda_handler(event, context):
     try:
@@ -9,24 +26,23 @@ def lambda_handler(event, context):
         device_id = event.get('deviceID')
         states = event.get('states', [])
         
+        # --- YANKI (ECHO) MEKANİZMASI İÇİN ID YAKALAMA ---
+        # Eğer manuel işlemse null/None dönecek, otomasyonsa UUID gelecek
+        execution_id = event.get('executionID') 
+        
         if not device_id or not states:
             print("HATA: deviceID veya states bulunamadı.")
             return
 
-        conn = psycopg2.connect(
-            host=os.environ.get('DB_HOST'),
-            database=os.environ.get('DB_NAME'),
-            user=os.environ.get('DB_USER'),
-            password=os.environ.get('DB_PASSWORD'),
-            port=os.environ.get('DB_PORT', '5432')
-        )
-        cur = conn.cursor()
+        db_conn = get_connection()
+        cur = db_conn.cursor()
 
+        # --- 1. AŞAMA: CİHAZIN ANLIK DURUMUNU GÜNCELLEME ---
         for state in states:
             prop_name = state.get('property_name')
             current_val = state.get('current_value')
             
-            # 1. Önce bu property_name ve deviceID ikilisine sahip propertyID'yi bul
+            # Önce bu property_name ve deviceID ikilisine sahip propertyID'yi bul
             get_prop_query = """
                 SELECT propertyid FROM actuator_properties 
                 WHERE deviceid = %s AND property_name = %s LIMIT 1;
@@ -40,10 +56,7 @@ def lambda_handler(event, context):
                 
             property_id = prop_result[0]
             
-            # 2. Bulunan propertyID ile actuator_current_states tablosuna kayıt yap veya güncelle
-            import uuid
-            
-            # Kayıt var mı diye kontrol et
+            # Bulunan propertyID ile actuator_current_states tablosuna kayıt yap veya güncelle
             check_query = "SELECT stateid FROM actuator_current_states WHERE propertyid = %s LIMIT 1;"
             cur.execute(check_query, (property_id,))
             state_row = cur.fetchone()
@@ -65,13 +78,26 @@ def lambda_handler(event, context):
                 """
                 cur.execute(insert_query, (new_state_id, property_id, str(current_val)))
 
-        conn.commit()
-        cur.close()
-        conn.close()
+        # --- 2. AŞAMA: OTOMASYON GEÇMİŞİNİ (EXECUTION) BAŞARILI YAPMA ---
+        if execution_id:
+            print(f"Otomasyon yankısı algılandı: {execution_id}. Execution tablosu güncelleniyor...")
+            update_exec_query = """
+                UPDATE automation_executions
+                SET result = 'Success'
+                WHERE executionid = %s;
+            """
+            cur.execute(update_exec_query, (execution_id,))
 
-        print(f"Basariyla guncellendi: {device_id} -> {states}")
+        db_conn.commit()
+        
+        # Cursor'u kapatıyoruz ama Warm-Start için DB bağlantısını açık bırakıyoruz
+        cur.close()
+
+        print(f"Basariyla guncellendi: {device_id} | ExecutionID: {execution_id}")
         return True
         
     except Exception as e:
+        if 'db_conn' in locals() and db_conn and db_conn.closed == 0:
+            db_conn.rollback()
         print(f"HATA olustu: {str(e)}")
         raise e
