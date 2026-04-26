@@ -150,6 +150,28 @@ class ApiService {
     }
   }
 
+  /// GET /prod/{homeID}/automation-history
+  static Future<List<dynamic>?> fetchAutomationHistory(String homeId) async {
+    final url = Uri.parse('$baseUrl/$homeId/automation-history');
+    final headers = await _getHeaders();
+
+    try {
+      final response = await http.get(url, headers: headers);
+      if (response.statusCode == 200) {
+        _markNetworkUp();
+        final data = jsonDecode(response.body);
+        return data['history'] as List<dynamic>?;
+      } else {
+        safePrint('Failed to fetch automation history. Status: ${response.statusCode}');
+        safePrint('Body: ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      _logNetworkError('fetchAutomationHistory', e);
+      return null;
+    }
+  }
+
   /// POST /prod/{homeID}/automations
   static Future<bool> saveAutomation(String homeId, Map<String, dynamic> payload) async {
     final url = Uri.parse('$baseUrl/$homeId/automations');
