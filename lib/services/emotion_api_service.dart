@@ -19,7 +19,7 @@ class EmotionApiResult {
 
 class EmotionApiService {
   static String get _endpoint =>
-      dotenv.env['EMOTION_API_URL'] ?? 'https://192.168.1.10:8000/predict';
+      dotenv.env['EMOTION_API_URL'] ?? 'https://ramazan.local:8000/predict';
 
   // PRODUCTION NOTE: Temporary bypass for the Pi's self-signed cert.
   // In production, install a Let's Encrypt or root-CA cert on the Pi

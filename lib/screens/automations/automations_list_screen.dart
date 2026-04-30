@@ -4,6 +4,7 @@ import '../../constants/app_colors.dart';
 import '../../providers/home_provider.dart';
 import '../../services/api_service.dart';
 import 'automation_create_screen.dart';
+import 'automation_history_sheet.dart';
 
 enum _Filter { all, active, ai, sensor }
 
@@ -72,6 +73,22 @@ class _AutomationsListScreenState extends ConsumerState<AutomationsListScreen> {
     );
     if (mounted) _fetchAutomations();
     if (result == true && mounted) _fetchAutomations();
+  }
+
+  void _showHistorySheet() {
+    final selectedHome = ref.read(selectedHomeProvider);
+    final homeId = (selectedHome?['home_id'] ??
+            selectedHome?['id'] ??
+            selectedHome?['homeid'])
+        ?.toString();
+    if (homeId == null || homeId.isEmpty) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: false,
+      backgroundColor: Colors.transparent,
+      builder: (_) => AutomationHistorySheet(homeId: homeId),
+    );
   }
 
   bool _isAi(dynamic auto) {
@@ -171,6 +188,21 @@ class _AutomationsListScreenState extends ConsumerState<AutomationsListScreen> {
                   ),
                 ),
               ],
+            ),
+          ),
+          GestureDetector(
+            onTap: _showHistorySheet,
+            child: Container(
+              width: 40,
+              height: 40,
+              margin: const EdgeInsets.only(right: 12),
+              decoration: BoxDecoration(
+                color: AppColors.card(context),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.borderCol(context)),
+              ),
+              child: Icon(Icons.history,
+                  size: 20, color: AppColors.textSub(context)),
             ),
           ),
           GestureDetector(
@@ -631,7 +663,6 @@ class _AutomationsListScreenState extends ConsumerState<AutomationsListScreen> {
       if (det['brightness'] != null) parts.add('${det['brightness']}%');
       if (det['volume'] != null) parts.add('Vol ${det['volume']}');
       if (det['playback'] != null) parts.add('${det['playback']}');
-      if (det['position'] != null) parts.add('${det['position']}%');
       label = parts.join(' · ');
     }
 

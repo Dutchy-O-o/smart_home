@@ -107,10 +107,10 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                 val = 50;
               } else if (pName == 'color') {
                 val = '#FFFFFF';
-              } else if (pName == 'position') {
-                val = 100; // Blinds default 100% open
               } else if (pName == 'playback') {
                 val = 'stop'; // Speaker default off
+              } else if (pName == 'channel') {
+                val = 1;
               }
             } else {
               // If a value came through, normalize by lowercasing (ON -> on)
@@ -281,14 +281,14 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                       
                       if (type == 'climate' || type == 'ac') {
                         card = _buildClimateCard(device);
+                      } else if (type == 'tv' || name.contains('tv') || name.contains('television')) {
+                        card = _buildTvCard(device);
                       } else if (type == 'light' || type == 'led' || type == 'led_strip') {
                         card = _buildLightingCard(device);
                       } else if (type == 'speaker' || name.contains('speaker') || name.contains('hoparlör')) {
                         card = _buildSpeakerCard(device);
                       } else if (type == 'rfid' || name.contains('rfid') || name.contains('door')) {
                         card = _buildRfidCard(device);
-                      } else if (type == 'blinds' || type == 'curtain') {
-                        card = _buildSmartBlindsCard(device);
                       } else if (name.contains('temp') || name.contains('nem') || type.contains('temp')) {
                         card = _buildTempHumidityCard(device);
                       } else if (name.contains('gas') || name.contains('gaz') || type.contains('gas')) {
@@ -460,7 +460,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
     bool isLightOn = state['power'] == 'on';
     int brightness = state['brightness'] != null ? (state['brightness'] is num ? state['brightness'].toInt() : int.tryParse(state['brightness'].toString()) ?? 50) : 50;
     String hexColor = state['color'] ?? '#FFFFFF';
-    Color lightColor = hexColor == '#FF0000' ? Colors.redAccent : hexColor == '#00FF00' ? Colors.greenAccent : hexColor == '#0000FF' ? Colors.blueAccent : Colors.amberAccent;
+    Color lightColor = _parseHex(hexColor);
 
     return _buildGlassCard(
       child: Column(
@@ -507,27 +507,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
             ],
           ),
           const SizedBox(height: 24),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              GestureDetector(
-                onTap: () => _updateDeviceState(deviceId, 'color', '#FF0000'),
-                child: Container(width: 28, height: 28, decoration: BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle, border: Border.all(color: hexColor == '#FF0000' ? Colors.white : Colors.transparent, width: 2))),
-              ),
-              GestureDetector(
-                onTap: () => _updateDeviceState(deviceId, 'color', '#00FF00'),
-                child: Container(width: 28, height: 28, decoration: BoxDecoration(color: Colors.greenAccent, shape: BoxShape.circle, border: Border.all(color: hexColor == '#00FF00' ? Colors.white : Colors.transparent, width: 2))),
-              ),
-              GestureDetector(
-                onTap: () => _updateDeviceState(deviceId, 'color', '#0000FF'),
-                child: Container(width: 28, height: 28, decoration: BoxDecoration(color: Colors.blueAccent, shape: BoxShape.circle, border: Border.all(color: hexColor == '#0000FF' ? Colors.white : Colors.transparent, width: 2))),
-              ),
-              GestureDetector(
-                onTap: () => _updateDeviceState(deviceId, 'color', '#FFFFFF'),
-                child: Container(width: 28, height: 28, decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, border: Border.all(color: hexColor == '#FFFFFF' ? AppColors.primaryBlue : Colors.transparent, width: 2))),
-              ),
-            ],
-          ),
+          _buildHueSpectrum(deviceId, hexColor),
           const SizedBox(height: 16),
           Row(
             children: [
@@ -635,13 +615,23 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
       ),
     );
   }
-  Widget _buildSmartBlindsCard(Map<String, dynamic> device) {
+
+  Widget _buildTvCard(Map<String, dynamic> device) {
     String deviceId = device['deviceid'];
-    String deviceName = device['device_name'] ?? 'Smart Blinds';
+    String deviceName = device['device_name'] ?? 'Smart TV';
     Map<String, dynamic> state = _deviceStates[deviceId] ?? {};
-    
-    // Position 0-100
-    int currentPosition = state['position'] != null ? (state['position'] is num ? state['position'].toInt() : int.tryParse(state['position'].toString()) ?? 100) : 100;
+
+    bool isOn = state['power'] == 'on';
+    int volume = state['volume'] != null
+        ? (state['volume'] is num
+            ? state['volume'].toInt()
+            : int.tryParse(state['volume'].toString()) ?? 30)
+        : 30;
+    int channel = state['channel'] != null
+        ? (state['channel'] is num
+            ? state['channel'].toInt()
+            : int.tryParse(state['channel'].toString()) ?? 1)
+        : 1;
 
     return _buildGlassCard(
       child: Column(
@@ -653,50 +643,108 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
               Expanded(
                 child: Row(
                   children: [
-                    Container(
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
                       padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(color: Colors.cyanAccent.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(16)),
-                      child: const Icon(Icons.blinds, color: Colors.cyanAccent, size: 24),
+                      decoration: BoxDecoration(
+                        color: isOn
+                            ? AppColors.primaryBlue.withValues(alpha: 0.2)
+                            : AppColors.borderCol(context),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Icon(Icons.tv,
+                          color: isOn ? AppColors.primaryBlue : Colors.grey,
+                          size: 24),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(deviceName, overflow: TextOverflow.ellipsis, maxLines: 1, style: TextStyle(color: AppColors.text(context), fontSize: 18, fontWeight: FontWeight.bold)),
-                          Text("Position: $currentPosition%", style: const TextStyle(color: Colors.cyanAccent, fontSize: 13, fontWeight: FontWeight.w600)),
+                          Text(deviceName,
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                              style: TextStyle(
+                                  color: AppColors.text(context),
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold)),
+                          AnimatedDefaultTextStyle(
+                            duration: const Duration(milliseconds: 200),
+                            style: TextStyle(
+                                color: isOn
+                                    ? AppColors.primaryBlue
+                                    : Colors.grey,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600),
+                            child: Text(isOn
+                                ? "Ch $channel · Vol $volume%"
+                                : "Standby"),
+                          ),
                         ],
                       ),
                     ),
                   ],
                 ),
               ),
+              Switch.adaptive(
+                value: isOn,
+                activeThumbColor: AppColors.primaryBlue,
+                onChanged: (val) =>
+                    _updateDeviceState(deviceId, 'power', val ? 'on' : 'off'),
+              ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildModernIconButton(Icons.keyboard_arrow_down, () {
+                int next = (channel - 1).clamp(1, 999);
+                _updateDeviceState(deviceId, 'channel', next.toString());
+              }),
+              Column(
+                children: [
+                  Text("Channel",
+                      style: TextStyle(
+                          color: AppColors.textSub(context), fontSize: 11)),
+                  const SizedBox(height: 4),
+                  Text("$channel",
+                      style: TextStyle(
+                          color: AppColors.text(context),
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold)),
+                ],
+              ),
+              _buildModernIconButton(Icons.keyboard_arrow_up, () {
+                int next = (channel + 1).clamp(1, 999);
+                _updateDeviceState(deviceId, 'channel', next.toString());
+              }),
+            ],
+          ),
+          const SizedBox(height: 16),
           Row(
             children: [
-              Text("0%", style: TextStyle(color: AppColors.textSub(context), fontSize: 12)),
+              Icon(Icons.volume_down,
+                  color: AppColors.textSub(context), size: 20),
               Expanded(
                 child: SliderTheme(
                   data: SliderTheme.of(context).copyWith(
-                    trackHeight: 12,
-                    activeTrackColor: Colors.cyanAccent.withValues(alpha: 0.8),
+                    trackHeight: 6,
+                    activeTrackColor: AppColors.primaryBlue,
                     inactiveTrackColor: AppColors.borderCol(context),
-                    thumbColor: AppColors.text(context),
-                    overlayColor: Colors.cyanAccent.withValues(alpha: 0.2),
-                    trackShape: const RoundedRectSliderTrackShape(),
-                    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10, elevation: 5),
+                    thumbColor: AppColors.primaryBlue,
                   ),
                   child: Slider(
-                    value: currentPosition.toDouble(),
+                    value: volume.toDouble(),
                     min: 0,
                     max: 100,
-                    onChanged: (val) => _updateDeviceState(deviceId, 'position', val.toInt().toString()),
+                    onChanged: (val) => _updateDeviceState(
+                        deviceId, 'volume', val.toInt().toString()),
                   ),
                 ),
               ),
-              Text("100%", style: TextStyle(color: AppColors.textSub(context), fontSize: 12)),
+              Icon(Icons.volume_up,
+                  color: AppColors.textSub(context), size: 20),
             ],
           ),
         ],
@@ -960,6 +1008,150 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
           ),
         ],
       ),
+    );
+  }
+
+  // --- Color helpers --- //
+
+  Color _parseHex(String hex) {
+    final h = hex.replaceFirst('#', '');
+    if (h.length != 6) return Colors.white;
+    final v = int.tryParse(h, radix: 16);
+    if (v == null) return Colors.white;
+    return Color(0xFF000000 | v);
+  }
+
+  String _hexFromColor(Color c) {
+    final argb = c.toARGB32();
+    final r = (argb >> 16) & 0xFF;
+    final g = (argb >> 8) & 0xFF;
+    final b = argb & 0xFF;
+    String two(int n) => n.toRadixString(16).padLeft(2, '0').toUpperCase();
+    return '#${two(r)}${two(g)}${two(b)}';
+  }
+
+  /// Returns hue 0..360 for a hex like "#FF8800". For grayscale (R==G==B)
+  /// returns -1 — caller should treat that as "white selected, no hue".
+  double _hueFromHex(String hex) {
+    final c = _parseHex(hex);
+    final argb = c.toARGB32();
+    final r = (argb >> 16) & 0xFF;
+    final g = (argb >> 8) & 0xFF;
+    final b = argb & 0xFF;
+    if (r == g && g == b) return -1;
+    return HSVColor.fromColor(Color.fromARGB(255, r, g, b)).hue;
+  }
+
+  void _onHuePicked(String deviceId, double dx, double width) {
+    final t = (dx / width).clamp(0.0, 1.0);
+    final hue = t * 360.0;
+    final color = HSVColor.fromAHSV(1.0, hue, 1.0, 1.0).toColor();
+    _updateDeviceState(deviceId, 'color', _hexFromColor(color));
+  }
+
+  Widget _buildHueSpectrum(String deviceId, String currentHex) {
+    final isWhite = _hueFromHex(currentHex) < 0;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Reserve space for the white pill on the right.
+        const whitePillWidth = 44.0;
+        const gap = 12.0;
+        final barWidth = constraints.maxWidth - whitePillWidth - gap;
+        final hue = _hueFromHex(currentHex);
+        final indicatorX = hue < 0 ? -1.0 : (hue / 360.0) * barWidth;
+
+        return Row(
+          children: [
+            SizedBox(
+              width: barWidth,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTapDown: (d) =>
+                    _onHuePicked(deviceId, d.localPosition.dx, barWidth),
+                onPanDown: (d) =>
+                    _onHuePicked(deviceId, d.localPosition.dx, barWidth),
+                onPanUpdate: (d) =>
+                    _onHuePicked(deviceId, d.localPosition.dx, barWidth),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  alignment: Alignment.centerLeft,
+                  children: [
+                    Container(
+                      height: 28,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        gradient: const LinearGradient(
+                          colors: [
+                            Color(0xFFFF0000),
+                            Color(0xFFFFFF00),
+                            Color(0xFF00FF00),
+                            Color(0xFF00FFFF),
+                            Color(0xFF0000FF),
+                            Color(0xFFFF00FF),
+                            Color(0xFFFF0000),
+                          ],
+                        ),
+                        border: Border.all(
+                            color: AppColors.borderCol(context), width: 1),
+                      ),
+                    ),
+                    if (indicatorX >= 0)
+                      Positioned(
+                        left: (indicatorX - 8).clamp(0.0, barWidth - 16),
+                        child: Container(
+                          width: 16,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: Colors.transparent,
+                            border: Border.all(
+                                color: AppColors.text(context), width: 3),
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.3),
+                                blurRadius: 4,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: gap),
+            GestureDetector(
+              onTap: () =>
+                  _updateDeviceState(deviceId, 'color', '#FFFFFF'),
+              child: Container(
+                width: whitePillWidth,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: isWhite
+                        ? AppColors.primaryBlue
+                        : AppColors.borderCol(context),
+                    width: isWhite ? 2.5 : 1,
+                  ),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  'W',
+                  style: TextStyle(
+                    color: isWhite
+                        ? AppColors.primaryBlue
+                        : Colors.grey.shade600,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../constants/app_colors.dart';
 import '../../../constants/mood_palette.dart';
 
-/// Placeholder tiles for upcoming AWS-driven ambient control (lights, curtains).
+/// Placeholder tiles for upcoming AWS-driven ambient control (lights, TV).
 /// Visually inactive; shows mood-suggested settings once a mood is set.
 class AmbientSection extends StatelessWidget {
   const AmbientSection({super.key, required this.mood});
@@ -19,7 +19,7 @@ class AmbientSection extends StatelessWidget {
           _header(context),
           const SizedBox(height: 6),
           Text(
-            'Lights and curtains will adjust to your mood.',
+            'Lights and TV will adjust to your mood.',
             style: TextStyle(color: AppColors.textSub(context), fontSize: 12),
           ),
           const SizedBox(height: 14),
@@ -37,10 +37,10 @@ class AmbientSection extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: _AmbientTile(
-                  icon: Icons.curtains_outlined,
-                  title: 'Curtain',
+                  icon: Icons.tv_outlined,
+                  title: 'TV',
                   status:
-                      mood == null ? 'Pending' : _suggestCurtainState(mood!),
+                      mood == null ? 'Pending' : _suggestTvState(mood!),
                 ),
               ),
             ],
@@ -87,20 +87,21 @@ class AmbientSection extends StatelessWidget {
   static String _hexOf(Color c) =>
       c.toARGB32().toRadixString(16).substring(2).toUpperCase();
 
-  static String _suggestCurtainState(String mood) {
+  static String _suggestTvState(String mood) {
     switch (mood.toLowerCase()) {
       case 'happy':
       case 'excited':
-        return 'Fully open';
+        return 'Comedy / Music';
       case 'sad':
       case 'melancholy':
+        return 'Calm playlist';
       case 'fearful':
       case 'fear':
-        return 'Half close';
+        return 'Off';
       case 'calm':
-        return 'Slightly open';
+        return 'Nature scenes';
       case 'angry':
-        return 'Close';
+        return 'Off';
       default:
         return 'Auto';
     }

@@ -76,7 +76,6 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
              'color': details['color']?.toString() ?? '#FFFFFF',
              'volume': num.tryParse(details['volume']?.toString() ?? '') ?? 50,
              'playback': details['playback']?.toString() ?? 'play',
-             'position': num.tryParse(details['position']?.toString() ?? '') ?? 100,
           });
         }
       }
@@ -147,7 +146,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
        final dname = act['device_name'].toString().toLowerCase();
        bool isLed = dtype == 'led' || dtype == 'light' || dtype == 'smartbulb' || dname.contains('led') || dname.contains('light');
        bool isSpk = dtype == 'speaker' || dtype == 'audio' || dname.contains('speaker');
-       bool isBld = dtype == 'blinds' || dtype == 'curtain' || dname.contains('blind');
+       bool isTv = dtype == 'tv' || dname.contains('tv');
 
        if (isLed) {
           details["brightness"] = (num.tryParse(act['brightness']?.toString() ?? '') ?? 80).toInt();
@@ -155,8 +154,8 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
        } else if (isSpk) {
           details["volume"] = (num.tryParse(act['volume']?.toString() ?? '') ?? 50).toInt();
           details["playback"] = act["playback"]?.toString() ?? 'play';
-       } else if (isBld) {
-          details["position"] = (num.tryParse(act['position']?.toString() ?? '') ?? 100).toInt();
+       } else if (isTv) {
+          details["volume"] = (num.tryParse(act['volume']?.toString() ?? '') ?? 30).toInt();
        }
        return {
           "device_id": act['device_id'],
@@ -572,7 +571,6 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
                                   'color': '#FFFFFF',
                                   'volume': 50,
                                   'playback': 'play',
-                                  'position': 100,
                                });
                             });
                             Navigator.pop(context);
@@ -596,7 +594,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
     final dname = act['device_name'].toString().toLowerCase();
     bool isLed = dtype == 'led' || dtype == 'light' || dtype == 'smartbulb' || dname.contains('led') || dname.contains('light');
     bool isSpk = dtype == 'speaker' || dtype == 'audio' || dname.contains('speaker');
-    bool isBld = dtype == 'blinds' || dtype == 'curtain' || dname.contains('blind');
+    bool isTv = dtype == 'tv' || dname.contains('tv');
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -614,7 +612,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-                child: Icon(isLed ? Icons.lightbulb : isSpk ? Icons.speaker : Icons.blinds, color: Colors.white, size: 20),
+                child: Icon(isLed ? Icons.lightbulb : isSpk ? Icons.speaker : isTv ? Icons.tv : Icons.devices_other, color: Colors.white, size: 20),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -688,21 +686,21 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
                 const Icon(Icons.volume_up, color: Colors.grey, size: 16),
               ],
             ),
-          ] else if (isBld) ...[
+          ] else if (isTv) ...[
             const SizedBox(height: 16),
             Row(
               children: [
-                Text("0%", style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+                const Icon(Icons.volume_down, color: Colors.grey, size: 16),
                 Expanded(
                   child: Slider(
-                    value: (act['position'] as num).toDouble(),
+                    value: (act['volume'] as num).toDouble(),
                     min: 0,
                     max: 100,
-                    activeColor: Colors.cyanAccent,
-                    onChanged: (val) => setState(() { _addedActions[index]['position'] = val.toInt(); }),
+                    activeColor: AppColors.primaryBlue,
+                    onChanged: (val) => setState(() { _addedActions[index]['volume'] = val.toInt(); }),
                   ),
                 ),
-                Text("100%", style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+                const Icon(Icons.volume_up, color: Colors.grey, size: 16),
               ],
             ),
           ]

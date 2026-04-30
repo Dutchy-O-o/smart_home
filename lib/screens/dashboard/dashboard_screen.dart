@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../constants/app_colors.dart';
-import '../../widgets/sensor_card.dart';
+import '../../widgets/sensor_row_card.dart';
+import '../../widgets/temp_humidity_card.dart';
 import '../auth/login_screen.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -375,64 +376,39 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               const SystemStatusCard(),
               const SizedBox(height: 24),
 
-              Row(
-                children: [
-                  Expanded(
-                    child: SensorCard(
-                      title: "Temperature",
-                      value: _temperature,
-                      unit: "°C",
-                      icon: Icons.thermostat,
-                      iconColor: AppColors.accentOrange,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: SensorCard(
-                      title: "Humidity",
-                      value: _humidity,
-                      unit: "%",
-                      icon: Icons.water_drop,
-                      iconColor: AppColors.primaryBlue,
-                    ),
-                  ),
-                ],
+              TempHumidityCard(
+                temperature: _temperature,
+                humidity: _humidity,
               ),
 
               const SizedBox(height: 24),
 
               Text("Security Status", style: TextStyle(color: AppColors.text(context), fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => ref.read(tabIndexProvider.notifier).setTab(3),
-                      child: SensorCard(
-                        title: "Gas Sensor",
-                        value: _gasStatus,
-                        icon: Icons.cloud,
-                        iconColor: _gasStatus == 'DANGER' ? Colors.redAccent : AppColors.accentGreen,
-                        status: _gasStatus == 'DANGER' ? "• LEAK" : "• NORMAL",
-                        statusColor: _gasStatus == 'DANGER' ? Colors.redAccent : AppColors.accentGreen,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => ref.read(tabIndexProvider.notifier).setTab(3),
-                      child: SensorCard(
-                        title: "Vibration",
-                        value: _vibrationStatus,
-                        icon: Icons.vibration,
-                        iconColor: _vibrationStatus == 'DANGER' ? Colors.redAccent : AppColors.accentGreen,
-                        status: _vibrationStatus == 'DANGER' ? "• QUAKE" : "• NO RISK",
-                        statusColor: _vibrationStatus == 'DANGER' ? Colors.redAccent : AppColors.accentGreen,
-                      ),
-                    ),
-                  ),
-                ],
+              GestureDetector(
+                onTap: () => ref.read(tabIndexProvider.notifier).setTab(3),
+                child: SensorRowCard(
+                  title: "Vibration",
+                  value: _vibrationStatus,
+                  subtitle: "Seismic activity sensor",
+                  icon: Icons.vibration,
+                  iconColor: _vibrationStatus == 'DANGER' ? Colors.redAccent : AppColors.accentGreen,
+                  status: _vibrationStatus == 'DANGER' ? "QUAKE" : "NO RISK",
+                  statusColor: _vibrationStatus == 'DANGER' ? Colors.redAccent : AppColors.accentGreen,
+                ),
+              ),
+              const SizedBox(height: 12),
+              GestureDetector(
+                onTap: () => ref.read(tabIndexProvider.notifier).setTab(3),
+                child: SensorRowCard(
+                  title: "Gas Sensor",
+                  value: _gasStatus,
+                  subtitle: "Air quality monitor",
+                  icon: Icons.cloud,
+                  iconColor: _gasStatus == 'DANGER' ? Colors.redAccent : AppColors.accentGreen,
+                  status: _gasStatus == 'DANGER' ? "LEAK" : "NORMAL",
+                  statusColor: _gasStatus == 'DANGER' ? Colors.redAccent : AppColors.accentGreen,
+                ),
               ),
 
               const SizedBox(height: 24),
@@ -448,8 +424,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     highlighted: true,
                   ),
                   const QuickAccessButton(
-                    icon: Icons.curtains,
-                    label: 'Curtains',
+                    icon: Icons.tv,
+                    label: 'TV',
+                    iconColor: AppColors.primaryBlue,
                   ),
                   const QuickAccessButton(
                     icon: Icons.ac_unit,
