@@ -150,6 +150,28 @@ class ApiService {
     }
   }
 
+  /// GET /prod/{homeID}/automation-history
+  static Future<List<dynamic>?> fetchAutomationHistory(String homeId) async {
+    final url = Uri.parse('$baseUrl/$homeId/automation-history');
+    final headers = await _getHeaders();
+
+    try {
+      final response = await http.get(url, headers: headers);
+      if (response.statusCode == 200) {
+        _markNetworkUp();
+        final data = jsonDecode(response.body);
+        return data['history'] as List<dynamic>?;
+      } else {
+        safePrint('Failed to fetch automation history. Status: ${response.statusCode}');
+        safePrint('Body: ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      _logNetworkError('fetchAutomationHistory', e);
+      return null;
+    }
+  }
+
   /// POST /prod/{homeID}/automations
   static Future<bool> saveAutomation(String homeId, Map<String, dynamic> payload) async {
     final url = Uri.parse('$baseUrl/$homeId/automations');
@@ -195,6 +217,35 @@ class ApiService {
       }
     } catch (e) {
       _logNetworkError('deleteAutomation', e);
+      return false;
+    }
+  }
+
+  /// POST /prod/{homeID}/evaluate-emotion
+  static Future<bool> evaluateEmotion(String homeId, String emotion, {double confidenceScore = 1.0}) async {
+    final url = Uri.parse('$baseUrl/$homeId/evaluate-emotion');
+    final headers = await _getHeaders();
+
+    try {
+      final response = await http.post(
+        url,
+        headers: headers,
+        body: jsonEncode({
+          "detected_emotion": emotion,
+          "confidence_score": confidenceScore
+        }),
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        _markNetworkUp();
+        safePrint('Emotion evaluated successfully: $emotion');
+        return true;
+      } else {
+        safePrint('Failed to evaluate emotion. Status: ${response.statusCode}');
+        safePrint('Response Body: ${response.body}');
+        return false;
+      }
+    } catch (e) {
+      _logNetworkError('evaluateEmotion', e);
       return false;
     }
   }

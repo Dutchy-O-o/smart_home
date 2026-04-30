@@ -35,26 +35,28 @@ def lambda_handler(event, context):
         cur = conn.cursor(cursor_factory=RealDictCursor)
         
         # 5. Kuralları ve cihaz aksiyonlarını çekeceğimiz SQL sorgumuz
+        # Hem yalın duygu (ör. "happy") hem de uygulamanın ürettiği
+        # ifade ("emotion == 'happy'") formatını kabul ediyoruz.
         query = """
-            SELECT 
-                r.rule_name, 
-                a.deviceid, 
+            SELECT
+                r.rule_name,
+                a.deviceid,
                 d.device_name,
-                ap.property_name, 
+                ap.property_name,
                 ad.target_value
             FROM automation_rules r
             JOIN rule_actions a ON r.ruleid = a.ruleid
             JOIN devices d ON a.deviceid = d.deviceid
             JOIN action_details ad ON a.actionid = ad.actionid
             JOIN actuator_properties ap ON ad.propertyid = ap.propertyid
-            WHERE r.homeid = %s 
-              AND r.trigger_condition = %s 
+            WHERE r.homeid = %s
+              AND (r.trigger_condition = %s OR r.trigger_condition = %s)
               AND r.is_enabled = true;
         """
 
-        
+        expr_form = "emotion == '{}'".format(emotion)
         # 6. Sorguyu çalıştırıyoruz
-        cur.execute(query, (home_id, emotion))
+        cur.execute(query, (home_id, emotion, expr_form))
         rows = cur.fetchall()
         
         # 7. Gelen satırları cihaz ID'sine göre grupluyoruz (İstenilen JSON yapısına uydurmak için)

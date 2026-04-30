@@ -28,7 +28,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     ),
     OnboardingContent(
       title: "Complete Control",
-      description: "Seamlessly manage your lights, curtains, and climate. Powered by Raspberry Pi for instant, secure response.",
+      description: "Seamlessly manage your lights, TV, and climate. Powered by Raspberry Pi for instant, secure response.",
       icon: Icons.touch_app_outlined,
     ),
   ];

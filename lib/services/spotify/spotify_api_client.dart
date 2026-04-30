@@ -172,6 +172,43 @@ class SpotifyApiClient {
     }
   }
 
+  /// Search for a single track by title + artist. Returns the first hit as a
+  /// parsed track map (with the provided [source] tag) or null if no match.
+  /// Uses Spotify's `track:` and `artist:` field filters for precision.
+  static Future<Map<String, dynamic>?> searchTrack({
+    required String title,
+    required String artist,
+    String source = 'claude_search',
+  }) async {
+    final headers = await SpotifyAuth.getHeaders();
+    if (headers == null) return null;
+
+    final query = 'track:"$title" artist:"$artist"';
+    final url = Uri.parse(
+        '$_apiBase/search?q=${Uri.encodeQueryComponent(query)}&type=track&limit=1');
+
+    try {
+      final response = await http.get(url, headers: headers);
+      if (response.statusCode != 200) {
+        await SpotifyLogger.log('SEARCH_FAILED', {
+          'status': response.statusCode,
+          'query': query,
+        });
+        return null;
+      }
+      final data = jsonDecode(response.body);
+      final items = (data['tracks']?['items'] as List?) ?? const [];
+      if (items.isEmpty) return null;
+      return parseTrack(items.first, source);
+    } catch (e) {
+      await SpotifyLogger.log('SEARCH_ERROR', {
+        'error': e.toString(),
+        'query': query,
+      });
+      return null;
+    }
+  }
+
   /// Parse a raw Spotify track JSON into the flat map shape the app uses.
   static Map<String, dynamic> parseTrack(dynamic track, String source) {
     return {

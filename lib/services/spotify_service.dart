@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 
 import 'spotify/spotify_api_client.dart';
 import 'spotify/spotify_auth.dart';
+import 'spotify/spotify_claude_agent.dart';
 import 'spotify/spotify_logger.dart';
 import 'spotify/spotify_mood_catalog.dart';
 
@@ -76,17 +77,36 @@ class SpotifyService {
     result['user_artists'] =
         topArtists?.map((a) => a['name'] as String? ?? '').toList() ?? [];
 
-    final catalogResult =
-        await SpotifyMoodCatalog.recommend(mood: mood, limit: limit);
-    result['catalog_attempt'] = catalogResult;
+    List<Map<String, dynamic>>? recommendations;
+    String strategy = 'user_catalog';
 
-    final recommendations = (catalogResult['tracks'] as List?)
-        ?.cast<Map<String, dynamic>>();
+    // Primary: Claude-driven agent that proposes real songs grounded in the
+    // user's listening profile, then resolves each to a real Spotify track.
+    if (SpotifyClaudeAgent.isConfigured) {
+      final claudeResult =
+          await SpotifyClaudeAgent.recommend(mood: mood, limit: limit);
+      result['claude_attempt'] = claudeResult;
+      if (claudeResult['success'] == true) {
+        recommendations =
+            (claudeResult['tracks'] as List?)?.cast<Map<String, dynamic>>();
+        strategy = 'claude_agent';
+      }
+    }
+
+    // Fallback: keyword match against the user's own catalog.
+    if (recommendations == null || recommendations.isEmpty) {
+      final catalogResult =
+          await SpotifyMoodCatalog.recommend(mood: mood, limit: limit);
+      result['catalog_attempt'] = catalogResult;
+      recommendations =
+          (catalogResult['tracks'] as List?)?.cast<Map<String, dynamic>>();
+      strategy = 'user_catalog';
+    }
 
     result['recommendations'] = recommendations;
     result['recommendations_count'] = recommendations?.length ?? 0;
     result['source'] = 'spotify_api';
-    result['recommendations_strategy'] = 'user_catalog';
+    result['recommendations_strategy'] = strategy;
 
     await SpotifyLogger.log('PIPELINE_COMPLETE', result);
     return result;

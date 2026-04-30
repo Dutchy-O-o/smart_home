@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../constants/app_colors.dart';
 import '../../constants/mood_palette.dart';
+import '../../providers/home_provider.dart';
 import '../../providers/mood_provider.dart';
+import '../../services/api_service.dart';
 import '../../services/emotion_api_service.dart';
 import '../../services/spotify_service.dart';
 import 'widgets/ambient_section.dart';
@@ -150,9 +152,28 @@ class _EmotionHubScreenState extends ConsumerState<EmotionHubScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Refresh Spotify recommendations when mood changes (manual/scan/chatbot)
+    // Refresh Spotify recommendations and DB when mood changes (manual/scan/chatbot)
     ref.listen<MoodState>(moodProvider, (prev, next) {
-      if (next.mood != null && next.mood != prev?.mood) _fetchMoodTracks();
+      if (next.mood != null && next.updatedAt != prev?.updatedAt) {
+        if (next.mood != prev?.mood) {
+          _fetchMoodTracks();
+        }
+
+        if (next.source != 'init') {
+          final selectedHome = ref.read(selectedHomeProvider);
+          final homeId = (selectedHome?['home_id'] ??
+                  selectedHome?['id'] ??
+                  selectedHome?['homeid'])
+              ?.toString();
+          if (homeId != null) {
+            ApiService.evaluateEmotion(
+              homeId,
+              next.mood!,
+              confidenceScore: next.confidence,
+            );
+          }
+        }
+      }
     });
 
     final mood = ref.watch(moodProvider);
