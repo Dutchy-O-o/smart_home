@@ -63,3 +63,31 @@ lib/repomix-output.xml
 *Poster*
 *poster*
 *.pptx
+
+# Reports / academic artifacts
+*.docx
+~$*
+chapter5_additions.md
+insert_chapter5.py
+render_mermaid.py
+RASPI_RFID_BRIEF.md
+images/fig_*
+
+# Debug dumps / accidental commits
+out.json
+/Get
+/Process
+/Run
+
+# Android build artifacts
+android/build/
+
+# Backend one-off scripts
+backend/_*.py
+backend/db_cleanup_*.sql
+backend/run_check_props.sh
+backend/run_db_cleanup.sh
+backend/run_rfid_migrate.sh
+
+# PC-side test clients
+camera.py
