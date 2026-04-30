@@ -58,3 +58,8 @@ backend/_lambda_backup_*.zip
 # Repomix output
 repomix-output.xml
 lib/repomix-output.xml
+
+# Poster / presentation artifacts
+*Poster*
+*poster*
+*.pptx
