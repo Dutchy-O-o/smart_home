@@ -1,1 +1,0 @@
-{"statusCode": 500, "headers": {"Access-Control-Allow-Origin": "*", "Access-Control-Allow-Credentials": true}, "body": "{\"error\": \"Internal Server Error\", \"details\": \"invalid input syntax for type uuid: \\\"admin-test\\\"\\nLINE 1: SELECT role FROM user_homes WHERE \\\"userid\\\" = 'admin-test' AN...\\n                                                     ^\\n\"}"}
