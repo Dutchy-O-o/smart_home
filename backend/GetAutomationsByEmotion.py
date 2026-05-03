@@ -30,24 +30,27 @@ def lambda_handler(event, context):
         )
         cur = conn.cursor(cursor_factory=RealDictCursor)
         
+        # Accept both storage formats:
+        #   - bare emotion (e.g. "happy")
+        #   - app-emitted expression (e.g. "emotion == 'happy'")
         query = """
-SELECT 
-  r.rule_name, 
-  a.deviceid, 
+SELECT
+  r.rule_name,
+  a.deviceid,
   d.device_name,
-  ap.property_name, 
+  ap.property_name,
   ad.target_value
 FROM automation_rules r
 JOIN rule_actions a ON r.ruleid = a.ruleid
 JOIN devices d ON a.deviceid = d.deviceid
 JOIN action_details ad ON a.actionid = ad.actionid
 JOIN actuator_properties ap ON ad.propertyid = ap.propertyid
-WHERE r.homeid = %s 
-  AND r.trigger_condition = %s 
+WHERE r.homeid = %s
+  AND (r.trigger_condition = %s OR r.trigger_condition = %s)
   AND r.is_enabled = true;
 """
-        
-        cur.execute(query, (home_id, emotion))
+        expr_form = "emotion == '{}'".format(emotion)
+        cur.execute(query, (home_id, emotion, expr_form))
         rows = cur.fetchall()
         
         actions_dict = {}

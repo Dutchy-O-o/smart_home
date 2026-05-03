@@ -191,7 +191,7 @@ lib/
 ### AI Emotion Hub
 
 - **Scan** button captures a front-camera photo via `image_picker`
-- JPEG bytes POSTed to `EMOTION_API_URL` (default `https://192.168.1.10:8000/predict`), self-signed cert bypass in debug mode
+- JPEG bytes POSTed to `EMOTION_API_URL` (default `https://ramazan.local:8000/predict`), self-signed cert bypass in debug mode
 - Pi responds with:
   ```json
   {"status":"success","emotion":"happy","confidence":0.8722,
@@ -280,7 +280,7 @@ flutter pub get
    CLAUDE_API_KEY=sk-ant-...
    SPOTIFY_CLIENT_ID=...
    SPOTIFY_CLIENT_SECRET=...
-   EMOTION_API_URL=https://192.168.1.10:8000/predict
+   EMOTION_API_URL=https://ramazan.local:8000/predict
    ```
 
 2. Drop your Firebase `google-services.json` into `android/app/` and `GoogleService-Info.plist` into `ios/Runner/`.
@@ -304,7 +304,7 @@ For Windows developers targeting a real Samsung phone: use a **USB-A to USB-C** 
 | `CLAUDE_API_KEY` | Yes | Anthropic API key. AI chat falls back to a "not configured" screen without it. |
 | `SPOTIFY_CLIENT_ID` | Yes | Spotify OAuth client id |
 | `SPOTIFY_CLIENT_SECRET` | Yes | Spotify OAuth client secret |
-| `EMOTION_API_URL` | No | Defaults to `https://192.168.1.10:8000/predict`; override for remote Pi |
+| `EMOTION_API_URL` | No | Defaults to `https://ramazan.local:8000/predict` (mDNS); override for remote Pi |
 
 ---
 

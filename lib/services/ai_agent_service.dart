@@ -47,8 +47,8 @@ class AiAgentService {
           'type': 'object',
           'properties': {
             'device_id': {'type': 'string', 'description': 'The exact "deviceid" value from get_devices response (e.g. "dev_abc123")'},
-            'action': {'type': 'string', 'description': 'The property_name to change: "power", "brightness", "color", "volume", "position", "playback"'},
-            'value': {'description': 'The value: for power use "on"/"off", for brightness/volume/position use integer 0-100, for color use hex string like "#0000FF", for playback use "play"/"pause"/"stop"'},
+            'action': {'type': 'string', 'description': 'The property_name to change: "power", "brightness", "color", "volume", "channel", "playback"'},
+            'value': {'description': 'The value: for power use "on"/"off", for brightness/volume use integer 0-100, for channel use integer, for color use hex string like "#0000FF", for playback use "play"/"pause"/"stop"'},
           },
           'required': ['device_id', 'action', 'value'],
         },
