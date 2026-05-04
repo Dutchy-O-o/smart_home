@@ -76,6 +76,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
              'color': details['color']?.toString() ?? '#FFFFFF',
              'volume': num.tryParse(details['volume']?.toString() ?? '') ?? 50,
              'playback': details['playback']?.toString() ?? 'play',
+             'channel': num.tryParse(details['channel']?.toString() ?? '') ?? 1,
           });
         }
       }
@@ -156,6 +157,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
           details["playback"] = act["playback"]?.toString() ?? 'play';
        } else if (isTv) {
           details["volume"] = (num.tryParse(act['volume']?.toString() ?? '') ?? 30).toInt();
+          details["channel"] = (num.tryParse(act['channel']?.toString() ?? '') ?? 1).toInt();
        }
        return {
           "device_id": act['device_id'],
@@ -574,6 +576,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
                                   'color': '#FFFFFF',
                                   'volume': 50,
                                   'playback': 'play',
+                                  'channel': 1,
                                });
                             });
                             Navigator.pop(context);
@@ -638,16 +641,8 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
           ),
           if (isLed) ...[
             const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildColorSelector(index, Colors.redAccent, '#FF0000'),
-                _buildColorSelector(index, Colors.greenAccent, '#00FF00'),
-                _buildColorSelector(index, Colors.blueAccent, '#0000FF'),
-                _buildColorSelector(index, Colors.white, '#FFFFFF'),
-              ],
-            ),
-            const SizedBox(height: 8),
+            _buildHueSpectrum(index, act['color']?.toString() ?? '#FFFFFF'),
+            const SizedBox(height: 12),
             Row(
               children: [
                 const Icon(Icons.brightness_low, color: Colors.grey, size: 16),
@@ -696,6 +691,22 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
           ] else if (isTv) ...[
             const SizedBox(height: 16),
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildChannelButton(index, Icons.keyboard_arrow_down, -1),
+                Column(
+                  children: [
+                    const Text("Channel", style: TextStyle(color: Colors.white54, fontSize: 11)),
+                    const SizedBox(height: 4),
+                    Text("${(act['channel'] as num).toInt()}",
+                        style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+                _buildChannelButton(index, Icons.keyboard_arrow_up, 1),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
               children: [
                 const Icon(Icons.volume_down, color: Colors.grey, size: 16),
                 Expanded(
@@ -718,19 +729,150 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
     );
   }
 
-  Widget _buildColorSelector(int index, Color color, String hex) {
-    bool isSelected = _addedActions[index]['color'] == hex;
+  // ── Color helpers (mirror device_control_screen) ──────────────────
+
+  Color _parseHex(String hex) {
+    final h = hex.replaceFirst('#', '');
+    if (h.length != 6) return Colors.white;
+    final v = int.tryParse(h, radix: 16);
+    if (v == null) return Colors.white;
+    return Color(0xFF000000 | v);
+  }
+
+  String _hexFromColor(Color c) {
+    final argb = c.toARGB32();
+    final r = (argb >> 16) & 0xFF;
+    final g = (argb >> 8) & 0xFF;
+    final b = argb & 0xFF;
+    String two(int n) => n.toRadixString(16).padLeft(2, '0').toUpperCase();
+    return '#${two(r)}${two(g)}${two(b)}';
+  }
+
+  /// Returns hue 0..360. For grayscale (R==G==B) returns -1, meaning "white".
+  double _hueFromHex(String hex) {
+    final c = _parseHex(hex);
+    final argb = c.toARGB32();
+    final r = (argb >> 16) & 0xFF;
+    final g = (argb >> 8) & 0xFF;
+    final b = argb & 0xFF;
+    if (r == g && g == b) return -1;
+    return HSVColor.fromColor(Color.fromARGB(255, r, g, b)).hue;
+  }
+
+  void _onHuePicked(int index, double dx, double width) {
+    final t = (dx / width).clamp(0.0, 1.0);
+    final hue = t * 360.0;
+    final color = HSVColor.fromAHSV(1.0, hue, 1.0, 1.0).toColor();
+    setState(() => _addedActions[index]['color'] = _hexFromColor(color));
+  }
+
+  Widget _buildHueSpectrum(int index, String currentHex) {
+    final isWhite = _hueFromHex(currentHex) < 0;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const whitePillWidth = 44.0;
+        const gap = 12.0;
+        final barWidth = constraints.maxWidth - whitePillWidth - gap;
+        final hue = _hueFromHex(currentHex);
+        final indicatorX = hue < 0 ? -1.0 : (hue / 360.0) * barWidth;
+
+        return Row(
+          children: [
+            SizedBox(
+              width: barWidth,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTapDown: (d) => _onHuePicked(index, d.localPosition.dx, barWidth),
+                onPanDown: (d) => _onHuePicked(index, d.localPosition.dx, barWidth),
+                onPanUpdate: (d) => _onHuePicked(index, d.localPosition.dx, barWidth),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  alignment: Alignment.centerLeft,
+                  children: [
+                    Container(
+                      height: 28,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        gradient: const LinearGradient(
+                          colors: [
+                            Color(0xFFFF0000),
+                            Color(0xFFFFFF00),
+                            Color(0xFF00FF00),
+                            Color(0xFF00FFFF),
+                            Color(0xFF0000FF),
+                            Color(0xFFFF00FF),
+                            Color(0xFFFF0000),
+                          ],
+                        ),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
+                      ),
+                    ),
+                    if (indicatorX >= 0)
+                      Positioned(
+                        left: (indicatorX - 8).clamp(0.0, barWidth - 16),
+                        child: Container(
+                          width: 16,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: Colors.transparent,
+                            border: Border.all(color: Colors.white, width: 3),
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: [
+                              BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 4),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: gap),
+            GestureDetector(
+              onTap: () => setState(() => _addedActions[index]['color'] = '#FFFFFF'),
+              child: Container(
+                width: whitePillWidth,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: isWhite ? AppColors.primaryBlue : Colors.white.withValues(alpha: 0.1),
+                    width: isWhite ? 2.5 : 1,
+                  ),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  'W',
+                  style: TextStyle(
+                    color: isWhite ? AppColors.primaryBlue : Colors.grey.shade700,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildChannelButton(int index, IconData icon, int delta) {
     return GestureDetector(
-      onTap: () => setState(() { _addedActions[index]['color'] = hex; }),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        width: 30, height: 30,
+      onTap: () {
+        final cur = (_addedActions[index]['channel'] as num).toInt();
+        final next = (cur + delta).clamp(1, 999);
+        setState(() => _addedActions[index]['channel'] = next);
+      },
+      child: Container(
+        width: 56, height: 56,
         decoration: BoxDecoration(
-          color: color,
+          color: Colors.white.withValues(alpha: 0.05),
           shape: BoxShape.circle,
-          border: isSelected ? Border.all(color: Colors.white, width: 2) : null,
-          boxShadow: isSelected ? [BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 6)] : [],
+          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
         ),
+        child: Icon(icon, color: Colors.white, size: 28),
       ),
     );
   }
