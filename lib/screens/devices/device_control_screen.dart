@@ -162,18 +162,6 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
               if (deviceData.containsKey('humidity')) {
                 _deviceStates[devId]!['humidity'] = deviceData['humidity'];
               }
-              if (deviceData.containsKey('gas_level')) {
-                _deviceStates[devId]!['gas_level'] = deviceData['gas_level'];
-                if (deviceData.containsKey('status')) {
-                  _deviceStates[devId]!['status'] = deviceData['status'];
-                }
-              }
-              if (deviceData.containsKey('vibration_intensity')) {
-                _deviceStates[devId]!['vibration_intensity'] = deviceData['vibration_intensity'];
-                if (deviceData.containsKey('event')) {
-                  _deviceStates[devId]!['event'] = deviceData['event'];
-                }
-              }
             }
           }
         });
@@ -211,8 +199,11 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
       _deviceStates[deviceId]![property] = value;
     });
 
-    if (_debounceTimers[deviceId]?.isActive ?? false) _debounceTimers[deviceId]!.cancel();
-    _debounceTimers[deviceId] = Timer(const Duration(milliseconds: 500), () {
+    // Key the debounce by device+property so changing brightness then color
+    // on the same LED does not cancel the pending brightness send.
+    final key = '$deviceId:$property';
+    if (_debounceTimers[key]?.isActive ?? false) _debounceTimers[key]!.cancel();
+    _debounceTimers[key] = Timer(const Duration(milliseconds: 500), () {
       _sendDynamicCommand(deviceId, property, value);
     });
   }
@@ -274,11 +265,19 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                     const SizedBox(height: 32),
                     if (_devices.isEmpty)
                       Center(child: Text("No devices found.", style: TextStyle(color: AppColors.textSub(context)))),
-                    ..._devices.map((device) {
+                    ..._devices.where((device) {
+                      // Hide gas and vibration sensors entirely — their alerts
+                      // arrive via push notifications instead of a live tile.
+                      final t = (device['device_type'] ?? '').toString().toLowerCase();
+                      final n = (device['device_name'] ?? '').toString().toLowerCase();
+                      final isGas = n.contains('gas') || n.contains('gaz') || t.contains('gas');
+                      final isQuake = n.contains('deprem') || n.contains('earthquake') || t.contains('vibration');
+                      return !isGas && !isQuake;
+                    }).map((device) {
                       Widget card;
                       String type = (device['device_type'] ?? '').toString().toLowerCase();
                       String name = (device['device_name'] ?? '').toString().toLowerCase();
-                      
+
                       if (type == 'climate' || type == 'ac') {
                         card = _buildClimateCard(device);
                       } else if (type == 'tv' || name.contains('tv') || name.contains('television')) {
@@ -291,10 +290,6 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                         card = _buildRfidCard(device);
                       } else if (name.contains('temp') || name.contains('nem') || type.contains('temp')) {
                         card = _buildTempHumidityCard(device);
-                      } else if (name.contains('gas') || name.contains('gaz') || type.contains('gas')) {
-                        card = _buildGasCard(device);
-                      } else if (name.contains('deprem') || name.contains('earthquake') || type.contains('vibration')) {
-                        card = _buildEarthquakeCard(device);
                       } else {
                         card = _buildGenericCard(device);
                       }
@@ -906,111 +901,6 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
               Text("$temp°C", style: const TextStyle(color: Colors.orangeAccent, fontSize: 24, fontWeight: FontWeight.bold)),
               Text("$hum%", style: const TextStyle(color: Colors.lightBlueAccent, fontSize: 16, fontWeight: FontWeight.w500)),
             ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildGasCard(Map<String, dynamic> device) {
-    String deviceName = device['device_name'] ?? 'Gas Sensor';
-    Map<String, dynamic> state = _deviceStates[device['deviceid']] ?? {};
-    
-    String gasStatus = (state['status'] ?? 'safe').toString().toLowerCase();
-    String gasLevel = state['gas_level']?.toString() ?? '--';
-    
-    bool isDanger = gasStatus == 'danger';
-    bool isWarning = gasStatus == 'warning';
-    Color statusColor = isDanger ? Colors.redAccent : (isWarning ? Colors.orangeAccent : AppColors.accentGreen);
-    String statusText = gasStatus.toUpperCase();
-
-    return _buildGlassCard(
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.15), shape: BoxShape.circle),
-                  child: Icon(Icons.cloud, color: statusColor, size: 28),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(deviceName, overflow: TextOverflow.ellipsis, maxLines: 1, style: TextStyle(color: AppColors.text(context), fontSize: 18, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 4),
-                      Text("Air Quality • Gas Level: $gasLevel", style: TextStyle(color: AppColors.textSub(context), fontSize: 13, fontWeight: FontWeight.w500)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Container(
-             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-             decoration: BoxDecoration(
-               color: statusColor.withValues(alpha: 0.2),
-               borderRadius: BorderRadius.circular(20),
-               border: Border.all(color: statusColor.withValues(alpha: 0.5), width: 1.5)
-             ),
-             child: Text(statusText, style: TextStyle(color: statusColor, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEarthquakeCard(Map<String, dynamic> device) {
-    String deviceName = device['device_name'] ?? 'Earthquake Sensor';
-    Map<String, dynamic> state = _deviceStates[device['deviceid']] ?? {};
-    
-    String event = (state['event'] ?? 'normal').toString().toLowerCase();
-    String intensity = state['vibration_intensity']?.toString() ?? '--';
-    
-    bool isDanger = event == 'earthquake_detected';
-    Color statusColor = isDanger ? Colors.redAccent : AppColors.accentGreen;
-    String statusText = isDanger ? "DANGER" : "SAFE";
-
-    return _buildGlassCard(
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.15), shape: BoxShape.circle),
-                  child: Icon(Icons.vibration, color: statusColor, size: 28),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(deviceName, overflow: TextOverflow.ellipsis, maxLines: 1, style: TextStyle(color: AppColors.text(context), fontSize: 18, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 4),
-                      Text("Seismic Activity • Intensity: $intensity", style: TextStyle(color: AppColors.textSub(context), fontSize: 13, fontWeight: FontWeight.w500)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Container(
-             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-             decoration: BoxDecoration(
-               color: statusColor.withValues(alpha: 0.2),
-               borderRadius: BorderRadius.circular(20),
-               border: Border.all(color: statusColor.withValues(alpha: 0.5), width: 1.5)
-             ),
-             child: Text(statusText, style: TextStyle(color: statusColor, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
           ),
         ],
       ),
