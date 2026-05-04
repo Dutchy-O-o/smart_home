@@ -45,7 +45,7 @@ class _EmotionHubScreenState extends ConsumerState<EmotionHubScreen> {
     if (homeId != null) {
       final lastEmotion = await ApiService.fetchLatestEmotion(homeId);
       if (lastEmotion != null && lastEmotion['emotion'] != null && mounted) {
-        // Zaten sette api istegi atan listen var, onu tetiklememek için source="init" yolluyoruz ve listen ona göre davranacak.
+        // There is already a listener that makes an API request on set. To prevent triggering it, we send source="init" and the listener will act accordingly.
         ref.read(moodProvider.notifier).set(lastEmotion['emotion'], lastEmotion['confidence']?.toDouble() ?? 1.0, source: 'init');
       } else if (mounted) {
         ref.read(moodProvider.notifier).clear();

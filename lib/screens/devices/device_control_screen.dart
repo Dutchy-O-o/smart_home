@@ -285,7 +285,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                         card = _buildTvCard(device);
                       } else if (type == 'light' || type == 'led' || type == 'led_strip') {
                         card = _buildLightingCard(device);
-                      } else if (type == 'speaker' || name.contains('speaker') || name.contains('hoparlör')) {
+                      } else if (type == 'speaker' || name.contains('speaker')) {
                         card = _buildSpeakerCard(device);
                       } else if (type == 'rfid' || name.contains('rfid') || name.contains('door')) {
                         card = _buildRfidCard(device);
@@ -529,6 +529,8 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                 ),
               ),
               Icon(Icons.brightness_high, color: AppColors.textSub(context), size: 20),
+              const SizedBox(width: 8),
+              SizedBox(width: 36, child: Text('$brightness%', style: TextStyle(color: AppColors.text(context), fontSize: 13, fontWeight: FontWeight.bold), textAlign: TextAlign.right)),
             ],
           ),
         ],
@@ -609,6 +611,8 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                 ),
               ),
               Icon(Icons.volume_up, color: AppColors.textSub(context), size: 20),
+              const SizedBox(width: 8),
+              SizedBox(width: 36, child: Text('$volume%', style: TextStyle(color: AppColors.text(context), fontSize: 13, fontWeight: FontWeight.bold), textAlign: TextAlign.right)),
             ],
           ),
         ],
@@ -745,6 +749,8 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
               ),
               Icon(Icons.volume_up,
                   color: AppColors.textSub(context), size: 20),
+              const SizedBox(width: 8),
+              SizedBox(width: 36, child: Text('$volume%', style: TextStyle(color: AppColors.text(context), fontSize: 13, fontWeight: FontWeight.bold), textAlign: TextAlign.right)),
             ],
           ),
         ],
@@ -813,16 +819,16 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
     Color iconColor = Colors.purpleAccent;
     String nameLr = deviceName.toLowerCase();
 
-    if (nameLr.contains('door') || nameLr.contains('kapı')) {
+    if (nameLr.contains('door')) {
       iconData = Icons.door_front_door;
-    } else if (nameLr.contains('window') || nameLr.contains('pencere')) {
+    } else if (nameLr.contains('window')) {
       iconData = Icons.window;
     } else if (nameLr.contains('fan')) {
       iconData = Icons.mode_fan_off;
       iconColor = Colors.blueAccent;
-    } else if (nameLr.contains('plug') || nameLr.contains('priz')) {
+    } else if (nameLr.contains('plug')) {
       iconData = Icons.power;
-    } else if (nameLr.contains('stove') || nameLr.contains('fırın')) {
+    } else if (nameLr.contains('stove')) {
       iconData = Icons.soup_kitchen;
       iconColor = Colors.deepOrangeAccent;
     }

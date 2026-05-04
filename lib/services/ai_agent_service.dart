@@ -89,9 +89,9 @@ CRITICAL RULES:
 5. For brightness, use action="brightness" with an integer value like 100.
 6. ALWAYS send the control_device command when the user asks, even if the device appears to already be in that state. Device state data may be stale. Never skip a command because you think the device is already in the desired state.
 7. Report sensor data with proper units.
-8. Respond in the same language the user speaks (Turkish or English).
+8. Respond in English.
 9. Be concise and friendly.
-10. If the user mentions feeling something (e.g. "üzgünüm", "I'm happy", "the scanner thought I was sad but I'm calm"), call set_mood to update their emotional state. Always confirm in your reply what you set.''';
+10. If the user mentions feeling something (e.g. "I'm sad", "I'm happy", "the scanner thought I was sad but I'm calm"), call set_mood to update their emotional state. Always confirm in your reply what you set.''';
 
     var currentMessages = List<Map<String, dynamic>>.from(messages);
 

@@ -284,7 +284,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
                           borderRadius: BorderRadius.circular(12),
                         ),
                         alignment: Alignment.center,
-                        child: Text("Yapay Zeka (Duygu)", style: TextStyle(color: _triggerType == 'ai' ? Colors.white : Colors.white54, fontWeight: FontWeight.bold, fontSize: 14)),
+                        child: Text("AI (Emotion)", style: TextStyle(color: _triggerType == 'ai' ? Colors.white : Colors.white54, fontWeight: FontWeight.bold, fontSize: 14)),
                       ),
                     ),
                   ),
@@ -325,7 +325,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
                   child: const Icon(Icons.play_arrow_rounded, color: AppColors.primaryBlue, size: 24),
                 ),
                 const SizedBox(width: 16),
-                const Text("Aksiyon (O ZAMAN)", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                const Text("Action (THEN)", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
               ],
             ),
             
@@ -346,7 +346,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
                 onPressed: _isSaving ? null : _saveAutomation,
                 child: _isSaving
                     ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Text("Otomasyonu Kaydet", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    : const Text("Save Automation", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               ),
             ),
             const SizedBox(height: 40),
@@ -542,9 +542,12 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
               Expanded(
                 child: Builder(
                   builder: (context) {
-                    final unaddedDevices = _availableDevices.where((d) => 
-                       !_addedActions.any((a) => a['device_id'].toString() == d['deviceid'].toString())
-                    ).toList();
+                    final unaddedDevices = _availableDevices.where((d) {
+                       bool isAlreadyAdded = _addedActions.any((a) => a['device_id'].toString() == d['deviceid'].toString());
+                       String dType = (d['device_type'] ?? '').toString().toLowerCase();
+                       bool isSensor = dType.contains('sensor') || dType.contains('temperature') || dType.contains('humidity') || dType.contains('vibration');
+                       return !isAlreadyAdded && !isSensor;
+                    }).toList();
                     
                     if (_availableDevices.isEmpty) {
                       return const Center(child: Text("No devices found.", style: TextStyle(color: Colors.white54)));
@@ -658,6 +661,8 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
                   ),
                 ),
                 const Icon(Icons.brightness_high, color: Colors.grey, size: 16),
+                const SizedBox(width: 8),
+                SizedBox(width: 36, child: Text('${(act['brightness'] as num).toInt()}%', style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold), textAlign: TextAlign.right)),
               ],
             ),
           ] else if (isSpk) ...[
@@ -684,6 +689,8 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
                   ),
                 ),
                 const Icon(Icons.volume_up, color: Colors.grey, size: 16),
+                const SizedBox(width: 8),
+                SizedBox(width: 36, child: Text('${(act['volume'] as num).toInt()}%', style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold), textAlign: TextAlign.right)),
               ],
             ),
           ] else if (isTv) ...[
@@ -701,6 +708,8 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
                   ),
                 ),
                 const Icon(Icons.volume_up, color: Colors.grey, size: 16),
+                const SizedBox(width: 8),
+                SizedBox(width: 36, child: Text('${(act['volume'] as num).toInt()}%', style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold), textAlign: TextAlign.right)),
               ],
             ),
           ]
