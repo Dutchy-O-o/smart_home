@@ -46,6 +46,22 @@ Future<void> main() async {
     // Register the background listener
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
+    // Request notification permission. Required on Android 13+ (POST_NOTIFICATIONS)
+    // and on iOS — without this the OS silently drops background notifications.
+    await FirebaseMessaging.instance.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    // iOS: ensure the system tray banner shows even when the app is in foreground
+    // (matches what users expect from a "background" notification).
+    await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
     // Foreground notifications
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       // CRITICAL: Force-pull title from Data when Notification is null

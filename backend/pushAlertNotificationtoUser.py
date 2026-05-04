@@ -116,13 +116,45 @@ def lambda_handler(event, context):
 
         title, body = _resolve_title_body(event_type, alert_message)
 
+        # Android-specific config: high priority + channel_id are REQUIRED
+        # for the notification to surface in the system tray when the app is
+        # in background or killed on Android 8+ / 13+. Without these, FCM
+        # delivers the payload but the OS never displays it.
+        android_config = messaging.AndroidConfig(
+            priority="high",
+            notification=messaging.AndroidNotification(
+                title=title,
+                body=body,
+                channel_id="high_importance_channel",
+                sound="default",
+                default_sound=True,
+                default_vibrate_timings=True,
+                notification_count=1,
+            ),
+        )
+
+        # APNS config so iOS shows the alert when the app is backgrounded.
+        apns_config = messaging.APNSConfig(
+            headers={"apns-priority": "10"},
+            payload=messaging.APNSPayload(
+                aps=messaging.Aps(
+                    alert=messaging.ApsAlert(title=title, body=body),
+                    sound="default",
+                    content_available=True,
+                ),
+            ),
+        )
+
         message = messaging.MulticastMessage(
             notification=messaging.Notification(title=title, body=body),
+            android=android_config,
+            apns=apns_config,
             data={
                 "event": event_type,
                 "title": title,
                 "body": body,
                 "message": alert_message or "",
+                "click_action": "FLUTTER_NOTIFICATION_CLICK",
             },
             tokens=tokens,
         )
