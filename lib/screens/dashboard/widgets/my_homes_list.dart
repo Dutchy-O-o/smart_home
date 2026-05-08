@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../constants/app_colors.dart';
+import '../../../widgets/skeleton.dart';
 
 /// Horizontal scrolling list of the user's homes shown on the dashboard.
 /// Each card displays the home name and the user's role (admin/guest)
@@ -19,8 +20,16 @@ class MyHomesList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppColors.primaryBlue),
+      return SizedBox(
+        height: 100,
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          itemCount: 3,
+          itemBuilder: (_, __) => const Padding(
+            padding: EdgeInsets.only(right: 16),
+            child: Skeleton(width: 140, height: 100, borderRadius: 16),
+          ),
+        ),
       );
     }
     if (errorMessage.isNotEmpty) {
