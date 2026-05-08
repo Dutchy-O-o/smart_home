@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:amplify_flutter/amplify_flutter.dart';
 import 'package:amplify_auth_cognito/amplify_auth_cognito.dart';
+import 'package:showcaseview/showcaseview.dart';
 
 // --- FIREBASE LIBRARIES ---
 import 'package:firebase_core/firebase_core.dart';
@@ -196,6 +197,15 @@ class AkilliEvApp extends ConsumerWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeMode,
+      builder: (context, child) {
+        // Showcase needs to wrap below MaterialApp so OverlayState is
+        // available; without this child! the auto-route is bypassed but
+        // the tooltip overlay still renders correctly above all routes.
+        return ShowCaseWidget(
+          autoPlayDelay: const Duration(milliseconds: 800),
+          builder: (ctx) => child!,
+        );
+      },
       home: getHomeWidget(),
     );
   }
