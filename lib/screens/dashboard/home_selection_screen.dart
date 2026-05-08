@@ -165,10 +165,11 @@ class _HomeSelectionScreenState extends ConsumerState<HomeSelectionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
+        iconTheme: IconThemeData(color: AppColors.text(context)),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout, color: AppColors.accentRed),
@@ -200,16 +201,23 @@ class _HomeSelectionScreenState extends ConsumerState<HomeSelectionScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        const Text(
+                        Text(
                           "Which home would you like to enter?",
-                          style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            color: AppColors.text(context),
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 48),
                         if (_homes.isEmpty)
-                          const Text(
+                          Text(
                             "No registered homes found.\nTap the + button below to join one!",
-                            style: TextStyle(color: AppColors.textGrey, fontSize: 16),
+                            style: TextStyle(
+                              color: AppColors.textSub(context),
+                              fontSize: 16,
+                            ),
                             textAlign: TextAlign.center,
                           )
                         else
@@ -246,7 +254,11 @@ class _HomeSelectionScreenState extends ConsumerState<HomeSelectionScreen> {
                                     const SizedBox(height: 12),
                                     Text(
                                       homeName,
-                                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+                                      style: TextStyle(
+                                        color: AppColors.text(context),
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
