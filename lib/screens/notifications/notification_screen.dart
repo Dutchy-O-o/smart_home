@@ -2,9 +2,40 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/app_colors.dart';
 import '../../providers/alert_provider.dart';
+import '../../providers/home_provider.dart';
 
-class NotificationScreen extends ConsumerWidget {
+class NotificationScreen extends ConsumerStatefulWidget {
   const NotificationScreen({super.key});
+
+  @override
+  ConsumerState<NotificationScreen> createState() =>
+      _NotificationScreenState();
+}
+
+class _NotificationScreenState extends ConsumerState<NotificationScreen> {
+  bool _hydrated = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Pull canonical list from AWS on open so notifications survive
+      // reinstalls and show across devices. Fire-and-forget — stale
+      // local list shows immediately, gets replaced once AWS responds.
+      // No-op when the route isn't deployed.
+      if (_hydrated) return;
+      _hydrated = true;
+      final selectedHome = ref.read(selectedHomeProvider);
+      final homeId = (selectedHome?['home_id'] ??
+              selectedHome?['id'] ??
+              selectedHome?['homeid'])
+          ?.toString() ??
+          '';
+      if (homeId.isNotEmpty) {
+        ref.read(alertListProvider.notifier).hydrateFromAws(homeId);
+      }
+    });
+  }
 
   /// Groups alerts into Today / Yesterday / This week / Earlier buckets.
   /// Alert ids are stamped with `millisecondsSinceEpoch` (see main.dart),
@@ -50,7 +81,7 @@ class NotificationScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final alerts = ref.watch(filteredAlertsProvider);
     final filter = ref.watch(alertFilterProvider);
 

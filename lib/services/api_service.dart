@@ -268,4 +268,109 @@ class ApiService {
       return false;
     }
   }
+
+  // ─── History endpoints ───────────────────────────────────────────
+  // Each one returns null when the route isn't deployed yet (404), so
+  // the caller can transparently fall back to its local cache.
+
+  /// GET /prod/{homeID}/emotion-history?days=N
+  /// Returns last [days] days of mood entries from `ai_analyses`.
+  /// Shape: `{"entries": [{"emotion","confidence","timestamp"}, ...]}`
+  static Future<List<Map<String, dynamic>>?> fetchMoodHistory(
+      String homeId, {int days = 7}) async {
+    final url = Uri.parse('$baseUrl/$homeId/emotion-history?days=$days');
+    try {
+      final res = await http.get(url, headers: await _getHeaders());
+      if (res.statusCode == 200) {
+        _markNetworkUp();
+        final data = jsonDecode(res.body);
+        return (data['entries'] as List?)?.cast<Map<String, dynamic>>();
+      }
+      if (res.statusCode == 404) return null; // not deployed yet
+      _logNetworkError('fetchMoodHistory ${res.statusCode}', res.body);
+      return null;
+    } catch (e) {
+      _logNetworkError('fetchMoodHistory', e);
+      return null;
+    }
+  }
+
+  /// GET /prod/{homeID}/sensor-history?hours=N
+  /// Returns minute-bucketed sensor readings for the home over [hours].
+  /// Shape: `{"readings": [{"timestamp","temperature","humidity"}, ...]}`
+  static Future<List<Map<String, dynamic>>?> fetchSensorHistory(
+      String homeId, {int hours = 12}) async {
+    final url = Uri.parse('$baseUrl/$homeId/sensor-history?hours=$hours');
+    try {
+      final res = await http.get(url, headers: await _getHeaders());
+      if (res.statusCode == 200) {
+        _markNetworkUp();
+        final data = jsonDecode(res.body);
+        return (data['readings'] as List?)?.cast<Map<String, dynamic>>();
+      }
+      if (res.statusCode == 404) return null;
+      _logNetworkError('fetchSensorHistory ${res.statusCode}', res.body);
+      return null;
+    } catch (e) {
+      _logNetworkError('fetchSensorHistory', e);
+      return null;
+    }
+  }
+
+  /// POST /prod/{homeID}/alerts
+  /// Persist an alert server-side so it survives across devices.
+  /// Returns the new alert id, or null on failure.
+  static Future<String?> postAlert({
+    required String homeId,
+    required String title,
+    required String description,
+    required String alertType, // 'security' | 'emotion' | 'device'
+    required String alertLevel, // 'critical' | 'warning' | 'info'
+  }) async {
+    final url = Uri.parse('$baseUrl/$homeId/alerts');
+    try {
+      final res = await http.post(
+        url,
+        headers: await _getHeaders(),
+        body: jsonEncode({
+          'title': title,
+          'description': description,
+          'alert_type': alertType,
+          'alert_level': alertLevel,
+        }),
+      );
+      if (res.statusCode == 200) {
+        _markNetworkUp();
+        final data = jsonDecode(res.body);
+        return data['alert_id']?.toString();
+      }
+      if (res.statusCode == 404) return null;
+      _logNetworkError('postAlert ${res.statusCode}', res.body);
+      return null;
+    } catch (e) {
+      _logNetworkError('postAlert', e);
+      return null;
+    }
+  }
+
+  /// GET /prod/{homeID}/alerts?limit=N
+  /// Returns recent alerts for the calling user, newest first.
+  static Future<List<Map<String, dynamic>>?> fetchAlerts(
+      String homeId, {int limit = 50}) async {
+    final url = Uri.parse('$baseUrl/$homeId/alerts?limit=$limit');
+    try {
+      final res = await http.get(url, headers: await _getHeaders());
+      if (res.statusCode == 200) {
+        _markNetworkUp();
+        final data = jsonDecode(res.body);
+        return (data['alerts'] as List?)?.cast<Map<String, dynamic>>();
+      }
+      if (res.statusCode == 404) return null;
+      _logNetworkError('fetchAlerts ${res.statusCode}', res.body);
+      return null;
+    } catch (e) {
+      _logNetworkError('fetchAlerts', e);
+      return null;
+    }
+  }
 }

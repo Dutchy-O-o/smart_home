@@ -3,6 +3,9 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../services/api_service.dart';
+import '../services/user_scope.dart';
+
 enum AlertType { security, emotion, device }
 enum AlertLevel { critical, warning, info }
 
@@ -76,7 +79,8 @@ final alertFilterProvider =
     NotifierProvider<AlertFilterNotifier, AlertFilter>(AlertFilterNotifier.new);
 
 class AlertListNotifier extends Notifier<List<AlertItem>> {
-  static const _storageKey = 'alerts_v1';
+  static const _baseStorageKey = 'alerts_v1';
+  static String get _storageKey => UserScope.key(_baseStorageKey);
   static const _maxStored = 200;
 
   @override
@@ -113,6 +117,99 @@ class AlertListNotifier extends Notifier<List<AlertItem>> {
 
   void addAlert(AlertItem alert) {
     state = [alert, ...state];
+    _save();
+  }
+
+  /// Same as [addAlert] but also pushes the entry to the AWS alerts
+  /// endpoint (`POST /{homeId}/alerts`) so it survives across devices.
+  /// The local copy is added immediately for snappy UI; the server
+  /// call is fire-and-forget and silently no-ops when the route isn't
+  /// deployed yet.
+  void addAlertSynced(AlertItem alert, {required String homeId}) {
+    addAlert(alert);
+    if (homeId.isEmpty) return;
+    ApiService.postAlert(
+      homeId: homeId,
+      title: alert.title,
+      description: alert.description,
+      alertType: alert.type.name,
+      alertLevel: alert.level.name,
+    );
+  }
+
+  /// Pull the latest alerts from AWS and **merge** them with the local
+  /// list. Local entries that aren't on the server (push notifications
+  /// the FCM handler caught while AWS save races, or anything created
+  /// before /alerts was deployed) are preserved. Server entries that
+  /// aren't local are prepended.
+  ///
+  /// Silently no-ops when the route isn't deployed.
+  Future<void> hydrateFromAws(String homeId) async {
+    if (homeId.isEmpty) return;
+    final remote = await ApiService.fetchAlerts(homeId);
+    if (remote == null) return; // route not deployed → preserve local
+    final loaded = <AlertItem>[];
+    for (final j in remote) {
+      final created = j['created_at'];
+      // Server emits ISO with 'Z' suffix → parse as UTC, convert to
+      // local so Today/Yesterday/This-week buckets match the user's
+      // wall-clock instead of the server's UTC clock.
+      final ts =
+          created is String ? DateTime.tryParse(created)?.toLocal() : null;
+      AlertType t;
+      switch ((j['type'] ?? '').toString()) {
+        case 'security':
+          t = AlertType.security;
+          break;
+        case 'emotion':
+          t = AlertType.emotion;
+          break;
+        default:
+          t = AlertType.device;
+      }
+      AlertLevel l;
+      switch ((j['level'] ?? '').toString()) {
+        case 'critical':
+          l = AlertLevel.critical;
+          break;
+        case 'warning':
+          l = AlertLevel.warning;
+          break;
+        default:
+          l = AlertLevel.info;
+      }
+      loaded.add(AlertItem(
+        id: ts != null
+            ? ts.millisecondsSinceEpoch.toString()
+            : (j['id']?.toString() ?? ''),
+        title: (j['title'] ?? '').toString(),
+        description: (j['description'] ?? '').toString(),
+        time: ts != null
+            ? '${ts.hour.toString().padLeft(2, '0')}:${ts.minute.toString().padLeft(2, '0')}'
+            : '',
+        type: t,
+        level: l,
+        isRead: j['is_read'] == true,
+      ));
+    }
+
+    // Merge: keep both lists, dedupe on (title + description + time)
+    // since AWS/local IDs are generated independently. AWS rows win
+    // on `is_read` since the server is the source of truth there.
+    final merged = <AlertItem>[];
+    final seen = <String>{};
+    String key(AlertItem a) => '${a.title}|${a.description}|${a.time}';
+
+    for (final a in loaded) {
+      if (seen.add(key(a))) merged.add(a);
+    }
+    for (final a in state) {
+      if (seen.add(key(a))) merged.add(a);
+    }
+    // Newest-first: AWS came back ordered DESC; local was already
+    // newest-first; both halves stay roughly sorted, but we don't
+    // hard-sort by ID since IDs are non-comparable across sources.
+    state = merged;
     _save();
   }
 
