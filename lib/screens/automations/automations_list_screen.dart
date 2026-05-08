@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/app_colors.dart';
 import '../../providers/home_provider.dart';
@@ -120,8 +121,14 @@ class _AutomationsListScreenState extends ConsumerState<AutomationsListScreen> {
         child: Column(
           children: [
             _buildHeader(),
+            // Always-visible primary CTA — replaces the bottom-right FAB
+            // which got hidden under the floating nav bar and felt small.
+            // Discoverable on first open, doesn't fight with scroll.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+              child: _CreateCta(onTap: _openCreate),
+            ),
             if (!_isLoading && _automations.isNotEmpty) ...[
-              const SizedBox(height: 4),
               _buildStats(),
               const SizedBox(height: 16),
               _buildFilters(),
@@ -129,27 +136,6 @@ class _AutomationsListScreenState extends ConsumerState<AutomationsListScreen> {
             ],
             Expanded(child: _buildBody()),
           ],
-        ),
-      ),
-      // Lift the FAB above the floating bottom nav bar (height 68 + 10
-      // bottom margin + ~8 padding) so it isn't hidden by it. The shell
-      // uses extendBody: true so the FAB's default location overlaps.
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 78),
-        child: FloatingActionButton.extended(
-          backgroundColor: AppColors.primaryBlue,
-          elevation: 4,
-          onPressed: () => _openCreate(),
-          icon: const Icon(Icons.add, color: Colors.white),
-          label: const Text(
-            'New',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 0.3,
-            ),
-          ),
         ),
       ),
     );
@@ -757,5 +743,91 @@ class _AutomationsListScreenState extends ConsumerState<AutomationsListScreen> {
       );
     }
     return ok;
+  }
+}
+
+/// Full-width primary CTA used at the top of the list. Gradient background,
+/// soft glow, plus a leading icon chip — designed to be the most visible
+/// thing on the screen so first-time users know how to add an automation.
+class _CreateCta extends StatelessWidget {
+  const _CreateCta({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onTap();
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF2196F3), Color(0xFF00BFA5)],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primaryBlue.withValues(alpha: 0.35),
+                blurRadius: 14,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.22),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.4),
+                  ),
+                ),
+                child: const Icon(Icons.add, color: Colors.white, size: 20),
+              ),
+              const SizedBox(width: 14),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Create automation',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Trigger devices on emotion or sensor events',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 11.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right,
+                  color: Colors.white, size: 22),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

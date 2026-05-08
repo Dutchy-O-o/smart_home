@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/app_colors.dart';
 import '../../providers/home_provider.dart';
@@ -196,162 +197,175 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
     super.dispose();
   }
 
-  Widget _buildGlassCard({required Widget child, EdgeInsetsGeometry? padding}) {
+  /// Pre-fill the form from a preset. The user can still tweak everything
+  /// before saving — presets are a starting point, not a one-tap save.
+  void _applyPreset(_AutomationPreset p) {
+    HapticFeedback.lightImpact();
+    setState(() {
+      _nameController.text = p.name;
+      _triggerType = p.triggerType;
+      if (p.triggerType == 'ai') {
+        _selectedEmotion = p.emotion ?? 'happy';
+      } else {
+        _sensorType = p.sensorType ?? 'temperature';
+        _sensorOperator = p.sensorOperator ?? '>=';
+        _sensorValueController.text = p.sensorValue ?? '28';
+      }
+      // Don't auto-add device actions — the user picks targets by name
+      // since device IDs vary per home. We only seed the trigger side.
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Filled "${p.name}". Add target devices below.'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  // Soft, theme-aware card. Replaces the old _buildGlassCard which
+  // hard-coded a dark background — that broke light mode and made the
+  // whole screen feel chunky on small phones.
+  Widget _softCard({required Widget child, EdgeInsetsGeometry? padding}) {
     return Container(
-      padding: padding ?? const EdgeInsets.all(20),
+      padding: padding ?? const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.cardDark,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.borderCol(context)),
       ),
       child: child,
+    );
+  }
+
+  // Compact section header — replaces the big circle-icon-plus-bold-title
+  // pattern that made every section feel like its own page.
+  Widget _sectionLabel(String text, IconData icon, Color accent) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: Row(
+        children: [
+          Icon(icon, color: accent, size: 14),
+          const SizedBox(width: 6),
+          Text(
+            text.toUpperCase(),
+            style: TextStyle(
+              color: AppColors.textSub(context),
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.0,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
-        title: Text(widget.existingData != null ? 'Edit Automation' : 'New Automation', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: Text(
+          widget.existingData != null ? 'Edit Automation' : 'New Automation',
+          style: TextStyle(
+            color: AppColors.text(context),
+            fontWeight: FontWeight.w700,
+            fontSize: 17,
+          ),
+        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+        scrolledUnderElevation: 0,
+        iconTheme: IconThemeData(color: AppColors.text(context)),
         actions: [
-          Row(
-            children: [
-              Text(_isActive ? "ACTIVE" : "INACTIVE", style: TextStyle(color: _isActive ? AppColors.accentGreen : Colors.white54, fontSize: 13, fontWeight: FontWeight.w800)),
-              Switch(
-                value: _isActive,
-                activeColor: AppColors.accentGreen,
-                inactiveThumbColor: Colors.grey,
-                inactiveTrackColor: Colors.white12,
-                onChanged: (val) => setState(() => _isActive = val),
-              ),
-              const SizedBox(width: 12),
-            ],
-          )
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: Switch.adaptive(
+              value: _isActive,
+              activeThumbColor: AppColors.accentGreen,
+              onChanged: (val) => setState(() => _isActive = val),
+            ),
+          ),
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: const EdgeInsets.fromLTRB(20, 6, 20, 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildGlassCard(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            // Suggestion strip — only on the new (no existingData) path,
+            // so the editing flow stays focused on the existing rule.
+            if (widget.existingData == null) ...[
+              _sectionLabel('Suggested', Icons.auto_awesome,
+                  AppColors.accentGreen),
+              const SizedBox(height: 6),
+              _SuggestedRow(onPick: _applyPreset),
+              const SizedBox(height: 18),
+            ],
+            _sectionLabel('Name', Icons.label_important_outline,
+                AppColors.textSub(context)),
+            const SizedBox(height: 6),
+            _softCard(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
               child: TextField(
                 controller: _nameController,
-                style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  color: AppColors.text(context),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
                 cursorColor: AppColors.primaryBlue,
-                decoration: const InputDecoration(
-                  hintText: 'Automation Name (e.g. Night Mode)',
-                  hintStyle: TextStyle(color: Colors.white30, fontWeight: FontWeight.normal),
+                decoration: InputDecoration(
+                  hintText: 'e.g. Night Mode',
+                  hintStyle: TextStyle(
+                    color: AppColors.textSub(context).withValues(alpha: 0.7),
+                    fontWeight: FontWeight.normal,
+                  ),
                   border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
                 ),
               ),
             ),
-            
-            const SizedBox(height: 32),
-            
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppColors.accentOrange.withValues(alpha: 0.2),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.bolt, color: AppColors.accentOrange, size: 22),
-                ),
-                const SizedBox(width: 16),
-                const Text("Trigger (IF)", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-              ],
-            ),
-            
-            const SizedBox(height: 16),
-            
-            _buildGlassCard(
-              padding: const EdgeInsets.all(6),
+
+            const SizedBox(height: 18),
+
+            _sectionLabel('When', Icons.bolt, AppColors.accentOrange),
+            const SizedBox(height: 6),
+            _softCard(
+              padding: const EdgeInsets.all(4),
               child: Row(
                 children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => setState(() => _triggerType = 'ai'),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        decoration: BoxDecoration(
-                          color: _triggerType == 'ai' ? AppColors.primaryBlue : Colors.transparent,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        alignment: Alignment.center,
-                        child: Text("AI (Emotion)", style: TextStyle(color: _triggerType == 'ai' ? Colors.white : Colors.white54, fontWeight: FontWeight.bold, fontSize: 14)),
-                      ),
-                    ),
+                  _SegBtn(
+                    label: 'Emotion',
+                    icon: Icons.sentiment_satisfied_alt,
+                    active: _triggerType == 'ai',
+                    onTap: () => setState(() => _triggerType = 'ai'),
                   ),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => setState(() => _triggerType = 'sensor'),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        decoration: BoxDecoration(
-                          color: _triggerType == 'sensor' ? AppColors.primaryBlue : Colors.transparent,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        alignment: Alignment.center,
-                        child: Text("Sensor Data", style: TextStyle(color: _triggerType == 'sensor' ? Colors.white : Colors.white54, fontWeight: FontWeight.bold, fontSize: 14)),
-                      ),
-                    ),
+                  _SegBtn(
+                    label: 'Sensor',
+                    icon: Icons.sensors,
+                    active: _triggerType == 'sensor',
+                    onTap: () => setState(() => _triggerType = 'sensor'),
                   ),
                 ],
               ),
             ),
-            
-            const SizedBox(height: 20),
+            const SizedBox(height: 12),
             AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
+              duration: const Duration(milliseconds: 240),
               child: _triggerType == 'ai' ? _buildEmotionGrid() : _buildSensorInputs(),
             ),
-            
-            const SizedBox(height: 40),
 
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryBlue.withValues(alpha: 0.2),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.play_arrow_rounded, color: AppColors.primaryBlue, size: 24),
-                ),
-                const SizedBox(width: 16),
-                const Text("Action (THEN)", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-              ],
-            ),
-            
-            const SizedBox(height: 16),
+            const SizedBox(height: 22),
+
+            _sectionLabel('Then', Icons.play_arrow_rounded, AppColors.primaryBlue),
+            const SizedBox(height: 6),
             _buildActionCard(),
 
-            const SizedBox(height: 48),
+            const SizedBox(height: 26),
 
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.accentOrange,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                ),
-                onPressed: _isSaving ? null : _saveAutomation,
-                child: _isSaving
-                    ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Text("Save Automation", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              ),
-            ),
-            const SizedBox(height: 40),
+            _SaveButton(isSaving: _isSaving, onTap: _saveAutomation),
+            const SizedBox(height: 24),
           ],
         ),
       ),
@@ -369,124 +383,187 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
       {'id': 'surprise', 'label': 'Surprise', 'icon': '😲', 'color': Colors.orangeAccent},
     ];
 
-    return _buildGlassCard(
-      padding: const EdgeInsets.all(16),
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          childAspectRatio: 1.1,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-        ),
-        itemCount: emotions.length,
-        itemBuilder: (context, index) {
-          final emo = emotions[index];
-          bool isSelected = _selectedEmotion == emo['id'];
-          Color baseColor = emo['color'] as Color;
-          
-          return GestureDetector(
-            onTap: () => setState(() => _selectedEmotion = emo['id'] as String),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              decoration: BoxDecoration(
-                color: isSelected ? baseColor.withValues(alpha: 0.2) : Colors.white.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: isSelected ? baseColor : Colors.transparent, width: 2),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(emo['icon'] as String, style: TextStyle(fontSize: isSelected ? 36 : 30)),
-                  const SizedBox(height: 8),
-                  Text(emo['label'] as String, style: TextStyle(color: isSelected ? Colors.white : Colors.white60, fontWeight: isSelected ? FontWeight.bold : FontWeight.w500)),
-                ],
+    return GridView.builder(
+      key: const ValueKey('emotion_grid'),
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 4,
+        childAspectRatio: 0.92,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+      ),
+      itemCount: emotions.length,
+      itemBuilder: (context, index) {
+        final emo = emotions[index];
+        final isSelected = _selectedEmotion == emo['id'];
+        final baseColor = emo['color'] as Color;
+
+        return GestureDetector(
+          onTap: () => setState(() => _selectedEmotion = emo['id'] as String),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? baseColor.withValues(alpha: 0.15)
+                  : AppColors.card(context),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isSelected
+                    ? baseColor
+                    : AppColors.borderCol(context),
+                width: isSelected ? 1.5 : 1,
               ),
             ),
-          );
-        },
-      ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  emo['icon'] as String,
+                  style: TextStyle(fontSize: isSelected ? 26 : 22),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  emo['label'] as String,
+                  style: TextStyle(
+                    color: isSelected
+                        ? AppColors.text(context)
+                        : AppColors.textSub(context),
+                    fontWeight:
+                        isSelected ? FontWeight.w700 : FontWeight.w500,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
   Widget _buildSensorInputs() {
-    return _buildGlassCard(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text("Sensor Selection", style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white.withValues(alpha: 0.1))),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                isExpanded: true,
-                dropdownColor: AppColors.cardDark,
-                value: _sensorType,
-                icon: const Icon(Icons.arrow_drop_down, color: Colors.white54),
-                style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w500),
-                items: const [
-                  DropdownMenuItem(value: 'temperature', child: Text('Temperature (°C)')),
-                  DropdownMenuItem(value: 'humidity', child: Text('Humidity (%)')),
-                  DropdownMenuItem(value: 'gas_level', child: Text('Gas / Air Quality')),
-                ],
-                onChanged: (val) => setState(() => _sensorType = val!),
-              ),
+    Widget pillField({required Widget child, EdgeInsets? padding}) => Container(
+          padding: padding ?? const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: AppColors.card(context),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: AppColors.borderCol(context)),
+          ),
+          child: child,
+        );
+
+    return Column(
+      key: const ValueKey('sensor_inputs'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 4),
+          child: Text(
+            'SENSOR',
+            style: TextStyle(
+              color: AppColors.textSub(context),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.8,
             ),
           ),
-          const SizedBox(height: 20),
-          const Text("Condition & Value", style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                flex: 3,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white.withValues(alpha: 0.1))),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      isExpanded: true,
-                      dropdownColor: AppColors.cardDark,
-                      value: _sensorOperator,
-                      icon: const Icon(Icons.arrow_drop_down, color: Colors.white54),
-                      style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w500),
-                      items: const [
-                        DropdownMenuItem(value: '>=', child: Text('Greater than (>=)')),
-                        DropdownMenuItem(value: '<=', child: Text('Less than (<=)')),
-                        DropdownMenuItem(value: '==', child: Text('Equal to (==)')),
-                      ],
-                      onChanged: (val) => setState(() => _sensorOperator = val!),
-                    ),
-                  ),
-                ),
+        ),
+        pillField(
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              isExpanded: true,
+              dropdownColor: AppColors.card(context),
+              value: _sensorType,
+              icon: Icon(Icons.expand_more,
+                  color: AppColors.textSub(context), size: 18),
+              style: TextStyle(
+                color: AppColors.text(context),
+                fontSize: 13.5,
+                fontWeight: FontWeight.w500,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                flex: 2,
-                child: Container(
-                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white.withValues(alpha: 0.1))),
-                  child: TextField(
-                    controller: _sensorValueController,
-                    style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-                    keyboardType: TextInputType.number,
-                    textAlign: TextAlign.center,
-                    decoration: const InputDecoration(
-                      hintText: '28',
-                      hintStyle: TextStyle(color: Colors.white30, fontWeight: FontWeight.normal),
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(vertical: 14),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+              items: const [
+                DropdownMenuItem(
+                    value: 'temperature', child: Text('Temperature (°C)')),
+                DropdownMenuItem(
+                    value: 'humidity', child: Text('Humidity (%)')),
+                DropdownMenuItem(
+                    value: 'gas_level', child: Text('Gas / Air Quality')),
+              ],
+              onChanged: (val) => setState(() => _sensorType = val!),
+            ),
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 12),
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 4),
+          child: Text(
+            'CONDITION',
+            style: TextStyle(
+              color: AppColors.textSub(context),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.8,
+            ),
+          ),
+        ),
+        Row(
+          children: [
+            Expanded(
+              flex: 3,
+              child: pillField(
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    isExpanded: true,
+                    dropdownColor: AppColors.card(context),
+                    value: _sensorOperator,
+                    icon: Icon(Icons.expand_more,
+                        color: AppColors.textSub(context), size: 18),
+                    style: TextStyle(
+                      color: AppColors.text(context),
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: '>=', child: Text('≥ (greater)')),
+                      DropdownMenuItem(value: '<=', child: Text('≤ (less)')),
+                      DropdownMenuItem(value: '==', child: Text('= (equal)')),
+                    ],
+                    onChanged: (val) => setState(() => _sensorOperator = val!),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              flex: 2,
+              child: pillField(
+                padding: EdgeInsets.zero,
+                child: TextField(
+                  controller: _sensorValueController,
+                  style: TextStyle(
+                    color: AppColors.text(context),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  keyboardType: TextInputType.number,
+                  textAlign: TextAlign.center,
+                  decoration: InputDecoration(
+                    hintText: '28',
+                    hintStyle: TextStyle(
+                      color: AppColors.textSub(context).withValues(alpha: 0.6),
+                      fontWeight: FontWeight.normal,
+                    ),
+                    border: InputBorder.none,
+                    contentPadding:
+                        const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -498,27 +575,37 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: _addedActions.length,
-            itemBuilder: (context, index) {
-              return _buildDeviceActionCard(index);
-            },
+            itemBuilder: (context, index) => _buildDeviceActionCard(index),
           ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 10),
         InkWell(
           onTap: _showAddDeviceModal,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
           child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 16),
+            padding: const EdgeInsets.symmetric(vertical: 12),
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.white.withValues(alpha: 0.2), style: BorderStyle.solid),
-              borderRadius: BorderRadius.circular(16),
-              color: Colors.white.withValues(alpha: 0.02),
+              border: Border.all(
+                color: AppColors.primaryBlue.withValues(alpha: 0.4),
+              ),
+              borderRadius: BorderRadius.circular(12),
+              color: AppColors.primaryBlue.withValues(alpha: 0.05),
             ),
-            child: const Row(
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.add_circle_outline, color: AppColors.primaryBlue),
-                SizedBox(width: 8),
-                Text("Add Target Device", style: TextStyle(color: AppColors.primaryBlue, fontWeight: FontWeight.bold, fontSize: 16)),
+                Icon(Icons.add_circle_outline,
+                    color: AppColors.primaryBlue, size: 16),
+                const SizedBox(width: 6),
+                Text(
+                  _addedActions.isEmpty
+                      ? 'Add target device'
+                      : 'Add another device',
+                  style: const TextStyle(
+                    color: AppColors.primaryBlue,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
               ],
             ),
           ),
@@ -531,16 +618,34 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.cardDark,
+      backgroundColor: AppColors.bg(context),
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (context) {
+      builder: (ctx) {
         return Container(
           padding: const EdgeInsets.all(20),
-          height: MediaQuery.of(context).size.height * 0.6,
+          height: MediaQuery.of(ctx).size.height * 0.6,
           child: Column(
             children: [
-              const Text("Select Device", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.textSub(ctx).withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                "Select Device",
+                style: TextStyle(
+                  color: AppColors.text(ctx),
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 14),
               Expanded(
                 child: Builder(
                   builder: (context) {
@@ -550,11 +655,17 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
                        bool isSensor = dType.contains('sensor') || dType.contains('temperature') || dType.contains('humidity') || dType.contains('vibration');
                        return !isAlreadyAdded && !isSensor;
                     }).toList();
-                    
+
                     if (_availableDevices.isEmpty) {
-                      return const Center(child: Text("No devices found.", style: TextStyle(color: Colors.white54)));
+                      return Center(
+                        child: Text("No devices found.",
+                            style: TextStyle(color: AppColors.textSub(ctx))),
+                      );
                     } else if (unaddedDevices.isEmpty) {
-                      return const Center(child: Text("All devices are already added.", style: TextStyle(color: Colors.white54)));
+                      return Center(
+                        child: Text("All devices are already added.",
+                            style: TextStyle(color: AppColors.textSub(ctx))),
+                      );
                     }
 
                     return ListView.builder(
@@ -562,8 +673,14 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
                       itemBuilder: (context, index) {
                         final dev = unaddedDevices[index];
                         return ListTile(
-                          title: Text(dev['device_name'].toString(), style: const TextStyle(color: Colors.white)),
-                          subtitle: Text(dev['device_type'].toString(), style: const TextStyle(color: Colors.white54)),
+                          title: Text(
+                            dev['device_name'].toString(),
+                            style: TextStyle(color: AppColors.text(ctx)),
+                          ),
+                          subtitle: Text(
+                            dev['device_type'].toString(),
+                            style: TextStyle(color: AppColors.textSub(ctx)),
+                          ),
                           trailing: const Icon(Icons.add, color: AppColors.primaryBlue),
                           onTap: () {
                             setState(() {
@@ -603,12 +720,12 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
     bool isTv = dtype == 'tv' || dname.contains('tv');
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.cardDark,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.borderCol(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -617,22 +734,37 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
             children: [
               Container(
                 padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-                child: Icon(isLed ? Icons.lightbulb : isSpk ? Icons.speaker : isTv ? Icons.tv : Icons.devices_other, color: Colors.white, size: 20),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryBlue.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  isLed ? Icons.lightbulb : isSpk ? Icons.speaker : isTv ? Icons.tv : Icons.devices_other,
+                  color: AppColors.primaryBlue,
+                  size: 18,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(act['device_name'].toString(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                child: Text(
+                  act['device_name'].toString(),
+                  style: TextStyle(
+                    color: AppColors.text(context),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
+                ),
               ),
-              Switch(
+              Switch.adaptive(
                 value: act['power'] as bool,
-                activeColor: AppColors.primaryBlue,
+                activeThumbColor: AppColors.primaryBlue,
                 onChanged: (val) {
                   setState(() { _addedActions[index]['power'] = val; });
                 },
               ),
               IconButton(
-                icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                icon: Icon(Icons.delete_outline,
+                    color: AppColors.accentRed, size: 20),
                 onPressed: () {
                   setState(() { _addedActions.removeAt(index); });
                 },
@@ -640,12 +772,13 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
             ],
           ),
           if (isLed) ...[
-            const SizedBox(height: 16),
-            _buildHueSpectrum(index, act['color']?.toString() ?? '#FFFFFF'),
             const SizedBox(height: 12),
+            _buildHueSpectrum(index, act['color']?.toString() ?? '#FFFFFF'),
+            const SizedBox(height: 10),
             Row(
               children: [
-                const Icon(Icons.brightness_low, color: Colors.grey, size: 16),
+                Icon(Icons.brightness_low,
+                    color: AppColors.textSub(context), size: 16),
                 Expanded(
                   child: Slider(
                     value: (act['brightness'] as num).toDouble(),
@@ -655,13 +788,25 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
                     onChanged: (val) => setState(() { _addedActions[index]['brightness'] = val.toInt(); }),
                   ),
                 ),
-                const Icon(Icons.brightness_high, color: Colors.grey, size: 16),
+                Icon(Icons.brightness_high,
+                    color: AppColors.textSub(context), size: 16),
                 const SizedBox(width: 8),
-                SizedBox(width: 36, child: Text('${(act['brightness'] as num).toInt()}%', style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold), textAlign: TextAlign.right)),
+                SizedBox(
+                  width: 36,
+                  child: Text(
+                    '${(act['brightness'] as num).toInt()}%',
+                    style: TextStyle(
+                      color: AppColors.textSub(context),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    textAlign: TextAlign.right,
+                  ),
+                ),
               ],
             ),
           ] else if (isSpk) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
@@ -673,7 +818,8 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
             const SizedBox(height: 8),
             Row(
               children: [
-                const Icon(Icons.volume_down, color: Colors.grey, size: 16),
+                Icon(Icons.volume_down,
+                    color: AppColors.textSub(context), size: 16),
                 Expanded(
                   child: Slider(
                     value: (act['volume'] as num).toDouble(),
@@ -683,32 +829,57 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
                     onChanged: (val) => setState(() { _addedActions[index]['volume'] = val.toInt(); }),
                   ),
                 ),
-                const Icon(Icons.volume_up, color: Colors.grey, size: 16),
+                Icon(Icons.volume_up,
+                    color: AppColors.textSub(context), size: 16),
                 const SizedBox(width: 8),
-                SizedBox(width: 36, child: Text('${(act['volume'] as num).toInt()}%', style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold), textAlign: TextAlign.right)),
+                SizedBox(
+                  width: 36,
+                  child: Text(
+                    '${(act['volume'] as num).toInt()}%',
+                    style: TextStyle(
+                      color: AppColors.textSub(context),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    textAlign: TextAlign.right,
+                  ),
+                ),
               ],
             ),
           ] else if (isTv) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 _buildChannelButton(index, Icons.keyboard_arrow_down, -1),
                 Column(
                   children: [
-                    const Text("Channel", style: TextStyle(color: Colors.white54, fontSize: 11)),
+                    Text(
+                      "Channel",
+                      style: TextStyle(
+                        color: AppColors.textSub(context),
+                        fontSize: 11,
+                      ),
+                    ),
                     const SizedBox(height: 4),
-                    Text("${(act['channel'] as num).toInt()}",
-                        style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                    Text(
+                      "${(act['channel'] as num).toInt()}",
+                      style: TextStyle(
+                        color: AppColors.text(context),
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
                 _buildChannelButton(index, Icons.keyboard_arrow_up, 1),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             Row(
               children: [
-                const Icon(Icons.volume_down, color: Colors.grey, size: 16),
+                Icon(Icons.volume_down,
+                    color: AppColors.textSub(context), size: 16),
                 Expanded(
                   child: Slider(
                     value: (act['volume'] as num).toDouble(),
@@ -718,9 +889,21 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
                     onChanged: (val) => setState(() { _addedActions[index]['volume'] = val.toInt(); }),
                   ),
                 ),
-                const Icon(Icons.volume_up, color: Colors.grey, size: 16),
+                Icon(Icons.volume_up,
+                    color: AppColors.textSub(context), size: 16),
                 const SizedBox(width: 8),
-                SizedBox(width: 36, child: Text('${(act['volume'] as num).toInt()}%', style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold), textAlign: TextAlign.right)),
+                SizedBox(
+                  width: 36,
+                  child: Text(
+                    '${(act['volume'] as num).toInt()}%',
+                    style: TextStyle(
+                      color: AppColors.textSub(context),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    textAlign: TextAlign.right,
+                  ),
+                ),
               ],
             ),
           ]
@@ -804,7 +987,8 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
                             Color(0xFFFF0000),
                           ],
                         ),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
+                        border: Border.all(
+                            color: AppColors.borderCol(context), width: 1),
                       ),
                     ),
                     if (indicatorX >= 0)
@@ -815,7 +999,8 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
                           height: 32,
                           decoration: BoxDecoration(
                             color: Colors.transparent,
-                            border: Border.all(color: Colors.white, width: 3),
+                            border: Border.all(
+                                color: AppColors.text(context), width: 3),
                             borderRadius: BorderRadius.circular(8),
                             boxShadow: [
                               BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 4),
@@ -866,13 +1051,13 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
         setState(() => _addedActions[index]['channel'] = next);
       },
       child: Container(
-        width: 56, height: 56,
+        width: 50, height: 50,
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.05),
+          color: AppColors.bg(context),
           shape: BoxShape.circle,
-          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+          border: Border.all(color: AppColors.borderCol(context)),
         ),
-        child: Icon(icon, color: Colors.white, size: 28),
+        child: Icon(icon, color: AppColors.text(context), size: 24),
       ),
     );
   }
@@ -889,6 +1074,312 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
           border: isSelected ? Border.all(color: Colors.pinkAccent) : null,
         ),
         child: Icon(icon, color: isSelected ? Colors.pinkAccent : Colors.grey, size: 20),
+      ),
+    );
+  }
+}
+
+/// Compact 2-segment toggle used for the trigger-type picker
+/// (Emotion / Sensor). Replaces the heavier blue-pill row that took
+/// up a full glass card.
+class _SegBtn extends StatelessWidget {
+  const _SegBtn({
+    required this.label,
+    required this.icon,
+    required this.active,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(vertical: 9),
+          decoration: BoxDecoration(
+            gradient: active
+                ? const LinearGradient(
+                    colors: [Color(0xFF2196F3), Color(0xFF00BFA5)])
+                : null,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 14,
+                color: active
+                    ? Colors.white
+                    : AppColors.textSub(context),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: active
+                      ? Colors.white
+                      : AppColors.textSub(context),
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Slim, gradient save button for the bottom of the create form.
+/// Replaces the 56px-tall solid-orange ElevatedButton that felt heavy.
+class _SaveButton extends StatelessWidget {
+  const _SaveButton({required this.isSaving, required this.onTap});
+  final bool isSaving;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 46,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: isSaving ? null : onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Ink(
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF2196F3), Color(0xFF00BFA5)],
+              ),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primaryBlue.withValues(alpha: 0.3),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Center(
+              child: isSaving
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.check_circle_outline,
+                            color: Colors.white, size: 16),
+                        SizedBox(width: 8),
+                        Text(
+                          'Save automation',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One suggested automation. Only carries enough to seed the form
+/// (name + trigger), not target devices — those vary per home so the
+/// user picks them after applying the preset.
+class _AutomationPreset {
+  const _AutomationPreset({
+    required this.name,
+    required this.icon,
+    required this.color,
+    required this.subtitle,
+    required this.triggerType,
+    this.emotion,
+    this.sensorType,
+    this.sensorOperator,
+    this.sensorValue,
+  });
+
+  final String name;
+  final IconData icon;
+  final Color color;
+  final String subtitle;
+  final String triggerType; // 'ai' | 'sensor'
+  final String? emotion;
+  final String? sensorType;
+  final String? sensorOperator;
+  final String? sensorValue;
+}
+
+/// Horizontal scroll of suggested presets at the top of the create form.
+/// Tap to seed the rest of the form with sensible defaults.
+class _SuggestedRow extends StatelessWidget {
+  const _SuggestedRow({required this.onPick});
+
+  final void Function(_AutomationPreset p) onPick;
+
+  static final List<_AutomationPreset> _presets = [
+    const _AutomationPreset(
+      name: 'Cheer me up',
+      icon: Icons.sentiment_dissatisfied,
+      color: Color(0xFF7E8DAA),
+      subtitle: 'When I feel sad',
+      triggerType: 'ai',
+      emotion: 'sad',
+    ),
+    const _AutomationPreset(
+      name: 'Calm me down',
+      icon: Icons.local_fire_department,
+      color: Colors.redAccent,
+      subtitle: 'When I get angry',
+      triggerType: 'ai',
+      emotion: 'angry',
+    ),
+    const _AutomationPreset(
+      name: 'Cool the room',
+      icon: Icons.ac_unit,
+      color: Color(0xFF4FC3F7),
+      subtitle: 'Temperature ≥ 28°C',
+      triggerType: 'sensor',
+      sensorType: 'temperature',
+      sensorOperator: '>=',
+      sensorValue: '28',
+    ),
+    const _AutomationPreset(
+      name: 'Dehumidify',
+      icon: Icons.water_drop,
+      color: Color(0xFF26A69A),
+      subtitle: 'Humidity ≥ 70%',
+      triggerType: 'sensor',
+      sensorType: 'humidity',
+      sensorOperator: '>=',
+      sensorValue: '70',
+    ),
+    const _AutomationPreset(
+      name: 'Air alert',
+      icon: Icons.warning_amber_rounded,
+      color: Color(0xFFFFA726),
+      subtitle: 'Gas / air quality drops',
+      triggerType: 'sensor',
+      sensorType: 'gas_level',
+      sensorOperator: '>=',
+      sensorValue: '50',
+    ),
+    const _AutomationPreset(
+      name: 'Party time',
+      icon: Icons.celebration,
+      color: Color(0xFFE040FB),
+      subtitle: 'When I feel happy',
+      triggerType: 'ai',
+      emotion: 'happy',
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 72,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 2),
+        itemCount: _presets.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, i) {
+          final p = _presets[i];
+          return InkWell(
+            onTap: () => onPick(p),
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              width: 160,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppColors.card(context),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: p.color.withValues(alpha: 0.4),
+                ),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AppColors.card(context),
+                    Color.alphaBlend(
+                      p.color.withValues(alpha: 0.10),
+                      AppColors.card(context),
+                    ),
+                  ],
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: p.color.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(p.icon, color: p.color, size: 16),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          p.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: AppColors.text(context),
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          p.subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: AppColors.textSub(context),
+                            fontSize: 10.5,
+                            height: 1.2,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
