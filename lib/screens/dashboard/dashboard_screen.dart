@@ -1,6 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:showcaseview/showcaseview.dart';
 import '../../constants/app_colors.dart';
+import '../../widgets/onboarding_keys.dart';
 import '../../widgets/temp_humidity_card.dart';
 import '../auth/login_screen.dart';
 import 'dart:convert';
@@ -17,6 +21,8 @@ import '../../providers/mood_provider.dart';
 import '../../providers/navigation_provider.dart';
 import 'home_selection_screen.dart';
 import '../../services/api_service.dart';
+import '../../services/scene_presets.dart';
+import '../../services/sensor_history_service.dart';
 import '../../services/spotify/spotify_api_client.dart';
 import '../ai_hub/widgets/mood_tracks_list.dart' show kSpeakerNamePrefix;
 import '../notifications/notification_screen.dart';
@@ -39,11 +45,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   String _temperature = "--";
   String _humidity = "--";
   String _lastHomeId = '';
+  List<SensorReading> _sensorHistory = const [];
   Timer? _dashboardPollingTimer;
 
   // Cached actuator list used by the Quick Access scenes.
   List<dynamic> _devices = [];
   String? _runningScene; // 'all_off' | 'movie' | 'bright' | null
+  List<ScenePreset> _slots = ScenePresets.all.take(4).toList();
 
   // Speaker control state. Mirrors property values from _devices and is
   // updated optimistically on user interaction so the UI feels instant.
@@ -67,6 +75,131 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   void initState() {
     super.initState();
     _fetchUserHomes();
+    _loadSlots();
+    _maybeStartOnboarding();
+  }
+
+  static const _onboardingKey = 'onboarding_done_v1';
+
+  Future<void> _maybeStartOnboarding() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(_onboardingKey) ?? false) return;
+    // Wait one frame so the Showcase targets are mounted before the
+    // tour starts; otherwise the first tooltip has nothing to anchor to.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ShowCaseWidget.of(context).startShowCase([
+        OnboardingKeys.hero,
+        OnboardingKeys.scenes,
+      ]);
+      prefs.setBool(_onboardingKey, true);
+    });
+  }
+
+  Future<void> _loadSlots() async {
+    final slots = await ScenePresets.loadSlots();
+    if (mounted) setState(() => _slots = slots);
+  }
+
+  Future<void> _replaceSlot(int index) async {
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppColors.bg(context),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.textSub(context).withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Text("Pick a scene for this slot",
+                    style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 4),
+                Text(
+                  "Long-press any slot on the dashboard to swap it out.",
+                  style: Theme.of(ctx).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 14),
+                Flexible(
+                  child: GridView.count(
+                    shrinkWrap: true,
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 10,
+                    crossAxisSpacing: 10,
+                    childAspectRatio: 2.5,
+                    children: ScenePresets.all
+                        .map((p) => InkWell(
+                              borderRadius: BorderRadius.circular(14),
+                              onTap: () => Navigator.pop(ctx, p.key),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: AppColors.card(ctx),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color: p.accent.withValues(alpha: 0.5),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 32,
+                                      height: 32,
+                                      decoration: BoxDecoration(
+                                        color: p.accent
+                                            .withValues(alpha: 0.18),
+                                        borderRadius:
+                                            BorderRadius.circular(10),
+                                      ),
+                                      child: Icon(p.icon,
+                                          color: p.accent, size: 18),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        p.label,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: AppColors.text(ctx),
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ))
+                        .toList(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+    if (picked != null) {
+      await ScenePresets.saveSlot(index, picked);
+      await _loadSlots();
+    }
   }
 
   Future<void> _fetchUserHomes() async {
@@ -289,6 +422,43 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             touched.add(id);
           }
           break;
+        case 'reading':
+          if (kind == 'led') {
+            commands.add([id, 'power', 'on']);
+            commands.add([id, 'brightness', '60']);
+            commands.add([id, 'color', '#FFD9A8']);
+            touched.add(id);
+          } else if (kind == 'tv') {
+            commands.add([id, 'power', 'off']);
+            touched.add(id);
+          }
+          break;
+        case 'sleep':
+          if (kind == 'led' || kind == 'tv' || kind == 'speaker') {
+            commands.add([id, 'power', 'off']);
+            touched.add(id);
+          }
+          break;
+        case 'party':
+          if (kind == 'led') {
+            commands.add([id, 'power', 'on']);
+            commands.add([id, 'brightness', '100']);
+            commands.add([id, 'color', '#FF00FF']);
+            touched.add(id);
+          } else if (kind == 'speaker') {
+            commands.add([id, 'power', 'on']);
+            commands.add([id, 'volume', '70']);
+            touched.add(id);
+          }
+          break;
+        case 'romance':
+          if (kind == 'led') {
+            commands.add([id, 'power', 'on']);
+            commands.add([id, 'brightness', '30']);
+            commands.add([id, 'color', '#FF4080']);
+            touched.add(id);
+          }
+          break;
       }
     }
 
@@ -401,7 +571,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     )),
                 const SizedBox(height: 6),
                 Text(
-                  "Each scene runs in parallel against the matching devices in this home.",
+                  "Each scene runs in parallel against the matching devices. Long-press a card to swap it for one of 8 presets.",
                   style: TextStyle(color: AppColors.textSub(context), fontSize: 13, height: 1.4),
                 ),
                 const SizedBox(height: 12),
@@ -467,6 +637,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       ),
     );
     if (ok == true) {
+      HapticFeedback.mediumImpact();
       await _runScene('all_off', 'All Off');
     }
   }
@@ -476,7 +647,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final data = await ApiService.fetchSensors(homeId);
     if (data != null && data['sensors'] != null) {
       final sensors = data['sensors'] as Map<String, dynamic>;
-      
+
       if (mounted) {
         setState(() {
           for (var deviceData in sensors.values) {
@@ -486,8 +657,29 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             }
           }
         });
+
+        // Persist this reading to the local 24h ring buffer so the
+        // sparkline keeps building over time. Same-bucket dedup is
+        // handled inside the service.
+        final tempNum = double.tryParse(_temperature);
+        final humNum = double.tryParse(_humidity);
+        if (tempNum != null || humNum != null) {
+          final updated = await SensorHistoryService.append(
+            homeId,
+            temperature: tempNum,
+            humidity: humNum,
+          );
+          if (mounted) {
+            setState(() => _sensorHistory = updated);
+          }
+        }
       }
     }
+  }
+
+  Future<void> _loadSensorHistory(String homeId) async {
+    final history = await SensorHistoryService.load(homeId);
+    if (mounted) setState(() => _sensorHistory = history);
   }
 
   // --- FUNCTION THAT FETCHES THE ENCRYPTED QR TOKEN FROM THE REAL API ---
@@ -664,8 +856,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 Switch.adaptive(
                   value: isOn,
                   activeThumbColor: Colors.pinkAccent,
-                  onChanged: (val) =>
-                      _setSpeakerProp(id, 'power', val ? 'on' : 'off'),
+                  onChanged: (val) {
+                    HapticFeedback.selectionClick();
+                    _setSpeakerProp(id, 'power', val ? 'on' : 'off');
+                  },
                 ),
               ],
             ),
@@ -832,6 +1026,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     if (homeId != null && homeId.isNotEmpty && homeId != _lastHomeId) {
        _lastHomeId = homeId;
        WidgetsBinding.instance.addPostFrameCallback((_) {
+         _loadSensorHistory(homeId);
          _fetchSensors(homeId);
          _fetchDevicesForScenes(homeId);
        });
@@ -849,13 +1044,39 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.bg(context),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.zero,
-        child: Column(
+      body: RefreshIndicator(
+        color: AppColors.primaryBlue,
+        backgroundColor: AppColors.card(context),
+        onRefresh: () async {
+          await Future.wait([
+            _fetchUserHomes(),
+            if (homeId != null && homeId.isNotEmpty) ...[
+              _fetchSensors(homeId),
+              _fetchDevicesForScenes(homeId),
+            ],
+          ]);
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.zero,
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // --- HERO HEADER (gradient) ---
-            _HeroHeader(
+            Showcase(
+              key: OnboardingKeys.hero,
+              title: 'Welcome to your home',
+              description:
+                  'This banner shows which home is active and your role. Tap the swap icon to switch homes.',
+              tooltipBackgroundColor: AppColors.primaryBlue,
+              textColor: Colors.white,
+              titleTextStyle: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+              descTextStyle: const TextStyle(color: Colors.white, fontSize: 13),
+              child: _HeroHeader(
               homeName: homeName,
               homeRole: homeRole,
               unreadCount: unreadCount,
@@ -889,6 +1110,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 );
               },
               onLogout: _handleLogout,
+              ),
             ),
 
             Padding(
@@ -911,6 +1133,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               TempHumidityCard(
                 temperature: _temperature,
                 humidity: _humidity,
+                history: _sensorHistory,
               ),
 
               ..._buildSpeakerSection(),
@@ -943,7 +1166,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               const SizedBox(height: 14),
-              GridView(
+              Showcase(
+                key: OnboardingKeys.scenes,
+                title: 'Quick Access scenes',
+                description:
+                    'Tap a scene to run it. Long-press any tile to swap it for one of 8 presets like Sleep, Reading, or Party.',
+                tooltipBackgroundColor: AppColors.primaryBlue,
+                textColor: Colors.white,
+                titleTextStyle: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+                descTextStyle:
+                    const TextStyle(color: Colors.white, fontSize: 13),
+                child: GridView(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 gridDelegate:
@@ -951,51 +1188,32 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   crossAxisCount: 2,
                   mainAxisSpacing: 12,
                   crossAxisSpacing: 12,
-                  // Fixed cell height — childAspectRatio was clipping the
-                  // 2-line description on narrow phones (~360dp width). 150
-                  // gives breathing room for icon-chip + title + description.
                   mainAxisExtent: 150,
                 ),
                 children: [
-                  SceneCard(
-                    icon: Icons.power_settings_new,
-                    label: 'All Off',
-                    description: 'Switch every device off',
-                    accent: AppColors.accentRed,
-                    loading: _runningScene == 'all_off',
-                    enabled: _runningScene == null,
-                    onTap: _confirmAllOff,
-                  ),
-                  SceneCard(
-                    icon: Icons.movie_creation,
-                    label: 'Movie',
-                    description: 'Dim warm · TV on · speakers off',
-                    accent: Colors.deepPurpleAccent,
-                    loading: _runningScene == 'movie',
-                    enabled: _runningScene == null,
-                    onTap: () => _runScene('movie', 'Movie'),
-                  ),
-                  SceneCard(
-                    icon: Icons.wb_sunny,
-                    label: 'Bright',
-                    description: 'Lights at full white',
-                    accent: Colors.amber.shade700,
-                    loading: _runningScene == 'bright',
-                    enabled: _runningScene == null,
-                    onTap: () => _runScene('bright', 'Bright'),
-                  ),
-                  SceneCard(
-                    icon: Icons.palette,
-                    label: 'Mood',
-                    description: 'AI emotion control',
-                    accent: Colors.pinkAccent,
-                    enabled: _runningScene == null,
-                    onTap: () {
-                      ref.read(aiSubTabProvider.notifier).setTab(0);
-                      ref.read(tabIndexProvider.notifier).setTab(1);
-                    },
-                  ),
+                  for (int i = 0; i < _slots.length; i++)
+                    SceneCard(
+                      icon: _slots[i].icon,
+                      label: _slots[i].label,
+                      description: _slots[i].description,
+                      accent: _slots[i].accent,
+                      loading: _runningScene == _slots[i].key,
+                      enabled: _runningScene == null,
+                      onLongPress: () => _replaceSlot(i),
+                      onTap: () {
+                        final key = _slots[i].key;
+                        if (key == 'all_off') {
+                          _confirmAllOff();
+                        } else if (key == 'mood') {
+                          ref.read(aiSubTabProvider.notifier).setTab(0);
+                          ref.read(tabIndexProvider.notifier).setTab(1);
+                        } else {
+                          _runScene(key, _slots[i].label);
+                        }
+                      },
+                    ),
                 ],
+                ),
               ),
 
               const SizedBox(height: 20),
@@ -1003,6 +1221,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
             ),
           ],
+        ),
         ),
       ),
     );
