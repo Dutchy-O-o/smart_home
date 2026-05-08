@@ -29,12 +29,17 @@ class SensorReading {
 }
 
 /// Lightweight local ring buffer of [SensorReading]s, scoped per home so
-/// switching homes doesn't mix series. Keeps up to [_maxReadings] (~24h
-/// worth at 5 minute spacing) and discards same-bucket duplicates.
+/// switching homes doesn't mix series. Keeps up to [_maxReadings] (~12h
+/// worth at 30 second spacing) and discards same-bucket duplicates.
+///
+/// Bucket size traded down from 5 minutes → 30 seconds so the dashboard
+/// sparkline appears within ~1 minute of a fresh install instead of
+/// making the user stare at a "collecting…" placeholder for 10 minutes.
 class SensorHistoryService {
-  static const _maxReadings = 288;
-  static const _bucketMs = 5 * 60 * 1000; // 5 minutes
-  static String _key(String homeId) => 'sensor_history_v1_$homeId';
+  static const _maxReadings = 1440;
+  static const _bucketMs = 30 * 1000; // 30 seconds
+  static const _retention = Duration(hours: 12);
+  static String _key(String homeId) => 'sensor_history_v2_$homeId';
 
   static Future<List<SensorReading>> load(String homeId) async {
     final prefs = await SharedPreferences.getInstance();
@@ -64,7 +69,7 @@ class SensorHistoryService {
     }
     final history = await load(homeId);
     final now = DateTime.now();
-    final cutoff = now.subtract(const Duration(hours: 24));
+    final cutoff = now.subtract(_retention);
 
     // Drop the previous reading if it's in the same 5-min bucket so we
     // don't fill the buffer with redundant samples from the 5-second poll.
