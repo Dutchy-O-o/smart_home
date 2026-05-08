@@ -5,8 +5,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../constants/app_colors.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/home_provider.dart';
 import '../../providers/mood_provider.dart';
 import '../../providers/theme_provider.dart';
+import '../../services/api_service.dart';
+import '../../services/scene_presets.dart';
+import '../../services/usage_stats_service.dart';
 import '../auth/login_screen.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -149,6 +153,84 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ),
       );
     }
+  }
+
+  /// Tucked-away submenu that still surfaces the legal-required pages
+  /// (Terms of Service + Open-Source Licenses) in case Apple/Google ever
+  /// asks for them, without cluttering the main profile screen.
+  void _showAboutSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.bg(context),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color:
+                          AppColors.textSub(ctx).withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  'About this app',
+                  style: TextStyle(
+                    color: AppColors.text(ctx),
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Smart Home v1.0',
+                  style: TextStyle(
+                    color: AppColors.textSub(ctx),
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ListTile(
+                  leading: const Icon(Icons.description,
+                      color: Colors.teal),
+                  title: Text('Terms of Service',
+                      style: TextStyle(color: AppColors.text(ctx))),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _showTerms();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.article_outlined,
+                      color: Colors.teal),
+                  title: Text('Open-Source Licenses',
+                      style: TextStyle(color: AppColors.text(ctx))),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    showLicensePage(
+                      context: context,
+                      applicationName: 'Smart Home',
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   void _showTerms() {
@@ -409,23 +491,15 @@ These terms may be updated. Continued use after an update constitutes acceptance
 
               const SizedBox(height: 24),
 
-              _sectionLabel('LEGAL'),
+              _sectionLabel('YOUR SMART HOME'),
+              const _UsageStatsPanel(),
+              const SizedBox(height: 8),
               _card([
                 _tile(
-                  icon: Icons.description,
-                  color: Colors.teal,
-                  title: 'Terms of Service',
-                  onTap: _showTerms,
-                ),
-                _divider(),
-                _tile(
-                  icon: Icons.article_outlined,
-                  color: Colors.teal,
-                  title: 'Open-Source Licenses',
-                  onTap: () => showLicensePage(
-                    context: context,
-                    applicationName: 'Smart Home',
-                  ),
+                  icon: Icons.gavel_outlined,
+                  color: AppColors.textSub(context),
+                  title: 'About this app',
+                  onTap: _showAboutSheet,
                 ),
               ]),
 
@@ -608,6 +682,177 @@ class _ThemeSegmented extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// 2x2 grid of personal usage stats — devices in this home, days
+/// active, top scene, AI conversations. Replaces the old "Legal"
+/// section in profile so users see something that's actually about
+/// them, not boilerplate.
+class _UsageStatsPanel extends ConsumerStatefulWidget {
+  const _UsageStatsPanel();
+
+  @override
+  ConsumerState<_UsageStatsPanel> createState() => _UsageStatsPanelState();
+}
+
+class _UsageStatsPanelState extends ConsumerState<_UsageStatsPanel> {
+  int _deviceCount = 0;
+  int _daysActive = 1;
+  int _chatTurns = 0;
+  String _topScene = '—';
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+  }
+
+  Future<void> _load() async {
+    final selectedHome = ref.read(selectedHomeProvider);
+    final homeId = (selectedHome?['home_id'] ??
+            selectedHome?['id'] ??
+            selectedHome?['homeid'])
+        ?.toString();
+
+    final results = await Future.wait([
+      UsageStatsService.daysActive(),
+      UsageStatsService.chatTurns(),
+      UsageStatsService.sceneCounts(),
+      if (homeId != null && homeId.isNotEmpty)
+        ApiService.fetchDevices(homeId)
+      else
+        Future.value(<dynamic>[]),
+    ]);
+
+    if (!mounted) return;
+
+    final days = results[0] as int;
+    final chat = results[1] as int;
+    final counts = results[2] as Map<String, int>;
+    final devices = (results[3] as List?) ?? const [];
+
+    String topKey = '';
+    int topVal = 0;
+    counts.forEach((k, v) {
+      if (v > topVal) {
+        topVal = v;
+        topKey = k;
+      }
+    });
+    final topLabel = topKey.isEmpty
+        ? '—'
+        : ScenePresets.byKey(topKey).label;
+
+    setState(() {
+      _deviceCount = devices.length;
+      _daysActive = days;
+      _chatTurns = chat;
+      _topScene = topLabel;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.count(
+      crossAxisCount: 2,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      mainAxisSpacing: 10,
+      crossAxisSpacing: 10,
+      childAspectRatio: 2.4,
+      children: [
+        _statTile(
+          context,
+          icon: Icons.devices_other,
+          color: AppColors.primaryBlue,
+          label: 'Devices',
+          value: '$_deviceCount',
+        ),
+        _statTile(
+          context,
+          icon: Icons.calendar_today,
+          color: AppColors.accentGreen,
+          label: 'Days active',
+          value: '$_daysActive',
+        ),
+        _statTile(
+          context,
+          icon: Icons.auto_awesome,
+          color: Colors.amber.shade700,
+          label: 'Top scene',
+          value: _topScene,
+        ),
+        _statTile(
+          context,
+          icon: Icons.smart_toy,
+          color: Colors.deepPurpleAccent,
+          label: 'AI chats',
+          value: '$_chatTurns',
+        ),
+      ],
+    );
+  }
+
+  Widget _statTile(
+    BuildContext context, {
+    required IconData icon,
+    required Color color,
+    required String label,
+    required String value,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.borderCol(context)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 16),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: AppColors.text(context),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    height: 1.0,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: AppColors.textSub(context),
+                    fontSize: 11,
+                    height: 1.0,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
