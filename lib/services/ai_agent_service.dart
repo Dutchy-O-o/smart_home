@@ -6,7 +6,8 @@ import 'api_service.dart';
 
 class ChatMessage {
   final String role; // 'user' or 'assistant'
-  final String content;
+  // Mutable so the chat screen can append streaming deltas in-place.
+  String content;
   final bool isToolAction;
 
   ChatMessage({required this.role, required this.content, this.isToolAction = false});
@@ -24,6 +25,10 @@ class AiAgentService {
     required String homeId,
     void Function(String action)? onToolAction,
     void Function(String mood, double confidence)? onSetMood,
+    /// Called with each text delta as the model streams its reply. The
+    /// caller appends to its bubble for a typewriter effect. Tool-use
+    /// turns don't emit text deltas — only the final response does.
+    void Function(String delta)? onTextDelta,
   }) async {
     if (!isConfigured) {
       return 'API key is not configured. Set it in lib/config/env.dart';
@@ -79,27 +84,37 @@ class AiAgentService {
       },
     ];
 
-    const systemPrompt = '''You are a helpful smart home AI assistant. You control devices, read sensors, manage automations, and track the user's emotional state.
+    const systemPrompt = '''You're the smart home assistant the user lives with — talk like a friend, not a manual.
 
-CRITICAL RULES:
-1. To control ANY device, ALWAYS call get_devices FIRST to get the exact "deviceid" field value.
-2. Use the "deviceid" value exactly as returned (e.g. "dev_abc123"), NOT the device name.
-3. For multiple property changes on one device, call control_device separately for each property.
-4. For power changes, use action="power" with value="on" or value="off".
-5. For brightness, use action="brightness" with an integer value like 100.
-6. ALWAYS send the control_device command when the user asks, even if the device appears to already be in that state. Device state data may be stale. Never skip a command because you think the device is already in the desired state.
-7. Report sensor data with proper units.
-8. Respond in English.
-9. Be concise and friendly.
-10. If the user mentions feeling something (e.g. "I'm sad", "I'm happy", "the scanner thought I was sad but I'm calm"), call set_mood to update their emotional state. Always confirm in your reply what you set.''';
+Voice & tone:
+- Warm, casual, human. Short sentences. Use the user's language (Turkish or English) naturally and match their register.
+- One thought per line. No headings, no bullet lists for normal chit-chat — only use a list when the user asks for one or there are clearly 3+ parallel items.
+- Don't restate the request before answering. Don't end with "Let me know if you need anything else!" — just stop when the answer is done.
+- React like a person. If something turned on, "Done — lights are on." If you couldn't find a device, "Hmm, I don't see a TV in this home."
+- Avoid robotic phrasing: never say "I have successfully executed", "As an AI", "I will now". Avoid emoji unless the user uses them first.
+- When confirming an action, lead with the result, not the process.
+
+How tools work (don't mention these to the user):
+- For ANY device control, call get_devices FIRST to grab the exact "deviceid" — never guess from the name.
+- Use the "deviceid" value exactly as returned (e.g. "dev_abc123").
+- For multiple property changes on one device, call control_device once per property.
+- power → "on" / "off". brightness/volume → 0-100. color → hex like "#FF8800". playback → "play" / "pause" / "stop".
+- Always send the control_device command when asked, even if the cached state looks right — state can be stale.
+- If the user describes how they feel ("I'm sad", "scanner got it wrong, I'm calm"), call set_mood and casually confirm.
+
+When reporting sensor data, give the number with its unit and a tiny human take ("23°C — pretty comfortable" rather than "Temperature: 23 degrees Celsius").''';
 
     var currentMessages = List<Map<String, dynamic>>.from(messages);
 
     for (int attempt = 0; attempt < 5; attempt++) {
-      final response = await _callApi(
+      // Stream the response so the UI can render text as it arrives.
+      // The streamed result includes both content blocks and stop_reason
+      // so we can keep the existing tool-use loop intact.
+      final response = await _callApiStream(
         system: systemPrompt,
         messages: currentMessages,
         tools: tools,
+        onTextDelta: onTextDelta,
       );
 
       if (response == null) {
@@ -215,36 +230,134 @@ CRITICAL RULES:
     }
   }
 
-  static Future<Map<String, dynamic>?> _callApi({
+  /// Streams the Anthropic /v1/messages response and reassembles it into
+  /// the same shape the non-streaming call returns ({ content, stop_reason }),
+  /// so the calling code can stay unchanged.
+  ///
+  /// SSE event types we care about:
+  ///  - content_block_start  → opens a new block (text or tool_use)
+  ///  - content_block_delta  → appends text or tool input json
+  ///  - content_block_stop   → finalizes the block
+  ///  - message_delta        → carries stop_reason
+  ///  - message_stop         → terminator
+  static Future<Map<String, dynamic>?> _callApiStream({
     required String system,
     required List<Map<String, dynamic>> messages,
     required List<Map<String, dynamic>> tools,
+    void Function(String delta)? onTextDelta,
   }) async {
     try {
-      final response = await http.post(
-        Uri.parse(_apiUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': _apiKey,
-          'anthropic-version': '2023-06-01',
-        },
-        body: jsonEncode({
-          'model': _model,
-          'max_tokens': 1024,
-          'system': system,
-          'messages': messages,
-          'tools': tools,
-        }),
-      );
+      final request = http.Request('POST', Uri.parse(_apiUrl));
+      request.headers.addAll({
+        'Content-Type': 'application/json',
+        'x-api-key': _apiKey,
+        'anthropic-version': '2023-06-01',
+      });
+      request.body = jsonEncode({
+        'model': _model,
+        'max_tokens': 1024,
+        'stream': true,
+        'system': system,
+        'messages': messages,
+        'tools': tools,
+      });
 
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        debugPrint('Claude API error: ${response.statusCode} ${response.body}');
+      final streamed = await http.Client().send(request);
+      if (streamed.statusCode != 200) {
+        final body = await streamed.stream.bytesToString();
+        debugPrint('Claude API error: ${streamed.statusCode} $body');
         return null;
       }
+
+      // Reassembled response — mirrors the non-streaming JSON shape.
+      final blocks = <Map<String, dynamic>>[];
+      final partialJson = <int, StringBuffer>{}; // index → tool input json
+      String? stopReason;
+
+      // Buffer SSE lines: each event is "event: …\ndata: {…}\n\n".
+      String buffer = '';
+      await for (final chunk in streamed.stream
+          .transform(const Utf8Decoder())) {
+        buffer += chunk;
+        while (true) {
+          final i = buffer.indexOf('\n\n');
+          if (i == -1) break;
+          final raw = buffer.substring(0, i);
+          buffer = buffer.substring(i + 2);
+
+          String? data;
+          for (final line in raw.split('\n')) {
+            if (line.startsWith('data: ')) data = line.substring(6);
+          }
+          if (data == null || data.isEmpty) continue;
+
+          Map<String, dynamic> evt;
+          try {
+            evt = jsonDecode(data) as Map<String, dynamic>;
+          } catch (_) {
+            continue;
+          }
+
+          final type = evt['type'];
+          if (type == 'content_block_start') {
+            final idx = evt['index'] as int;
+            final cb = Map<String, dynamic>.from(
+                evt['content_block'] as Map<String, dynamic>);
+            // Make sure indices align even if blocks arrive out of order.
+            while (blocks.length <= idx) {
+              blocks.add({'type': 'text', 'text': ''});
+            }
+            if (cb['type'] == 'text') {
+              blocks[idx] = {'type': 'text', 'text': cb['text'] ?? ''};
+            } else if (cb['type'] == 'tool_use') {
+              blocks[idx] = {
+                'type': 'tool_use',
+                'id': cb['id'],
+                'name': cb['name'],
+                'input': cb['input'] ?? <String, dynamic>{},
+              };
+              partialJson[idx] = StringBuffer();
+            }
+          } else if (type == 'content_block_delta') {
+            final idx = evt['index'] as int;
+            final delta = evt['delta'] as Map<String, dynamic>;
+            if (delta['type'] == 'text_delta') {
+              final text = (delta['text'] ?? '').toString();
+              if (idx < blocks.length && blocks[idx]['type'] == 'text') {
+                blocks[idx]['text'] = (blocks[idx]['text'] ?? '') + text;
+              }
+              if (text.isNotEmpty) onTextDelta?.call(text);
+            } else if (delta['type'] == 'input_json_delta') {
+              partialJson[idx] ??= StringBuffer();
+              partialJson[idx]!.write(delta['partial_json'] ?? '');
+            }
+          } else if (type == 'content_block_stop') {
+            final idx = evt['index'] as int;
+            final pj = partialJson[idx];
+            if (pj != null && idx < blocks.length &&
+                blocks[idx]['type'] == 'tool_use') {
+              try {
+                final parsed = jsonDecode(pj.toString());
+                if (parsed is Map<String, dynamic>) {
+                  blocks[idx]['input'] = parsed;
+                }
+              } catch (_) {/* leave as initial */}
+            }
+          } else if (type == 'message_delta') {
+            final delta = evt['delta'] as Map<String, dynamic>?;
+            stopReason = delta?['stop_reason']?.toString() ?? stopReason;
+          } else if (type == 'message_stop') {
+            // done — break out of stream consumption naturally.
+          }
+        }
+      }
+
+      return {
+        'content': blocks,
+        'stop_reason': stopReason ?? 'end_turn',
+      };
     } catch (e) {
-      debugPrint('Claude API connection error: $e');
+      debugPrint('Claude API stream error: $e');
       return null;
     }
   }

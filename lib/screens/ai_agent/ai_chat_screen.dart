@@ -4,9 +4,11 @@ import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../../constants/app_colors.dart';
+import '../../providers/alert_provider.dart';
 import '../../providers/home_provider.dart';
 import '../../providers/mood_provider.dart';
 import '../../services/ai_agent_service.dart';
+import '../../services/usage_stats_service.dart';
 
 class AiChatScreen extends ConsumerStatefulWidget {
   const AiChatScreen({super.key});
@@ -89,10 +91,16 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
 
     if (preset == null) _controller.clear();
 
+    // Pre-create the assistant bubble so we can append streaming deltas
+    // straight into it — no rebuild gap between "thinking" and "typing".
+    final streamingMsg = ChatMessage(role: 'assistant', content: '');
+
     setState(() {
       _messages.add(ChatMessage(role: 'user', content: text));
+      _messages.add(streamingMsg);
       _isLoading = true;
     });
+    UsageStatsService.recordChatTurn();
     _scrollToBottom();
 
     final selectedHome = ref.read(selectedHomeProvider);
@@ -106,26 +114,60 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
       onToolAction: (action) {
         if (mounted) {
           setState(() {
-            _messages.add(ChatMessage(role: 'assistant', content: action, isToolAction: true));
+            // Insert tool action just before the streaming bubble so the
+            // user sees what the assistant is doing, then the response
+            // streams in below.
+            _messages.insert(
+              _messages.length - 1,
+              ChatMessage(
+                  role: 'assistant',
+                  content: action,
+                  isToolAction: true),
+            );
           });
           _scrollToBottom();
+          // Log device-control actions to the alerts feed so the user
+          // can review what the assistant did even after closing the
+          // chat. Skip read-only / get_* tool calls.
+          if (action.startsWith('Controlling')) {
+            final now = DateTime.now();
+            final timeStr =
+                '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+            ref.read(alertListProvider.notifier).addAlert(AlertItem(
+                  id: now.millisecondsSinceEpoch.toString(),
+                  title: 'Assistant action',
+                  description: action,
+                  time: timeStr,
+                  type: AlertType.device,
+                  level: AlertLevel.info,
+                  isRead: true,
+                ));
+          }
         }
       },
       onSetMood: (mood, confidence) {
         ref.read(moodProvider.notifier).set(mood, confidence, source: 'chatbot');
       },
+      onTextDelta: (delta) {
+        if (!mounted) return;
+        setState(() {
+          streamingMsg.content += delta;
+        });
+        _scrollToBottom();
+      },
     );
 
-    _messages.removeWhere((m) => m.isToolAction);
-    _apiMessages.add({'role': 'assistant', 'content': response});
-
-    if (mounted) {
-      setState(() {
-        _messages.add(ChatMessage(role: 'assistant', content: response));
-        _isLoading = false;
-      });
-      _scrollToBottom();
-    }
+    if (!mounted) return;
+    setState(() {
+      // Strip in-flight tool-action chips, finalize streaming message.
+      _messages.removeWhere((m) => m.isToolAction);
+      // If streaming didn't fire (cold path / older endpoint), fall back
+      // to the full response so the bubble isn't empty.
+      if (streamingMsg.content.isEmpty) streamingMsg.content = response;
+      _isLoading = false;
+    });
+    _apiMessages.add({'role': 'assistant', 'content': streamingMsg.content});
+    _scrollToBottom();
   }
 
   void _scrollToBottom() {
@@ -227,10 +269,19 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                   : ListView.builder(
                       controller: _scrollController,
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      itemCount: _messages.length + (_isLoading ? 1 : 0),
+                      itemCount: _messages.length,
                       itemBuilder: (context, index) {
-                        if (index == _messages.length) return _buildTypingIndicator(context);
-                        return _buildMessageBubble(context, _messages[index]);
+                        final m = _messages[index];
+                        // While streaming, the trailing assistant bubble
+                        // starts empty — render a typing indicator there
+                        // until the first delta arrives.
+                        if (m.role == 'assistant' &&
+                            !m.isToolAction &&
+                            m.content.isEmpty &&
+                            _isLoading) {
+                          return _buildTypingIndicator(context);
+                        }
+                        return _buildMessageBubble(context, m);
                       },
                     ),
             ),
