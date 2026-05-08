@@ -14,7 +14,10 @@ import 'firebase_options.dart';
 import 'amplifyconfiguration.dart';
 import 'constants/app_colors.dart';
 import 'providers/auth_provider.dart';
+import 'providers/home_provider.dart';
 import 'providers/theme_provider.dart';
+import 'services/spotify_service.dart';
+import 'services/user_scope.dart';
 import 'theme/app_theme.dart';
 import 'providers/alert_provider.dart';
 import 'screens/dashboard/home_selection_screen.dart';
@@ -37,6 +40,19 @@ Future<void> main() async {
 
   // Load .env
   await dotenv.load(fileName: ".env");
+
+  // Restore the previously signed-in user id so per-user scoped data
+  // (mood history, scene slots, theme) is keyed correctly before any
+  // screen reads SharedPreferences.
+  await UserScope.bootstrap();
+
+  // Eagerly restore the Spotify OAuth token so the dashboard speaker
+  // pause/play works on first open. Previously this only happened when
+  // the user opened the Emotion Hub, so tapping pause from a cold
+  // start showed "Speaker not found" instead of stopping the music.
+  // Fire-and-forget — failure is harmless (user just sees the connect
+  // prompt as before).
+  SpotifyService.loadSavedToken();
 
   // --- 3. INIT FIREBASE AND LISTEN FOR NOTIFICATIONS ---
   try {
@@ -84,27 +100,49 @@ Future<void> main() async {
 
         AlertType alertType;
         AlertLevel alertLevel;
-        if (eventType == 'gas_leak') {
-          alertType = AlertType.security;
-          alertLevel = AlertLevel.critical;
-        } else if (eventType == 'earthquake') {
-          alertType = AlertType.security;
-          alertLevel = AlertLevel.critical;
-        } else {
-          alertType = AlertType.device;
-          alertLevel = AlertLevel.info;
+        switch (eventType) {
+          case 'gas_leak':
+          case 'earthquake':
+            // Life-safety events — critical security badges.
+            alertType = AlertType.security;
+            alertLevel = AlertLevel.critical;
+            break;
+          case 'rfid_unauthorized':
+          case 'rfid_denied':
+          case 'unauthorized_access':
+            // Someone tried to enter with a card we don't recognize.
+            // Not a fire-or-quake but still security-relevant — surface
+            // it under the Security filter at warning level so the user
+            // notices without being jolted into thinking the house is
+            // burning down.
+            alertType = AlertType.security;
+            alertLevel = AlertLevel.warning;
+            break;
+          default:
+            alertType = AlertType.device;
+            alertLevel = AlertLevel.info;
         }
 
-        container.read(alertListProvider.notifier).addAlert(
-          AlertItem(
-            id: now.millisecondsSinceEpoch.toString(),
-            title: title,
-            description: body,
-            time: timeStr,
-            type: alertType,
-            level: alertLevel,
-          ),
-        );
+        // Persist to AWS too — without this, the alert lives only in
+        // local memory and gets clobbered the next time the user opens
+        // the Notifications screen (which hydrates from /alerts).
+        final selectedHome = container.read(selectedHomeProvider);
+        final fcmHomeId = (selectedHome?['home_id'] ??
+                selectedHome?['id'] ??
+                selectedHome?['homeid'])
+            ?.toString() ??
+            '';
+        container.read(alertListProvider.notifier).addAlertSynced(
+              AlertItem(
+                id: now.millisecondsSinceEpoch.toString(),
+                title: title,
+                description: body,
+                time: timeStr,
+                type: alertType,
+                level: alertLevel,
+              ),
+              homeId: fcmHomeId,
+            );
 
         showDialog(
           // ignore: use_build_context_synchronously

@@ -23,6 +23,7 @@ import 'home_selection_screen.dart';
 import '../../services/api_service.dart';
 import '../../services/scene_presets.dart';
 import '../../services/sensor_history_service.dart';
+import '../../services/usage_stats_service.dart';
 import '../../services/spotify/spotify_api_client.dart';
 import '../ai_hub/widgets/mood_tracks_list.dart' show kSpeakerNamePrefix;
 import '../notifications/notification_screen.dart';
@@ -63,6 +64,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   /// not our DB, so we mirror what the user pressed and keep it shown until
   /// they press the opposite button.
   final Map<String, String> _playbackPulse = {}; // deviceId → 'play' | 'pause'
+
+  /// Currently-playing track from Spotify (title/artist), refreshed on
+  /// the dashboard poll so the speaker card can show "▶ Track — Artist".
+  Map<String, dynamic>? _nowPlaying;
 
   @override
   void dispose() {
@@ -471,10 +476,32 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ),
         );
       }
+      // Still log it — the user pressed a scene, expected something to
+      // happen, and got silence. Surfacing this in notifications helps
+      // them realize "I don't have a TV/LED yet" rather than thinking
+      // the app is broken.
+      final now = DateTime.now();
+      final timeStr =
+          '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+      ref.read(alertListProvider.notifier).addAlertSynced(
+            AlertItem(
+              id: now.millisecondsSinceEpoch.toString(),
+              title: 'Scene "$label" had no targets',
+              description:
+                  'No matching devices in this home — add a compatible '
+                  'device first.',
+              time: timeStr,
+              type: AlertType.device,
+              level: AlertLevel.warning,
+              isRead: true,
+            ),
+            homeId: homeId,
+          );
       return;
     }
 
     setState(() => _runningScene = key);
+    UsageStatsService.recordSceneRun(key);
     final results = await Future.wait(commands.map((c) => ApiService.sendCommand(
           homeId: homeId,
           deviceId: c[0] as String,
@@ -493,6 +520,28 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(msg), backgroundColor: color, duration: const Duration(seconds: 2)),
     );
+
+    // Log the scene run as a notification so the alerts screen has
+    // substance even on quiet days. Sensors/RFID are skipped so the
+    // count reflects actual actuator activity. Synced to AWS so it
+    // also shows up on the user's other devices.
+    final now = DateTime.now();
+    final timeStr =
+        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+    ref.read(alertListProvider.notifier).addAlertSynced(
+          AlertItem(
+            id: now.millisecondsSinceEpoch.toString(),
+            title: 'Scene "$label" ran',
+            description: fail == 0
+                ? '${touched.length} device${touched.length == 1 ? "" : "s"} updated.'
+                : '$ok of ${results.length} commands succeeded.',
+            time: timeStr,
+            type: AlertType.device,
+            level: fail == 0 ? AlertLevel.info : AlertLevel.warning,
+            isRead: true, // Don't badge — scenes are user-initiated.
+          ),
+          homeId: homeId,
+        );
   }
 
   void _showScenesInfoSheet() {
@@ -678,8 +727,23 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Future<void> _loadSensorHistory(String homeId) async {
-    final history = await SensorHistoryService.load(homeId);
+    // Try the server-side history first so the sparkline pops up with
+    // a full 12 h of real data; falls back to whatever we have locally
+    // when the AWS route isn't deployed yet (returns the same list).
+    final history = await SensorHistoryService.hydrateFromAws(homeId);
     if (mounted) setState(() => _sensorHistory = history);
+  }
+
+  Future<void> _fetchNowPlaying() async {
+    final track = await SpotifyApiClient.getCurrentlyPlaying();
+    if (!mounted) return;
+    // Only update if something changed, to avoid pointless rebuilds.
+    final newName = track?['track']?['name'];
+    final oldName = _nowPlaying?['track']?['name'];
+    if (newName != oldName ||
+        track?['is_playing'] != _nowPlaying?['is_playing']) {
+      setState(() => _nowPlaying = track);
+    }
   }
 
   // --- FUNCTION THAT FETCHES THE ENCRYPTED QR TOKEN FROM THE REAL API ---
@@ -842,14 +906,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             fontSize: 16,
                             fontWeight: FontWeight.bold),
                       ),
-                      Text(
-                        isOn ? 'Volume $vol%' : 'Off',
-                        style: TextStyle(
-                          color: isOn ? Colors.pinkAccent : AppColors.textSub(context),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                      _buildSpeakerSubtitle(isOn: isOn, volume: vol),
                     ],
                   ),
                 ),
@@ -958,15 +1015,40 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       _playbackPulse[deviceId] = value;
     });
 
-    final device = await SpotifyApiClient.findDeviceByPrefix(kSpeakerNamePrefix);
-    if (device == null) {
+    // Resolve the Spotify device id, with cascading fallbacks so we
+    // can still pause music that's already playing even when the
+    // device list query is cold.
+    String? spId;
+
+    // 1) Fast path: look the speaker up in /me/player/devices by its
+    //    AkilliEv-* name prefix.
+    final byPrefix =
+        await SpotifyApiClient.findDeviceByPrefix(kSpeakerNamePrefix);
+    if (byPrefix != null) spId = byPrefix['id']?.toString();
+
+    // 2) If that failed but something IS playing right now (the speaker
+    //    card already has a "now playing" indicator), grab the device
+    //    id straight off the active session — covers the case where
+    //    raspotify is mid-stream but hasn't (re-)registered with the
+    //    devices endpoint.
+    if (spId == null) {
+      final nowPlaying = _nowPlaying ??
+          await SpotifyApiClient.getCurrentlyPlaying();
+      final dev = nowPlaying?['device'];
+      if (dev is Map && dev['id'] != null) spId = dev['id'].toString();
+    }
+
+    if (spId == null) {
       if (!mounted) return;
       messenger.showSnackBar(const SnackBar(
-        content: Text('Hoparlör Spotify ağında bulunamadı — Pi açık mı?'),
+        content: Text(
+            'Hoparlör Spotify ağında görünmüyor — açıkken bir şarkı '
+            'çalıp tekrar deneyin.'),
+        duration: Duration(seconds: 3),
       ));
       return;
     }
-    final spId = device['id'].toString();
+
     bool ok = false;
     switch (value) {
       case 'play':
@@ -982,6 +1064,52 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         content: Text('Playback komutu başarısız (Premium hesap gerekir).'),
       ));
     }
+  }
+
+  /// Speaker card subtitle. Shows the currently playing track + artist
+  /// when Spotify is reporting a track (whether actively playing or
+  /// paused), otherwise falls back to "Volume X%" / "Off". Track name is
+  /// truncated with ellipsis so long titles don't break the layout.
+  Widget _buildSpeakerSubtitle({required bool isOn, required int volume}) {
+    final track = _nowPlaying?['track'] as Map?;
+    final trackName = (track?['name'] ?? '').toString();
+    final artist = (track?['artist'] ?? '').toString();
+    final isPlaying = _nowPlaying?['is_playing'] == true;
+    final hasTrack = trackName.isNotEmpty;
+
+    if (isOn && hasTrack) {
+      return Row(
+        children: [
+          Icon(
+            isPlaying ? Icons.graphic_eq : Icons.pause_circle_outline,
+            size: 12,
+            color: Colors.pinkAccent,
+          ),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              artist.isEmpty ? trackName : '$trackName · $artist',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.pinkAccent,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Text(
+      isOn ? 'Volume $volume%' : 'Off',
+      style: TextStyle(
+        color: isOn ? Colors.pinkAccent : AppColors.textSub(context),
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+      ),
+    );
   }
 
   Widget _buildPlaybackBtn(String id, IconData icon, String value, bool selected) {
@@ -1029,6 +1157,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
          _loadSensorHistory(homeId);
          _fetchSensors(homeId);
          _fetchDevicesForScenes(homeId);
+         _fetchNowPlaying();
        });
 
        _dashboardPollingTimer?.cancel();
@@ -1036,6 +1165,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
          if (!mounted) return;
          _fetchSensors(homeId);
          _fetchDevicesForScenes(homeId); // keep speaker card state fresh
+         _fetchNowPlaying();
        });
     }
 
