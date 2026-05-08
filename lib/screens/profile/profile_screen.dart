@@ -258,7 +258,6 @@ These terms may be updated. Continued use after an update constitutes acceptance
         ? givenName
         : (email.isNotEmpty ? email.split('@').first : 'User');
     final themeMode = ref.watch(themeProvider);
-    final isDark = themeMode == ThemeMode.dark;
 
     return Scaffold(
       backgroundColor: AppColors.bg(context),
@@ -370,30 +369,41 @@ These terms may be updated. Continued use after an update constitutes acceptance
                   onChanged: _setPush,
                 ),
                 _divider(),
-                SwitchListTile(
-                  activeColor: AppColors.primaryBlue,
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  secondary: _iconBadge(
-                      isDark ? Icons.dark_mode : Icons.light_mode,
-                      Colors.amber),
-                  title: Text(
-                    'Dark Theme',
-                    style: TextStyle(
-                      color: AppColors.text(context),
-                      fontWeight: FontWeight.bold,
-                    ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      _iconBadge(
+                          themeMode == ThemeMode.dark
+                              ? Icons.dark_mode
+                              : themeMode == ThemeMode.light
+                                  ? Icons.light_mode
+                                  : Icons.brightness_auto,
+                          Colors.amber),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Appearance',
+                              style: TextStyle(
+                                color: AppColors.text(context),
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            _ThemeSegmented(
+                              mode: themeMode,
+                              onChanged: (m) =>
+                                  ref.read(themeProvider.notifier).setMode(m),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                  subtitle: Text(
-                    isDark ? 'Dark appearance' : 'Light appearance',
-                    style: TextStyle(
-                      color: AppColors.textSub(context),
-                      fontSize: 12,
-                    ),
-                  ),
-                  value: isDark,
-                  onChanged: (_) =>
-                      ref.read(themeProvider.notifier).toggle(),
                 ),
               ]),
 
@@ -525,6 +535,79 @@ These terms may be updated. Continued use after an update constitutes acceptance
         Icons.arrow_forward_ios,
         color: AppColors.textSub(context),
         size: 14,
+      ),
+    );
+  }
+}
+
+/// 3-way Auto / Light / Dark segmented control for the appearance picker.
+/// Highlighted segment uses the brand gradient and a shadow.
+class _ThemeSegmented extends StatelessWidget {
+  const _ThemeSegmented({required this.mode, required this.onChanged});
+
+  final ThemeMode mode;
+  final ValueChanged<ThemeMode> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AppColors.bg(context),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.borderCol(context)),
+      ),
+      child: Row(
+        children: [
+          _seg(context, ThemeMode.system, Icons.brightness_auto, 'Auto'),
+          _seg(context, ThemeMode.light, Icons.light_mode, 'Light'),
+          _seg(context, ThemeMode.dark, Icons.dark_mode, 'Dark'),
+        ],
+      ),
+    );
+  }
+
+  Widget _seg(BuildContext c, ThemeMode m, IconData icon, String label) {
+    final active = mode == m;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => onChanged(m),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          height: 36,
+          decoration: BoxDecoration(
+            gradient: active
+                ? const LinearGradient(
+                    colors: [Color(0xFF2196F3), Color(0xFF00BFA5)],
+                  )
+                : null,
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: active
+                ? [
+                    BoxShadow(
+                      color: AppColors.primaryBlue.withValues(alpha: 0.35),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon,
+                  size: 14,
+                  color: active ? Colors.white : AppColors.textSub(c)),
+              const SizedBox(width: 4),
+              Text(label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: active ? Colors.white : AppColors.textSub(c),
+                  )),
+            ],
+          ),
+        ),
       ),
     );
   }
