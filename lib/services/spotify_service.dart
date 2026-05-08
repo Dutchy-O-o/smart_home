@@ -49,6 +49,7 @@ class SpotifyService {
     required String mood,
     double confidence = 0.94,
     int limit = 10,
+    bool forceRefresh = false,
   }) async {
     final result = <String, dynamic>{
       'timestamp': DateTime.now().toIso8601String(),
@@ -83,8 +84,11 @@ class SpotifyService {
     // Primary: Claude-driven agent that proposes real songs grounded in the
     // user's listening profile, then resolves each to a real Spotify track.
     if (SpotifyClaudeAgent.isConfigured) {
-      final claudeResult =
-          await SpotifyClaudeAgent.recommend(mood: mood, limit: limit);
+      final claudeResult = await SpotifyClaudeAgent.recommend(
+        mood: mood,
+        limit: limit,
+        forceRefresh: forceRefresh,
+      );
       result['claude_attempt'] = claudeResult;
       if (claudeResult['success'] == true) {
         recommendations =

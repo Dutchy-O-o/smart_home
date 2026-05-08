@@ -399,6 +399,7 @@ class SpotifyApiClient {
         final item = data['item'];
         if (item == null) return null;
         final artists = (item['artists'] as List?) ?? const [];
+        final dev = data['device'];
         return {
           'is_playing': data['is_playing'],
           'track': {
@@ -407,6 +408,15 @@ class SpotifyApiClient {
             'album': item['album']?['name'],
             'uri': item['uri'],
             'id': item['id'],
+          },
+          // Device info from the playback session — useful as a
+          // fallback when /me/player/devices doesn't surface the active
+          // speaker (e.g. raspotify just woke up and isn't in the
+          // device list yet, but is already streaming).
+          if (dev is Map<String, dynamic>) 'device': {
+            'id': dev['id'],
+            'name': dev['name'],
+            'type': dev['type'],
           },
           'progress_ms': data['progress_ms'],
           'duration_ms': item['duration_ms'],

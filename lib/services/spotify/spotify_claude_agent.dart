@@ -28,11 +28,25 @@ class SpotifyClaudeAgent {
 
   static final Map<String, _CacheEntry> _cache = {};
 
+  /// Per-mood rolling memory of titles we've previously suggested in
+  /// this app session. Each refresh adds the new batch and the next
+  /// refresh sends the accumulated set to Claude as a "do not repeat"
+  /// list — which is what actually forces the model to find different
+  /// songs (the variety_seed alone wasn't strong enough; Claude kept
+  /// pattern-matching on the same dominant artists).
+  static final Map<String, Set<String>> _seenTitlesByMood = {};
+  static const int _seenTitlesCap = 80; // ~4 refreshes worth before reset
+
   /// Returns { success, tracks, diagnostics } matching SpotifyMoodCatalog.
   /// Returns success=false on any failure so callers can fall back.
+  ///
+  /// Pass [forceRefresh] = true to bypass the in-memory cache and ask
+  /// Claude for a fresh batch of candidates (used by the Mood Tracks
+  /// "refresh" button so consecutive taps yield different songs).
   static Future<Map<String, dynamic>> recommend({
     required String mood,
     int limit = 10,
+    bool forceRefresh = false,
   }) async {
     final diag = <String, dynamic>{'mood': mood, 'agent': 'claude_haiku'};
 
@@ -42,14 +56,16 @@ class SpotifyClaudeAgent {
     }
 
     final cacheKey = mood.toLowerCase();
-    final cached = _cache[cacheKey];
-    if (cached != null && !cached.isExpired) {
-      diag['cache_hit'] = true;
-      return {
-        'success': cached.tracks.isNotEmpty,
-        'tracks': cached.tracks.take(limit).toList(),
-        'diagnostics': diag,
-      };
+    if (!forceRefresh) {
+      final cached = _cache[cacheKey];
+      if (cached != null && !cached.isExpired) {
+        diag['cache_hit'] = true;
+        return {
+          'success': cached.tracks.isNotEmpty,
+          'tracks': cached.tracks.take(limit).toList(),
+          'diagnostics': diag,
+        };
+      }
     }
 
     // 1. Build user listening profile from working Spotify endpoints.
@@ -64,7 +80,17 @@ class SpotifyClaudeAgent {
     }
 
     // 2. Ask Claude for candidate songs grounded in that profile.
-    final candidates = await _askClaude(mood: mood, profile: profile);
+    // On refresh, send the running list of previously-suggested titles
+    // for this mood as an explicit exclusion so Claude HAS to find new
+    // songs instead of pattern-matching back to the same dominant
+    // artists. The first call passes an empty exclusion set.
+    final excluded = (_seenTitlesByMood[cacheKey] ?? const <String>{})
+        .toList(growable: false);
+    final candidates = await _askClaude(
+      mood: mood,
+      profile: profile,
+      excludeTitles: excluded,
+    );
     diag['claude_candidates'] = candidates.length;
     if (candidates.isEmpty) {
       diag['error'] = 'claude_returned_no_candidates';
@@ -82,9 +108,26 @@ class SpotifyClaudeAgent {
 
     _cache[cacheKey] = _CacheEntry(resolved);
 
+    // Remember every title we just returned so the next refresh
+    // for this mood is forced to diverge. Cap at _seenTitlesCap so
+    // the prompt doesn't balloon and so users eventually see
+    // historical recommendations again after enough refreshes.
+    final seen = _seenTitlesByMood.putIfAbsent(cacheKey, () => <String>{});
+    for (final t in resolved) {
+      final name = (t['name'] ?? '').toString().toLowerCase();
+      if (name.isNotEmpty) seen.add(name);
+    }
+    if (seen.length > _seenTitlesCap) {
+      // Drop the oldest by reconstructing from the tail.
+      final tail = seen.toList()
+          .sublist(seen.length - _seenTitlesCap);
+      _seenTitlesByMood[cacheKey] = tail.toSet();
+    }
+
     await SpotifyLogger.log('CLAUDE_AGENT', {
       ...diag,
       'final_count': resolved.length,
+      'excluded_count': excluded.length,
     });
 
     return {
@@ -149,6 +192,7 @@ class SpotifyClaudeAgent {
   static Future<List<_Candidate>> _askClaude({
     required String mood,
     required _ListenerProfile profile,
+    List<String> excludeTitles = const [],
   }) async {
     const system = '''You are a music curator for ONE specific listener. Your job: produce a personal list that feels hand-picked — NOT a generic mood playlist that anyone could get from a Spotify editorial.
 
@@ -159,6 +203,7 @@ COMPOSITION (strict targets for a list of N tracks):
 
 HARD BANS:
 - Do NOT suggest any song title that appears in `sample_liked_tracks` or `recent_tracks`. The listener already has those.
+- Do NOT suggest any song title that appears in `previously_suggested_do_not_repeat`. We already showed those — the user is refreshing because they want SOMETHING DIFFERENT. Find new songs, even if you have to dig deeper into the artist's discography or branch into adjacent acts.
 - Do NOT fall back to textbook mood anthems ("Happy" by Pharrell, "Walking on Sunshine", "Firework", "Roar", "Don't Stop Believin'", "Someone Like You", "Fix You", "Killing in the Name", etc.) UNLESS the artist literally appears in `top_artists`.
 - Do NOT pad the list with household-name pop stars (Dua Lipa, Ed Sheeran, Taylor Swift, Bruno Mars, Ariana Grande, Katy Perry, P!nk, Coldplay, etc.) unless they are in `top_artists` or demonstrably core to the listener's profile.
 
@@ -179,6 +224,11 @@ Return exactly N tracks.''';
       'sample_liked_tracks': profile.sampleTracks,
       'recent_tracks': profile.recentTracks,
       'already_known_titles_do_not_repeat': profile.knownTitles,
+      // What we suggested in earlier refresh calls for this same mood.
+      // Claude must not repeat any of them — this is the actual
+      // mechanism that gives the user fresh tracks each refresh.
+      'previously_suggested_do_not_repeat': excludeTitles,
+      'variety_seed': DateTime.now().millisecondsSinceEpoch,
     };
 
     final userMessage =
@@ -187,6 +237,7 @@ Return exactly N tracks.''';
     final body = jsonEncode({
       'model': _model,
       'max_tokens': 1500,
+      'temperature': 1.0,
       'system': system,
       'messages': [
         {'role': 'user', 'content': userMessage},

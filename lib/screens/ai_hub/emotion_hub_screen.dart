@@ -10,10 +10,12 @@ import '../../services/emotion_api_service.dart';
 import '../../services/spotify_service.dart';
 import '../../services/api_service.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/mood_history_service.dart';
 import 'widgets/ambient_section.dart';
 import 'widgets/mood_card.dart';
 import 'widgets/mood_picker_sheet.dart';
 import 'widgets/mood_tracks_list.dart';
+import 'widgets/mood_weekly_heatmap.dart';
 import 'widgets/scan_area.dart';
 
 class EmotionHubScreen extends ConsumerStatefulWidget {
@@ -30,11 +32,26 @@ class _EmotionHubScreenState extends ConsumerState<EmotionHubScreen> {
   bool _spotifyLoading = false;
   List<Map<String, dynamic>>? _currentTracks;
 
+  // Local 7-day mood heatmap data, refreshed after every set() and on
+  // first build. Cached so we don't refetch from disk on each rebuild.
+  Map<int, Map<int, String>> _weeklyMoodGrid = const {};
+
+  Future<void> _refreshMoodGrid() async {
+    final selectedHome = ref.read(selectedHomeProvider);
+    final homeId = (selectedHome?['home_id'] ??
+            selectedHome?['id'] ??
+            selectedHome?['homeid'])
+        ?.toString();
+    final grid = await MoodHistoryService.weeklyGrid(homeId: homeId);
+    if (mounted) setState(() => _weeklyMoodGrid = grid);
+  }
+
   @override
   void initState() {
     super.initState();
     _initSpotify();
     _fetchLastEmotion();
+    _refreshMoodGrid();
   }
 
   Future<void> _fetchLastEmotion() async {
@@ -75,7 +92,7 @@ class _EmotionHubScreenState extends ConsumerState<EmotionHubScreen> {
     }
   }
 
-  Future<void> _fetchMoodTracks() async {
+  Future<void> _fetchMoodTracks({bool forceRefresh = false}) async {
     final mood = ref.read(moodProvider).mood;
     if (mood == null) return;
     setState(() => _spotifyLoading = true);
@@ -84,6 +101,7 @@ class _EmotionHubScreenState extends ConsumerState<EmotionHubScreen> {
       mood: mood,
       confidence: ref.read(moodProvider).confidence,
       limit: 5,
+      forceRefresh: forceRefresh,
     );
 
     if (mounted) {
@@ -176,7 +194,15 @@ class _EmotionHubScreenState extends ConsumerState<EmotionHubScreen> {
         if (next.mood != prev?.mood) {
           _fetchMoodTracks();
         }
-        
+        // Mood was just appended to local history by the provider in
+        // a fire-and-forget write. Wait a beat so the disk has time to
+        // settle before we re-read it for the grid; without this the
+        // heatmap would show stale data on the cell that just got the
+        // new entry.
+        if (next.source != 'init') {
+          Future.delayed(const Duration(milliseconds: 350), _refreshMoodGrid);
+        }
+
         if (next.source != 'init') {
           final selectedHome = ref.read(selectedHomeProvider);
           final homeId = (selectedHome?['home_id'] ?? selectedHome?['id'] ?? selectedHome?['homeid'])?.toString();
@@ -225,7 +251,12 @@ class _EmotionHubScreenState extends ConsumerState<EmotionHubScreen> {
                       mood: mood.mood,
                       confidence: mood.confidence,
                     ),
-                    const SizedBox(height: 36),
+                    const SizedBox(height: 24),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: MoodWeeklyHeatmap(grid: _weeklyMoodGrid),
+                    ),
+                    const SizedBox(height: 28),
                     MoodTracksList(
                       isConnected: isConnected,
                       isLoading: _spotifyLoading,
@@ -233,7 +264,7 @@ class _EmotionHubScreenState extends ConsumerState<EmotionHubScreen> {
                       tracks: _currentTracks,
                       moodColor: moodColor,
                       onConnect: _connectSpotify,
-                      onRefresh: _fetchMoodTracks,
+                      onRefresh: () => _fetchMoodTracks(forceRefresh: true),
                     ),
                     const SizedBox(height: 28),
                     AmbientSection(mood: mood.mood),
