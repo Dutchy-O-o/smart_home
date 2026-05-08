@@ -50,20 +50,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   final Map<String, Map<String, dynamic>> _speakerStates = {};
   Timer? _speakerVolumeDebounce;
 
-  /// Transient highlight for the playback button the user just tapped —
-  /// purely visual feedback, NOT real playback state (which lives in the
-  /// user's Spotify session, not our DB). Cleared after [_playbackPulseMs].
+  /// Persistent highlight for the last playback action (play / pause). Local
+  /// feedback only — real playback state lives in the user's Spotify session,
+  /// not our DB, so we mirror what the user pressed and keep it shown until
+  /// they press the opposite button.
   final Map<String, String> _playbackPulse = {}; // deviceId → 'play' | 'pause'
-  final Map<String, Timer> _playbackPulseTimers = {};
-  static const _playbackPulseMs = 800;
 
   @override
   void dispose() {
     _dashboardPollingTimer?.cancel();
     _speakerVolumeDebounce?.cancel();
-    for (final t in _playbackPulseTimers.values) {
-      t.cancel();
-    }
     super.dispose();
   }
 
@@ -677,9 +673,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                // Highlight'ı geçici tutuyoruz — gerçek playback durumu
-                // Spotify cloud'da yaşıyor, DB'den okumak stale veri verir.
-                // Sadece son tıklanan buton ~800ms parlar.
+                // Persistent highlight — last tapped button stays selected so
+                // the user can see at a glance whether the speaker is in play
+                // or pause mode (real Spotify state isn't read back).
                 _buildPlaybackBtn(id, Icons.play_arrow, 'play',
                     _playbackPulse[id] == 'play'),
                 _buildPlaybackBtn(id, Icons.pause, 'pause',
@@ -767,14 +763,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       _speakerStates[deviceId]!['playback'] = value;
       _playbackPulse[deviceId] = value;
     });
-    _playbackPulseTimers[deviceId]?.cancel();
-    _playbackPulseTimers[deviceId] = Timer(
-      const Duration(milliseconds: _playbackPulseMs),
-      () {
-        if (!mounted) return;
-        setState(() => _playbackPulse.remove(deviceId));
-      },
-    );
 
     final device = await SpotifyApiClient.findDeviceByPrefix(kSpeakerNamePrefix);
     if (device == null) {
@@ -955,13 +943,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               const SizedBox(height: 14),
-              GridView.count(
-                crossAxisCount: 2,
+              GridView(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 1.55,
+                gridDelegate:
+                    const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  // Fixed cell height — childAspectRatio was clipping the
+                  // 2-line description on narrow phones (~360dp width). 150
+                  // gives breathing room for icon-chip + title + description.
+                  mainAxisExtent: 150,
+                ),
                 children: [
                   SceneCard(
                     icon: Icons.power_settings_new,

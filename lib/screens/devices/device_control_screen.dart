@@ -32,11 +32,11 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
   final Map<String, DateTime> _localOverrideUntil = {};
   static const _localOverrideHold = Duration(seconds: 4);
 
-  /// Transient pulse for the playback button the user just tapped — purely
-  /// visual feedback, NOT real playback state.
+  /// Persistent highlight for the last playback action (play / pause). Local
+  /// feedback only — real playback state lives in the user's Spotify session,
+  /// not our DB, so we mirror what the user pressed and keep it shown until
+  /// they press the opposite button.
   final Map<String, String> _playbackPulse = {}; // deviceId → 'play' | 'pause'
-  final Map<String, Timer> _playbackPulseTimers = {};
-  static const _playbackPulseMs = 800;
   Timer? _dataPollingTimer;
 
   // Animation Controller
@@ -67,9 +67,6 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
     _dataPollingTimer?.cancel();
     for (final timer in _debounceTimers.values) {
       timer?.cancel();
-    }
-    for (final t in _playbackPulseTimers.values) {
-      t.cancel();
     }
     super.dispose();
   }
@@ -244,14 +241,6 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
       _deviceStates[deviceId]!['playback'] = value;
       _playbackPulse[deviceId] = value;
     });
-    _playbackPulseTimers[deviceId]?.cancel();
-    _playbackPulseTimers[deviceId] = Timer(
-      const Duration(milliseconds: _playbackPulseMs),
-      () {
-        if (!mounted) return;
-        setState(() => _playbackPulse.remove(deviceId));
-      },
-    );
 
     final device = await SpotifyApiClient.findDeviceByPrefix(kSpeakerNamePrefix);
     if (device == null) {
