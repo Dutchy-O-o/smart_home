@@ -12,14 +12,16 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../providers/home_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/alert_provider.dart';
 import '../../providers/mood_provider.dart';
 import '../../providers/navigation_provider.dart';
 import 'home_selection_screen.dart';
 import '../../services/api_service.dart';
 import '../../services/spotify/spotify_api_client.dart';
 import '../ai_hub/widgets/mood_tracks_list.dart' show kSpeakerNamePrefix;
+import '../notifications/notification_screen.dart';
 import 'widgets/my_homes_list.dart';
-import 'widgets/quick_access_button.dart';
+import 'widgets/scene_card.dart';
 import 'widgets/system_status_card.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
@@ -732,7 +734,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             if (speakers.length > 1) ...[
               const SizedBox(height: 8),
               GestureDetector(
-                onTap: () => ref.read(tabIndexProvider.notifier).setTab(4),
+                onTap: () => ref.read(tabIndexProvider.notifier).setTab(3),
                 child: Row(
                   children: [
                     Text(
@@ -832,22 +834,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  // --- Helper widget to align the round buttons in the top menu ---
-  Widget _buildHeaderBtn(IconData icon, Color color, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.15),
-          shape: BoxShape.circle,
-        ),
-        child: Icon(icon, color: color, size: 20),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final selectedHome = ref.watch(selectedHomeProvider);
@@ -870,107 +856,59 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
        });
     }
 
+    final unreadCount =
+        ref.watch(alertListProvider).where((a) => !a.isRead).length;
+
     return Scaffold(
       backgroundColor: AppColors.bg(context),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // --- SLEEK AND SPACIOUS TOP MENU ---
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      body: SingleChildScrollView(
+        padding: EdgeInsets.zero,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // --- HERO HEADER (gradient) ---
+            _HeroHeader(
+              homeName: homeName,
+              homeRole: homeRole,
+              unreadCount: unreadCount,
+              onProfile: () =>
+                  ref.read(tabIndexProvider.notifier).setTab(4),
+              onSwap: () {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const HomeSelectionScreen(),
+                  ),
+                );
+              },
+              onQr: homeRole == 'ADMIN'
+                  ? () {
+                      final currentHomeId = selectedHome?['home_id'] ??
+                          selectedHome?['id'] ??
+                          selectedHome?['homeid'];
+                      if (currentHomeId != null) {
+                        _generateAndShowQr(
+                            currentHomeId.toString(), homeName);
+                      }
+                    }
+                  : null,
+              onNotifications: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const NotificationScreen(),
+                  ),
+                );
+              },
+              onLogout: _handleLogout,
+            ),
+
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Row(
-                      children: [
-                        GestureDetector(
-                          onTap: () {
-                            ref.read(tabIndexProvider.notifier).setTab(6);
-                          },
-                          child: CircleAvatar(
-                            radius: 22,
-                            backgroundColor: AppColors.card(context),
-                            child: Icon(Icons.person, color: AppColors.iconDefault(context)),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Text("Welcome Back", style: TextStyle(color: AppColors.textSub(context), fontSize: 12)),
-                                  const SizedBox(width: 8),
-                                  Container(width: 6, height: 6, decoration: const BoxDecoration(color: AppColors.accentGreen, shape: BoxShape.circle)),
-                                  const SizedBox(width: 4),
-                                  const Icon(Icons.wifi, color: AppColors.accentGreen, size: 12),
-                                ],
-                              ),
-                              const SizedBox(height: 2),
-                              Row(
-                                children: [
-                                  Flexible(
-                                    child: Text(
-                                      homeName,
-                                      style: TextStyle(color: AppColors.text(context), fontSize: 18, fontWeight: FontWeight.bold),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  if (homeRole.isNotEmpty) ...[
-                                    const SizedBox(width: 8),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                      decoration: BoxDecoration(color: AppColors.primaryBlue.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(4)),
-                                      child: Text(homeRole, style: const TextStyle(color: AppColors.primaryBlue, fontSize: 10, fontWeight: FontWeight.bold)),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // --- RIGHT SIDE: Action Buttons ---
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (homeRole == 'ADMIN') ...[
-                        _buildHeaderBtn(Icons.qr_code, AppColors.accentGreen, () {
-                          
-                          // HERE'S THE MAGIC TOUCH: 'homeid' added!
-                          final currentHomeId = selectedHome?['home_id'] ?? selectedHome?['id'] ?? selectedHome?['homeid'];
-
-                          if (currentHomeId != null) {
-                            _generateAndShowQr(currentHomeId.toString(), homeName);
-                          } else {
-                            debugPrint("❌ ERROR: Home ID still not found!");
-                          }
-                        }),
-                        const SizedBox(width: 8),
-                      ],
-                      _buildHeaderBtn(Icons.swap_horiz, AppColors.primaryBlue, () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(builder: (context) => const HomeSelectionScreen()),
-                        );
-                      }),
-                      const SizedBox(width: 8),
-                      _buildHeaderBtn(Icons.logout, AppColors.accentRed, _handleLogout),
-                    ],
-                  ),
-                ],
-              ),
-              
-              const SizedBox(height: 24),
-
-              Text("My Homes", style: TextStyle(color: AppColors.text(context), fontSize: 18, fontWeight: FontWeight.bold)),
+              Text("My Homes", style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 12),
               MyHomesList(
                 homes: _userHomes,
@@ -995,21 +933,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Text("Quick Access", style: TextStyle(color: AppColors.text(context), fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text("Quick Access",
+                      style: Theme.of(context).textTheme.titleLarge),
                   GestureDetector(
                     onTap: _showScenesInfoSheet,
                     child: Row(
                       children: [
-                        Icon(Icons.info_outline, size: 14, color: AppColors.textSub(context)),
+                        Icon(Icons.info_outline,
+                            size: 14, color: AppColors.textSub(context)),
                         const SizedBox(width: 4),
-                        Text(
-                          "How scenes work",
-                          style: TextStyle(
-                            color: AppColors.textSub(context),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
+                        Text("How scenes work",
+                            style: Theme.of(context).textTheme.labelMedium),
                       ],
                     ),
                   ),
@@ -1018,61 +952,285 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               const SizedBox(height: 4),
               Text(
                 "One tap controls multiple devices.",
-                style: TextStyle(color: AppColors.textSub(context), fontSize: 12),
+                style: Theme.of(context).textTheme.bodySmall,
               ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              const SizedBox(height: 14),
+              GridView.count(
+                crossAxisCount: 2,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: 1.55,
                 children: [
-                  QuickAccessButton(
+                  SceneCard(
                     icon: Icons.power_settings_new,
                     label: 'All Off',
-                    description: 'Turn everything off',
-                    iconColor: Colors.white,
-                    highlighted: true,
-                    highlightColor: AppColors.accentRed,
+                    description: 'Switch every device off',
+                    accent: AppColors.accentRed,
                     loading: _runningScene == 'all_off',
                     enabled: _runningScene == null,
                     onTap: _confirmAllOff,
                   ),
-                  QuickAccessButton(
+                  SceneCard(
                     icon: Icons.movie_creation,
                     label: 'Movie',
-                    description: 'Dim warm · TV on',
-                    iconColor: Colors.white,
-                    highlighted: true,
-                    highlightColor: Colors.deepPurpleAccent,
+                    description: 'Dim warm · TV on · speakers off',
+                    accent: Colors.deepPurpleAccent,
                     loading: _runningScene == 'movie',
                     enabled: _runningScene == null,
                     onTap: () => _runScene('movie', 'Movie'),
                   ),
-                  QuickAccessButton(
+                  SceneCard(
                     icon: Icons.wb_sunny,
                     label: 'Bright',
-                    description: 'Lights full white',
-                    iconColor: Colors.white,
-                    highlighted: true,
-                    highlightColor: Colors.amber.shade700,
+                    description: 'Lights at full white',
+                    accent: Colors.amber.shade700,
                     loading: _runningScene == 'bright',
                     enabled: _runningScene == null,
                     onTap: () => _runScene('bright', 'Bright'),
                   ),
-                  QuickAccessButton(
+                  SceneCard(
                     icon: Icons.palette,
                     label: 'Mood',
                     description: 'AI emotion control',
-                    iconColor: Colors.pinkAccent,
+                    accent: Colors.pinkAccent,
                     enabled: _runningScene == null,
-                    onTap: () => ref.read(tabIndexProvider.notifier).setTab(1),
+                    onTap: () {
+                      ref.read(aiSubTabProvider.notifier).setTab(0);
+                      ref.read(tabIndexProvider.notifier).setTab(1);
+                    },
                   ),
                 ],
               ),
 
               const SizedBox(height: 20),
-            ],
-          ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Hero header with gradient + glow + action buttons. Lives at the top
+// of the dashboard — replaces the old crowded "Welcome Back" + 3-button
+// row. Action buttons are exposed as callbacks so the parent owns the
+// state (homeId, role, etc).
+// ─────────────────────────────────────────────────────────────────────
+class _HeroHeader extends StatelessWidget {
+  const _HeroHeader({
+    required this.homeName,
+    required this.homeRole,
+    required this.unreadCount,
+    required this.onProfile,
+    required this.onSwap,
+    required this.onNotifications,
+    required this.onLogout,
+    this.onQr,
+  });
+
+  final String homeName;
+  final String homeRole;
+  final int unreadCount;
+  final VoidCallback onProfile;
+  final VoidCallback onSwap;
+  final VoidCallback onNotifications;
+  final VoidCallback onLogout;
+  final VoidCallback? onQr;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final gradient = LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: isDark
+          ? const [Color(0xFF1B2654), Color(0xFF2196F3), Color(0xFF00BFA5)]
+          : const [Color(0xFF2196F3), Color(0xFF00BFA5)],
+    );
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(20, 50, 20, 28),
+      decoration: BoxDecoration(
+        gradient: gradient,
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(36),
+          bottomRight: Radius.circular(36),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primaryBlue.withValues(alpha: 0.35),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              GestureDetector(
+                onTap: onProfile,
+                child: Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    shape: BoxShape.circle,
+                    border:
+                        Border.all(color: Colors.white.withValues(alpha: 0.4)),
+                  ),
+                  child: const Icon(Icons.person, color: Colors.white),
+                ),
+              ),
+              const Spacer(),
+              if (onQr != null)
+                _GlassIconBtn(
+                    icon: Icons.qr_code_scanner, onTap: onQr!),
+              if (onQr != null) const SizedBox(width: 8),
+              _GlassIconBtn(icon: Icons.swap_horiz, onTap: onSwap),
+              const SizedBox(width: 8),
+              _GlassIconBtn(
+                icon: Icons.notifications_outlined,
+                onTap: onNotifications,
+                badge: unreadCount,
+              ),
+              const SizedBox(width: 8),
+              _GlassIconBtn(icon: Icons.logout, onTap: onLogout),
+            ],
+          ),
+          const SizedBox(height: 22),
+          Row(
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                  color: AppColors.accentGreen,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Online · Welcome back',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.85),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.3,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Flexible(
+                child: Text(
+                  homeName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.6,
+                    height: 1.1,
+                  ),
+                ),
+              ),
+              if (homeRole.isNotEmpty) ...[
+                const SizedBox(width: 10),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.22),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.35)),
+                  ),
+                  child: Text(
+                    homeRole,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GlassIconBtn extends StatelessWidget {
+  const _GlassIconBtn({
+    required this.icon,
+    required this.onTap,
+    this.badge = 0,
+  });
+
+  final IconData icon;
+  final VoidCallback onTap;
+  final int badge;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
+            ),
+            child: Icon(icon, color: Colors.white, size: 18),
+          ),
+        ),
+        if (badge > 0)
+          Positioned(
+            right: -4,
+            top: -4,
+            child: Container(
+              constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+              padding: const EdgeInsets.symmetric(horizontal: 5),
+              decoration: BoxDecoration(
+                color: AppColors.accentRed,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.white, width: 1.5),
+              ),
+              child: Text(
+                badge > 9 ? '9+' : '$badge',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  height: 1.1,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
