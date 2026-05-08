@@ -6,15 +6,58 @@ import '../../providers/alert_provider.dart';
 class NotificationScreen extends ConsumerWidget {
   const NotificationScreen({super.key});
 
+  /// Groups alerts into Today / Yesterday / This week / Earlier buckets.
+  /// Alert ids are stamped with `millisecondsSinceEpoch` (see main.dart),
+  /// so we read the timestamp out of the id when present and fall back to
+  /// the legacy [AlertItem.day] string ('today' / non-today) for older
+  /// entries.
+  static Map<String, List<AlertItem>> _groupByRelativeDay(
+      List<AlertItem> alerts) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final weekStart = today.subtract(const Duration(days: 7));
+    final result = <String, List<AlertItem>>{
+      'Today': [],
+      'Yesterday': [],
+      'This week': [],
+      'Earlier': [],
+    };
+    for (final a in alerts) {
+      final ts = int.tryParse(a.id);
+      DateTime? when;
+      if (ts != null) {
+        when = DateTime.fromMillisecondsSinceEpoch(ts);
+      }
+      final whenDay = when == null
+          ? null
+          : DateTime(when.year, when.month, when.day);
+      String bucket;
+      if (whenDay == null) {
+        bucket = a.day == 'today' ? 'Today' : 'Earlier';
+      } else if (whenDay == today) {
+        bucket = 'Today';
+      } else if (whenDay == yesterday) {
+        bucket = 'Yesterday';
+      } else if (whenDay.isAfter(weekStart)) {
+        bucket = 'This week';
+      } else {
+        bucket = 'Earlier';
+      }
+      result[bucket]!.add(a);
+    }
+    return result;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final alerts = ref.watch(filteredAlertsProvider);
     final filter = ref.watch(alertFilterProvider);
 
-    final today = alerts.where((a) => a.day == 'today').toList();
-    final earlier = alerts.where((a) => a.day != 'today').toList();
-    final criticalCount =
-        today.where((a) => a.level == AlertLevel.critical).length;
+    final groups = _groupByRelativeDay(alerts);
+    final criticalCount = (groups['Today'] ?? const [])
+        .where((a) => a.level == AlertLevel.critical)
+        .length;
 
     return Scaffold(
       backgroundColor: AppColors.bg(context),
@@ -69,27 +112,23 @@ class NotificationScreen extends ConsumerWidget {
                   : ListView(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                       children: [
-                        if (today.isNotEmpty) ...[
-                          _SectionHeader(
-                            title: 'Today',
-                            badgeCount: criticalCount,
-                          ),
-                          const SizedBox(height: 16),
-                          ...today.map((a) => _DismissibleAlert(alert: a, ref: ref)),
-                          const SizedBox(height: 24),
-                        ],
-                        if (earlier.isNotEmpty) ...[
-                          Text(
-                            'Earlier',
-                            style: TextStyle(
-                              color: AppColors.text(context),
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                        for (final entry in const [
+                          'Today',
+                          'Yesterday',
+                          'This week',
+                          'Earlier'
+                        ])
+                          if ((groups[entry] ?? const []).isNotEmpty) ...[
+                            _SectionHeader(
+                              title: entry,
+                              badgeCount: entry == 'Today' ? criticalCount : 0,
                             ),
-                          ),
-                          const SizedBox(height: 16),
-                          ...earlier.map((a) => _DismissibleAlert(alert: a, ref: ref)),
-                        ],
+                            const SizedBox(height: 16),
+                            ...groups[entry]!
+                                .map((a) => _DismissibleAlert(
+                                    alert: a, ref: ref)),
+                            const SizedBox(height: 24),
+                          ],
                         const SizedBox(height: 20),
                       ],
                     ),
@@ -395,9 +434,9 @@ class _NotificationCard extends StatelessWidget {
   final AlertItem alert;
 
   static const Map<AlertType, IconData> _typeIcons = {
-    AlertType.security: Icons.security,
+    AlertType.security: Icons.shield,
     AlertType.emotion: Icons.sentiment_satisfied_alt,
-    AlertType.device: Icons.devices,
+    AlertType.device: Icons.devices_other,
   };
 
   Color _colorFor() {
@@ -407,6 +446,17 @@ class _NotificationCard extends StatelessWidget {
       case AlertLevel.warning:
         return AppColors.accentOrange;
       case AlertLevel.info:
+        return AppColors.primaryBlue;
+    }
+  }
+
+  Color _typeAccent() {
+    switch (alert.type) {
+      case AlertType.security:
+        return AppColors.accentRed;
+      case AlertType.emotion:
+        return Colors.pinkAccent;
+      case AlertType.device:
         return AppColors.primaryBlue;
     }
   }
@@ -442,13 +492,55 @@ class _NotificationCard extends StatelessWidget {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: color.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(icon, color: color, size: 20),
+                      // Iconic type badge: circular gradient chip with the
+                      // type's icon, plus a small dot in the corner showing
+                      // severity at a glance.
+                      Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  _typeAccent(),
+                                  Color.alphaBlend(
+                                    Colors.white.withValues(alpha: 0.18),
+                                    _typeAccent(),
+                                  ),
+                                ],
+                              ),
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: _typeAccent().withValues(alpha: 0.35),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            child:
+                                Icon(icon, color: Colors.white, size: 22),
+                          ),
+                          Positioned(
+                            right: -2,
+                            bottom: -2,
+                            child: Container(
+                              width: 14,
+                              height: 14,
+                              decoration: BoxDecoration(
+                                color: color,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                    color: AppColors.card(context),
+                                    width: 2),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(width: 12),
                       Expanded(
