@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../../constants/app_colors.dart';
@@ -365,30 +366,179 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
       );
     }
 
-    return Align(
-      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: isUser ? AppColors.primaryBlue : AppColors.card(context),
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(16),
-            topRight: const Radius.circular(16),
-            bottomLeft: Radius.circular(isUser ? 16 : 4),
-            bottomRight: Radius.circular(isUser ? 4 : 16),
-          ),
-          border: isUser ? null : Border.all(color: AppColors.borderCol(context)),
-        ),
-        child: SelectableText(
-          message.content,
-          style: TextStyle(
-            color: isUser ? Colors.white : AppColors.text(context),
-            fontSize: 14,
-            height: 1.4,
+    final bubbleBg = isUser
+        ? AppColors.primaryBlue
+        : AppColors.card(context);
+    final fgColor = isUser ? Colors.white : AppColors.text(context);
+
+    final bubble = Flexible(
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0.0, end: 1.0),
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+        builder: (_, t, child) => Opacity(
+          opacity: t,
+          child: Transform.translate(
+            offset: Offset(0, (1 - t) * 6),
+            child: child,
           ),
         ),
+        child: GestureDetector(
+          onLongPress: () async {
+            HapticFeedback.mediumImpact();
+            final messenger = ScaffoldMessenger.of(context);
+            await Clipboard.setData(ClipboardData(text: message.content));
+            if (!mounted) return;
+            messenger.showSnackBar(
+              const SnackBar(
+                content: Text('Copied to clipboard'),
+                duration: Duration(seconds: 1),
+              ),
+            );
+          },
+          child: Container(
+            margin: const EdgeInsets.symmetric(vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              gradient: isUser
+                  ? const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF2196F3), Color(0xFF00BFA5)],
+                    )
+                  : null,
+              color: isUser ? null : bubbleBg,
+              borderRadius: BorderRadius.only(
+                topLeft: const Radius.circular(18),
+                topRight: const Radius.circular(18),
+                bottomLeft: Radius.circular(isUser ? 18 : 4),
+                bottomRight: Radius.circular(isUser ? 4 : 18),
+              ),
+              border:
+                  isUser ? null : Border.all(color: AppColors.borderCol(context)),
+              boxShadow: isUser
+                  ? [
+                      BoxShadow(
+                        color: AppColors.primaryBlue.withValues(alpha: 0.25),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: isUser
+                ? SelectableText(
+                    message.content,
+                    style: TextStyle(
+                      color: fgColor,
+                      fontSize: 14.5,
+                      height: 1.4,
+                    ),
+                  )
+                : MarkdownBody(
+                    data: message.content,
+                    selectable: true,
+                    styleSheet: _buildMarkdownStyle(context),
+                  ),
+          ),
+        ),
+      ),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment:
+            isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (!isUser) ...[
+            _avatar(context, isUser: false),
+            const SizedBox(width: 8),
+          ],
+          bubble,
+          if (isUser) ...[
+            const SizedBox(width: 8),
+            _avatar(context, isUser: true),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _avatar(BuildContext context, {required bool isUser}) {
+    return Container(
+      width: 32,
+      height: 32,
+      margin: const EdgeInsets.only(top: 4),
+      decoration: BoxDecoration(
+        gradient: isUser
+            ? const LinearGradient(
+                colors: [Color(0xFF2196F3), Color(0xFF00BFA5)],
+              )
+            : LinearGradient(
+                colors: [
+                  AppColors.primaryBlue.withValues(alpha: 0.85),
+                  Colors.deepPurpleAccent.withValues(alpha: 0.85),
+                ],
+              ),
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: (isUser ? AppColors.primaryBlue : Colors.deepPurpleAccent)
+                .withValues(alpha: 0.35),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Icon(
+        isUser ? Icons.person : Icons.smart_toy,
+        size: 16,
+        color: Colors.white,
+      ),
+    );
+  }
+
+  MarkdownStyleSheet _buildMarkdownStyle(BuildContext context) {
+    final base = AppColors.text(context);
+    final sub = AppColors.textSub(context);
+    return MarkdownStyleSheet(
+      p: TextStyle(color: base, fontSize: 14.5, height: 1.45),
+      h1: TextStyle(
+          color: base, fontSize: 18, fontWeight: FontWeight.w800, height: 1.2),
+      h2: TextStyle(
+          color: base, fontSize: 16, fontWeight: FontWeight.w700, height: 1.25),
+      h3: TextStyle(
+          color: base, fontSize: 15, fontWeight: FontWeight.w700, height: 1.3),
+      strong: TextStyle(color: base, fontWeight: FontWeight.w800),
+      em: TextStyle(color: base, fontStyle: FontStyle.italic),
+      listBullet:
+          TextStyle(color: base, fontSize: 14.5, fontWeight: FontWeight.w600),
+      blockquote: TextStyle(color: sub, fontStyle: FontStyle.italic),
+      blockquoteDecoration: BoxDecoration(
+        color: AppColors.primaryBlue.withValues(alpha: 0.08),
+        border: Border(
+          left: BorderSide(color: AppColors.primaryBlue, width: 3),
+        ),
+      ),
+      blockquotePadding:
+          const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      code: TextStyle(
+        color: AppColors.accentGreen,
+        fontFamily: 'monospace',
+        fontSize: 13,
+        backgroundColor: AppColors.bg(context).withValues(alpha: 0.6),
+      ),
+      codeblockDecoration: BoxDecoration(
+        color: AppColors.bg(context),
+        border: Border.all(color: AppColors.borderCol(context)),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      codeblockPadding: const EdgeInsets.all(12),
+      a: const TextStyle(
+        color: AppColors.primaryBlue,
+        decoration: TextDecoration.underline,
       ),
     );
   }
