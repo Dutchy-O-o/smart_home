@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/app_colors.dart';
 import '../../providers/home_provider.dart';
 import '../../services/api_service.dart';
+import '../../services/sensor_history_service.dart';
 import '../../services/spotify/spotify_api_client.dart';
+import '../../widgets/temp_humidity_card.dart';
 import '../ai_hub/widgets/mood_tracks_list.dart' show kSpeakerNamePrefix;
 
 class DeviceControlScreen extends ConsumerStatefulWidget {
@@ -21,6 +23,9 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
   // Dynamic States
   List<dynamic> _devices = [];
   final Map<String, Map<String, dynamic>> _deviceStates = {};
+  // Shared sensor history (same key as the dashboard) so the climate
+  // sparkline matches across screens. Loaded lazily on first sensor fetch.
+  List<SensorReading> _sensorHistory = const [];
   bool _isLoading = true;
 
   // Timers
@@ -159,11 +164,21 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
     final homeId = selectedHome?['homeid'];
     if (homeId == null) return;
 
+    // Lazy load shared history so the climate sparkline can render even
+    // before the first poll completes after a tab change.
+    if (_sensorHistory.isEmpty) {
+      final loaded = await SensorHistoryService.load(homeId);
+      if (mounted) setState(() => _sensorHistory = loaded);
+    }
+
     final data = await ApiService.fetchSensors(homeId);
-    
+
     if (data != null && data['sensors'] != null) {
       final sensors = data['sensors'] as Map<String, dynamic>;
-      
+
+      double? aggTemp;
+      double? aggHum;
+
       if (mounted) {
         setState(() {
           // Save each incoming sensor data into state by its device ID
@@ -175,16 +190,31 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
               if (_deviceStates[devId] == null) {
                 _deviceStates[devId] = {};
               }
-              
+
               if (deviceData.containsKey('temperature')) {
                 _deviceStates[devId]!['temperature'] = deviceData['temperature'];
+                aggTemp ??= double.tryParse(deviceData['temperature'].toString());
               }
               if (deviceData.containsKey('humidity')) {
                 _deviceStates[devId]!['humidity'] = deviceData['humidity'];
+                aggHum ??= double.tryParse(deviceData['humidity'].toString());
               }
             }
           }
         });
+
+        // Push the latest reading into the shared ring buffer so this
+        // tab also contributes to the sparkline timeline.
+        if (aggTemp != null || aggHum != null) {
+          final updated = await SensorHistoryService.append(
+            homeId,
+            temperature: aggTemp,
+            humidity: aggHum,
+          );
+          if (mounted) {
+            setState(() => _sensorHistory = updated);
+          }
+        }
       }
     }
   }
@@ -930,54 +960,64 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
     );
   }
 
+  /// Climate card on the Devices screen — uses the same TempHumidityCard
+  /// widget as the dashboard (icon chips + progress + 12h sparkline) and
+  /// adds a small device-name + status header on top so users still know
+  /// which physical sensor is reporting.
   Widget _buildTempHumidityCard(Map<String, dynamic> device) {
-    String deviceName = device['device_name'] ?? 'Temperature & Humidity';
-    Map<String, dynamic> state = _deviceStates[device['deviceid']] ?? {};
-    
-    String temp = state['temperature']?.toString() ?? "--";
-    String hum = state['humidity']?.toString() ?? "--";
+    final deviceName = device['device_name'] ?? 'Temperature & Humidity';
+    final state = _deviceStates[device['deviceid']] ?? const {};
+    final temp = state['temperature']?.toString() ?? '--';
+    final hum = state['humidity']?.toString() ?? '--';
 
-    return _buildGlassCard(
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: Colors.orangeAccent.withValues(alpha: 0.15), shape: BoxShape.circle),
-                  child: const Icon(Icons.thermostat, color: Colors.orangeAccent, size: 28),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(deviceName, overflow: TextOverflow.ellipsis, maxLines: 1, style: TextStyle(color: AppColors.text(context), fontSize: 18, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Container(width: 8, height: 8, decoration: const BoxDecoration(color: AppColors.accentGreen, shape: BoxShape.circle)),
-                          const SizedBox(width: 6),
-                          Text("Status: Working", style: TextStyle(color: AppColors.textSub(context), fontSize: 13, fontWeight: FontWeight.w600)),
-                        ],
-                      ),
-                    ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8, left: 4),
+          child: Row(
+            children: [
+              Icon(Icons.sensors,
+                  color: AppColors.textSub(context), size: 16),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  deviceName,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: AppColors.text(context),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.2,
                   ),
                 ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text("$temp°C", style: const TextStyle(color: Colors.orangeAccent, fontSize: 24, fontWeight: FontWeight.bold)),
-              Text("$hum%", style: const TextStyle(color: Colors.lightBlueAccent, fontSize: 16, fontWeight: FontWeight.w500)),
+              ),
+              Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                  color: AppColors.accentGreen,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'Online',
+                style: TextStyle(
+                  color: AppColors.accentGreen,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ],
           ),
-        ],
-      ),
+        ),
+        TempHumidityCard(
+          temperature: temp,
+          humidity: hum,
+          history: _sensorHistory,
+        ),
+      ],
     );
   }
 
