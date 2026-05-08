@@ -131,17 +131,24 @@ class _AutomationsListScreenState extends ConsumerState<AutomationsListScreen> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: AppColors.primaryBlue,
-        elevation: 4,
-        onPressed: () => _openCreate(),
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text(
-          'New',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 0.3,
+      // Lift the FAB above the floating bottom nav bar (height 68 + 10
+      // bottom margin + ~8 padding) so it isn't hidden by it. The shell
+      // uses extendBody: true so the FAB's default location overlaps.
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 78),
+        child: FloatingActionButton.extended(
+          backgroundColor: AppColors.primaryBlue,
+          elevation: 4,
+          onPressed: () => _openCreate(),
+          icon: const Icon(Icons.add, color: Colors.white),
+          label: const Text(
+            'New',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.3,
+            ),
           ),
         ),
       ),
