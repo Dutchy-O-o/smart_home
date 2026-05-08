@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../../constants/app_colors.dart';
 import '../../providers/home_provider.dart';
 import '../../providers/mood_provider.dart';
@@ -18,6 +20,67 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
   final List<ChatMessage> _messages = [];
   final List<Map<String, dynamic>> _apiMessages = [];
   bool _isLoading = false;
+
+  // Voice input — speech_to_text streams partial transcripts that we
+  // pipe directly into the text field. The user can stop manually or
+  // wait for the recognizer's natural pause-detection to end the session.
+  final stt.SpeechToText _speech = stt.SpeechToText();
+  bool _speechReady = false;
+  bool _isListening = false;
+
+  Future<void> _toggleVoice() async {
+    if (_isListening) {
+      await _speech.stop();
+      if (mounted) setState(() => _isListening = false);
+      return;
+    }
+    if (!_speechReady) {
+      _speechReady = await _speech.initialize(
+        onStatus: (status) {
+          if (status == 'notListening' || status == 'done') {
+            if (mounted) setState(() => _isListening = false);
+          }
+        },
+        onError: (e) {
+          if (!mounted) return;
+          setState(() => _isListening = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Voice error: ${e.errorMsg}'),
+              backgroundColor: AppColors.accentRed,
+            ),
+          );
+        },
+      );
+    }
+    if (!_speechReady) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Microphone permission was denied.'),
+        ),
+      );
+      return;
+    }
+    HapticFeedback.lightImpact();
+    setState(() => _isListening = true);
+    final locale = (await _speech.systemLocale())?.localeId ?? 'en_US';
+    _speech.listen(
+      localeId: locale,
+      listenOptions: stt.SpeechListenOptions(
+        listenMode: stt.ListenMode.dictation,
+        partialResults: true,
+        cancelOnError: true,
+      ),
+      onResult: (r) {
+        if (!mounted) return;
+        setState(() => _controller.text = r.recognizedWords);
+        _controller.selection = TextSelection.fromPosition(
+          TextPosition(offset: _controller.text.length),
+        );
+      },
+    );
+  }
 
   Future<void> _sendMessage([String? preset]) async {
     final text = preset ?? _controller.text.trim();
@@ -80,6 +143,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
   void dispose() {
     _controller.dispose();
     _scrollController.dispose();
+    if (_isListening) _speech.cancel();
     super.dispose();
   }
 
@@ -188,12 +252,21 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                         textInputAction: TextInputAction.send,
                         onSubmitted: (_) => _sendMessage(),
                         decoration: InputDecoration(
-                          hintText: "Ask me anything...",
-                          hintStyle: TextStyle(color: AppColors.textSub(context)),
+                          hintText: _isListening
+                              ? "Listening — speak now…"
+                              : "Ask me anything...",
+                          hintStyle:
+                              TextStyle(color: AppColors.textSub(context)),
                           border: InputBorder.none,
                         ),
                       ),
                     ),
+                    _MicButton(
+                      isListening: _isListening,
+                      enabled: !_isLoading,
+                      onTap: _toggleVoice,
+                    ),
+                    const SizedBox(width: 4),
                     IconButton(
                       onPressed: _isLoading ? null : () => _sendMessage(),
                       icon: Container(
@@ -344,6 +417,100 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
             Text("Thinking...", style: TextStyle(color: AppColors.textSub(context), fontSize: 13)),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Mic button that pulses red while [isListening] is true. Disabled while
+/// the assistant is thinking ([enabled] = false). Tap toggles listening.
+class _MicButton extends StatefulWidget {
+  const _MicButton({
+    required this.isListening,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final bool isListening;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  State<_MicButton> createState() => _MicButtonState();
+}
+
+class _MicButtonState extends State<_MicButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulse = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    if (widget.isListening) _pulse.repeat(reverse: true);
+  }
+
+  @override
+  void didUpdateWidget(covariant _MicButton old) {
+    super.didUpdateWidget(old);
+    if (widget.isListening && !_pulse.isAnimating) {
+      _pulse.repeat(reverse: true);
+    } else if (!widget.isListening && _pulse.isAnimating) {
+      _pulse.stop();
+      _pulse.value = 0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      onPressed: widget.enabled ? widget.onTap : null,
+      tooltip: widget.isListening ? 'Stop listening' : 'Speak',
+      icon: AnimatedBuilder(
+        animation: _pulse,
+        builder: (_, __) {
+          final t = _pulse.value;
+          return Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: widget.isListening
+                  ? Color.lerp(AppColors.accentRed,
+                      AppColors.accentRed.withValues(alpha: 0.7), t)
+                  : AppColors.card(context),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: widget.isListening
+                    ? AppColors.accentRed
+                    : AppColors.borderCol(context),
+              ),
+              boxShadow: widget.isListening
+                  ? [
+                      BoxShadow(
+                        color: AppColors.accentRed
+                            .withValues(alpha: 0.45 + 0.35 * t),
+                        blurRadius: 10 + 8 * t,
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Icon(
+              widget.isListening ? Icons.stop : Icons.mic,
+              size: 18,
+              color: widget.isListening
+                  ? Colors.white
+                  : AppColors.textSub(context),
+            ),
+          );
+        },
       ),
     );
   }
