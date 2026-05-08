@@ -1,5 +1,7 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
+import '../services/sensor_history_service.dart';
 
 /// Single combined card that shows Temperature and Humidity with progress
 /// indicators, replacing the two side-by-side SensorCard tiles. Designed for
@@ -9,11 +11,18 @@ class TempHumidityCard extends StatelessWidget {
     super.key,
     required this.temperature,
     required this.humidity,
+    this.history = const [],
   });
 
   /// Raw string values straight from the API (e.g. "23.5" or "--").
   final String temperature;
   final String humidity;
+
+  /// Last ~24h of readings, oldest first. Empty list shows a "collecting…"
+  /// placeholder under the metric. Each metric line is rendered with the
+  /// values from this same list (one shared timeline keeps temp/humidity
+  /// aligned).
+  final List<SensorReading> history;
 
   @override
   Widget build(BuildContext context) {
@@ -64,6 +73,11 @@ class TempHumidityCard extends StatelessWidget {
                 : ((tempNum - 0) / 50).clamp(0.0, 1.0),
             progressColor: _tempColor(tempNum),
             range: '0–50°C',
+            sparklinePoints: history
+                .where((r) => r.temperature != null)
+                .map((r) => r.temperature!)
+                .toList(),
+            sparklineColor: _tempColor(tempNum),
           ),
           const SizedBox(height: 14),
           _MetricRow(
@@ -76,6 +90,11 @@ class TempHumidityCard extends StatelessWidget {
                 humNum == null ? null : (humNum / 100).clamp(0.0, 1.0),
             progressColor: AppColors.primaryBlue,
             range: '0–100%',
+            sparklinePoints: history
+                .where((r) => r.humidity != null)
+                .map((r) => r.humidity!)
+                .toList(),
+            sparklineColor: AppColors.primaryBlue,
           ),
         ],
       ),
@@ -100,6 +119,8 @@ class _MetricRow extends StatelessWidget {
     required this.progress,
     required this.progressColor,
     required this.range,
+    this.sparklinePoints = const [],
+    this.sparklineColor,
   });
 
   final IconData icon;
@@ -110,6 +131,8 @@ class _MetricRow extends StatelessWidget {
   final double? progress;
   final Color progressColor;
   final String range;
+  final List<double> sparklinePoints;
+  final Color? sparklineColor;
 
   @override
   Widget build(BuildContext context) {
@@ -178,18 +201,82 @@ class _MetricRow extends StatelessWidget {
                   valueColor: AlwaysStoppedAnimation(progressColor),
                 ),
               ),
-              const SizedBox(height: 2),
-              Text(
-                range,
-                style: TextStyle(
-                  color: AppColors.textSub(context).withValues(alpha: 0.7),
-                  fontSize: 10,
-                ),
+              const SizedBox(height: 6),
+              SizedBox(
+                height: 28,
+                child: sparklinePoints.length < 2
+                    ? Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          sparklinePoints.isEmpty
+                              ? '$range · collecting trend…'
+                              : range,
+                          style: TextStyle(
+                            color: AppColors.textSub(context)
+                                .withValues(alpha: 0.7),
+                            fontSize: 10,
+                          ),
+                        ),
+                      )
+                    : _Sparkline(
+                        points: sparklinePoints,
+                        color: sparklineColor ?? progressColor,
+                      ),
               ),
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Tiny line chart used by [_MetricRow] to show the recent trend.
+class _Sparkline extends StatelessWidget {
+  const _Sparkline({required this.points, required this.color});
+
+  final List<double> points;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final spots = <FlSpot>[
+      for (int i = 0; i < points.length; i++) FlSpot(i.toDouble(), points[i]),
+    ];
+    final minY = points.reduce((a, b) => a < b ? a : b);
+    final maxY = points.reduce((a, b) => a > b ? a : b);
+    final pad = ((maxY - minY).abs() * 0.15).clamp(0.5, 5.0);
+
+    return LineChart(
+      LineChartData(
+        minY: minY - pad,
+        maxY: maxY + pad,
+        gridData: const FlGridData(show: false),
+        titlesData: const FlTitlesData(show: false),
+        borderData: FlBorderData(show: false),
+        lineTouchData: const LineTouchData(enabled: false),
+        lineBarsData: [
+          LineChartBarData(
+            spots: spots,
+            isCurved: true,
+            curveSmoothness: 0.25,
+            color: color,
+            barWidth: 2,
+            dotData: const FlDotData(show: false),
+            belowBarData: BarAreaData(
+              show: true,
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  color.withValues(alpha: 0.25),
+                  color.withValues(alpha: 0.0),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
