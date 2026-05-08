@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/app_colors.dart';
 import '../../providers/navigation_provider.dart';
@@ -28,8 +29,10 @@ class _AiTabScreenState extends ConsumerState<AiTabScreen> {
           children: [
             _AiSegmented(
               selected: sub,
-              onChanged: (i) =>
-                  ref.read(aiSubTabProvider.notifier).setTab(i),
+              onChanged: (i) {
+                if (i != sub) HapticFeedback.selectionClick();
+                ref.read(aiSubTabProvider.notifier).setTab(i);
+              },
             ),
             Expanded(
               child: IndexedStack(

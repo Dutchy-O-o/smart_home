@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../constants/app_colors.dart';
 import '../providers/navigation_provider.dart';
@@ -8,13 +9,14 @@ import '../screens/automations/automations_list_screen.dart';
 import '../screens/devices/device_control_screen.dart';
 import '../screens/profile/profile_screen.dart';
 
-/// Top-level shell with the bottom nav and per-tab IndexedStack so each
-/// tab keeps its scroll position when the user comes back to it.
+/// Top-level shell with the bottom nav and PageView so users can swipe
+/// horizontally between tabs (with smooth animation when tapping the nav).
+/// Each page is wrapped with KeepAlive so scroll position survives.
 ///
 /// Slimmed to 5 tabs (was 7): Emotion + AI Chat moved into a single AI tab
 /// with a top segmented control, and Notifications moved to a header bell
 /// inside the dashboard.
-class MainShell extends ConsumerWidget {
+class MainShell extends ConsumerStatefulWidget {
   const MainShell({super.key});
 
   static const _items = <_NavItem>[
@@ -26,27 +28,91 @@ class MainShell extends ConsumerWidget {
   ];
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MainShell> createState() => _MainShellState();
+}
+
+class _MainShellState extends ConsumerState<MainShell> {
+  late final PageController _pageController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(initialPage: ref.read(tabIndexProvider));
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final currentIndex = ref.watch(tabIndexProvider);
+
+    // External tab change (e.g. dashboard "Mood" button) — animate to it.
+    ref.listen<int>(tabIndexProvider, (prev, next) {
+      if (!_pageController.hasClients) return;
+      final page = _pageController.page?.round();
+      if (page != next) {
+        _pageController.animateToPage(
+          next,
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOutCubic,
+        );
+      }
+    });
 
     return Scaffold(
       extendBody: true,
-      body: IndexedStack(
-        index: currentIndex,
+      body: PageView(
+        controller: _pageController,
+        physics: const ClampingScrollPhysics(),
+        onPageChanged: (i) {
+          if (i != ref.read(tabIndexProvider)) {
+            HapticFeedback.selectionClick();
+            ref.read(tabIndexProvider.notifier).setTab(i);
+          }
+        },
         children: const [
-          DashboardScreen(),       // 0
-          AiTabScreen(),           // 1 (Emotion + Chat sub-tabs)
-          AutomationsListScreen(), // 2
-          DeviceControlScreen(),   // 3
-          ProfileScreen(),         // 4
+          _KeepAlive(child: DashboardScreen()),       // 0
+          _KeepAlive(child: AiTabScreen()),           // 1 (Emotion + Chat sub-tabs)
+          _KeepAlive(child: AutomationsListScreen()), // 2
+          _KeepAlive(child: DeviceControlScreen()),   // 3
+          _KeepAlive(child: ProfileScreen()),         // 4
         ],
       ),
       bottomNavigationBar: _ModernNavBar(
-        items: _items,
+        items: MainShell._items,
         currentIndex: currentIndex,
-        onTap: (i) => ref.read(tabIndexProvider.notifier).setTab(i),
+        onTap: (i) {
+          if (i != currentIndex) HapticFeedback.selectionClick();
+          ref.read(tabIndexProvider.notifier).setTab(i);
+        },
       ),
     );
+  }
+}
+
+/// Keeps a page alive in the PageView so it doesn't rebuild when swiped
+/// off-screen — critical for the dashboard's polling timers and AI chat
+/// history to survive between tabs.
+class _KeepAlive extends StatefulWidget {
+  const _KeepAlive({required this.child});
+  final Widget child;
+  @override
+  State<_KeepAlive> createState() => _KeepAliveState();
+}
+
+class _KeepAliveState extends State<_KeepAlive>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
   }
 }
 

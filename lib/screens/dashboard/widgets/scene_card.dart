@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../constants/app_colors.dart';
 
 /// Larger, gradient-tinted scene card used in the dashboard's 2×2 Quick
@@ -14,6 +15,7 @@ class SceneCard extends StatelessWidget {
     required this.description,
     required this.accent,
     required this.onTap,
+    this.onLongPress,
     this.loading = false,
     this.enabled = true,
   });
@@ -23,6 +25,7 @@ class SceneCard extends StatelessWidget {
   final String description;
   final Color accent;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
   final bool loading;
   final bool enabled;
 
@@ -36,7 +39,18 @@ class SceneCard extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: (enabled && !loading) ? onTap : null,
+          onTap: (enabled && !loading)
+              ? () {
+                  HapticFeedback.lightImpact();
+                  onTap?.call();
+                }
+              : null,
+          onLongPress: (enabled && onLongPress != null)
+              ? () {
+                  HapticFeedback.mediumImpact();
+                  onLongPress!();
+                }
+              : null,
           borderRadius: BorderRadius.circular(20),
           splashColor: accent.withValues(alpha: 0.15),
           highlightColor: accent.withValues(alpha: 0.06),

@@ -313,10 +313,20 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
           SafeArea(
             child: FadeTransition(
               opacity: _fadeAnimation,
-              child: _isLoading 
+              child: _isLoading
                 ? const Center(child: CircularProgressIndicator(color: AppColors.primaryBlue))
-                : SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
+                : RefreshIndicator(
+                    color: AppColors.primaryBlue,
+                    backgroundColor: AppColors.card(context),
+                    onRefresh: () async {
+                      await Future.wait([
+                        _fetchDevices(),
+                        _fetchLatestSensorData(),
+                      ]);
+                    },
+                    child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics()),
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -366,6 +376,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                   ],
                 ),
               ),
+                  ),
             ),
           ),
         ],
