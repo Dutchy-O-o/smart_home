@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../services/mood_history_service.dart';
 import 'alert_provider.dart';
 
 class MoodState {
@@ -81,6 +82,11 @@ class MoodNotifier extends Notifier<MoodState> {
   void set(String mood, double confidence, {required String source}) {
     final prev = state.mood;
     final next = _canonical(mood);
+    // Update state synchronously FIRST so the UI rebuilds immediately.
+    // Earlier we awaited the disk write before the state change, which
+    // meant any hiccup in SharedPreferences (slow phone, locked file)
+    // froze the mood card on the previous value. Now the UI flips
+    // first; persistence happens after.
     state = MoodState(
       mood: next,
       confidence: confidence,
@@ -88,6 +94,17 @@ class MoodNotifier extends Notifier<MoodState> {
       source: source,
     );
     _save();
+    // Append history in the background — wrapped in catch so a disk
+    // failure never bubbles into the UI as an unhandled future error.
+    if (source != 'init') {
+      MoodHistoryService.append(next, confidence: confidence)
+          .catchError((e) {
+        // Best-effort persistence; just log so the state change still
+        // reflects in the UI even when the heatmap can't update.
+        // ignore: avoid_print
+        print('MoodHistoryService.append failed: $e');
+      });
+    }
     if (prev != next && source != 'init') {
       _emitLocalAlert(next, source);
     }
