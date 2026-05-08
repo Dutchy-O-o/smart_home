@@ -1,5 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:amplify_flutter/amplify_flutter.dart';
+import 'package:amplify_auth_cognito/amplify_auth_cognito.dart';
+
+import '../services/user_scope.dart';
 
 // Represents the current authentication state
 enum AuthState { initial, loading, authenticated, unauthenticated }
@@ -43,9 +46,11 @@ class AuthNotifier extends Notifier<AuthState> {
       safePrint('1. Amplify Vault Status: ${session.isSignedIn ? "FILLED" : "EMPTY"}');
 
       if (session.isSignedIn) {
+        await _activateUserScope();
         state = AuthState.authenticated;
         safePrint('2. Result: USER LET IN!');
       } else {
+        await UserScope.clear();
         state = AuthState.unauthenticated;
         safePrint('2. Result: VAULT EMPTY, REDIRECTING TO LOGIN.');
       }
@@ -53,6 +58,62 @@ class AuthNotifier extends Notifier<AuthState> {
       safePrint('!!! ERROR DURING SESSION CHECK: $e');
       state = AuthState.unauthenticated;
     }
+  }
+
+  /// Pull the Cognito user id (`sub`) and pin it on UserScope so any
+  /// downstream SharedPreferences read is scoped to this account. Falls
+  /// back to email if `sub` isn't available, then to nothing — services
+  /// keep working unscoped if neither is reachable.
+  ///
+  /// After scoping, runs a one-time migration that copies any legacy
+  /// unscoped data (from before the scoping change) into this user's
+  /// namespace so existing mood history / alerts / scenes don't appear
+  /// to vanish.
+  Future<void> _activateUserScope() async {
+    try {
+      final session =
+          await Amplify.Auth.fetchAuthSession() as CognitoAuthSession;
+      final sub = session.userSubResult.value;
+      if (sub.isNotEmpty) {
+        await UserScope.setUser(sub);
+        await _migrateLegacyData();
+        return;
+      }
+    } catch (_) {/* try email next */}
+    try {
+      final attrs = await Amplify.Auth.fetchUserAttributes();
+      final email = attrs
+          .firstWhere(
+            (a) => a.userAttributeKey.key == 'email',
+            orElse: () => const AuthUserAttribute(
+              userAttributeKey: CognitoUserAttributeKey.email,
+              value: '',
+            ),
+          )
+          .value;
+      if (email.isNotEmpty) {
+        await UserScope.setUser(email);
+        await _migrateLegacyData();
+      }
+    } catch (e) {
+      safePrint('Could not activate user scope: $e');
+    }
+  }
+
+  /// Pre-scoping versions of the keys various services persist. New
+  /// per-home keys (sensor history) are migrated separately via their
+  /// own service entry points since they need the home id.
+  static const _legacyBaseKeys = <String>[
+    'alerts_v1',
+    'mood_history_v1',
+    'scene_slots_v1',
+    'theme_mode_v1',
+    'mood_state_v1',
+    'profile_push_notifications',
+  ];
+
+  Future<void> _migrateLegacyData() async {
+    await UserScope.migrateLegacyKeys(_legacyBaseKeys);
   }
 
   // Sign up a new user
@@ -100,6 +161,7 @@ class AuthNotifier extends Notifier<AuthState> {
     try {
       final result = await Amplify.Auth.signIn(username: email, password: password);
       if (result.isSignedIn) {
+        await _activateUserScope();
         state = AuthState.authenticated;
         return true;
       }
@@ -122,10 +184,12 @@ class AuthNotifier extends Notifier<AuthState> {
           globalSignOut: true,
         ),
       );
+      await UserScope.clear();
       state = AuthState.unauthenticated;
     } catch (e) {
       safePrint('Error signing out: $e');
       // Even if there's an error, we force state to unauthenticated
+      await UserScope.clear();
       state = AuthState.unauthenticated;
     }
   }

@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../services/user_scope.dart';
+
 /// Persisted application theme mode.
 /// Stored as a short string ('system' | 'light' | 'dark') in SharedPreferences
 /// under [_storageKey] so the choice survives app restarts.
 class ThemeNotifier extends Notifier<ThemeMode> {
-  static const _storageKey = 'theme_mode_v1';
+  static const _baseStorageKey = 'theme_mode_v1';
+  static String get _storageKey => UserScope.key(_baseStorageKey);
 
   @override
   ThemeMode build() {

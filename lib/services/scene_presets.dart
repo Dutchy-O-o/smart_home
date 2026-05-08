@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/app_colors.dart';
+import 'user_scope.dart';
 
 /// One Quick-Access scene preset shown on the dashboard. Visual metadata
 /// only — the actual device commands live in [_runScene] inside
@@ -84,7 +85,8 @@ class ScenePresets {
   ];
 
   static const _defaultKeys = ['all_off', 'movie', 'bright', 'mood'];
-  static const _storageKey = 'scene_slots_v1';
+  static const _baseStorageKey = 'scene_slots_v1';
+  static String get _storageKey => UserScope.key(_baseStorageKey);
 
   static ScenePreset byKey(String key) =>
       all.firstWhere((p) => p.key == key, orElse: () => all.first);
