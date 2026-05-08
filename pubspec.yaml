@@ -49,6 +49,10 @@ dependencies:
   flutter_web_auth_2: ^4.0.1
   image_picker: ^1.1.2
   flutter_dotenv: ^5.1.0
+  fl_chart: ^0.69.0
+  speech_to_text: ^7.0.0
+  showcaseview: ^3.0.0
+  permission_handler: ^11.3.1
 
 dev_dependencies:
   flutter_test:

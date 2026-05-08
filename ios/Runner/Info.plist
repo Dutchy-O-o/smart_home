@@ -49,5 +49,9 @@
 	<string>Akıllı eve katılmak için QR kod okutmak ve duygu analizi (Emotion Hub) taraması yapmak için kameraya erişim gerekiyor.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Duygu analizi için galerinizden fotoğraf seçebilmeniz adına erişim gerekiyor.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>AI Asistan'a sesli komut verebilmeniz için mikrofona erişim gerekiyor.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Sesli komutlarınızı metne çevirebilmek için konuşma tanıma erişimi gerekiyor.</string>
 </dict>
 </plist>
