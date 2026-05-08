@@ -95,6 +95,100 @@ def _get_tokens(home_id: str):
             conn.close()
 
 
+# Map a raw event_type into (alert_type, alert_level) for the
+# user_alerts table. Mirrors what the Flutter FCM handler does so the
+# server log and the local feed agree on classification.
+_EVENT_CLASSIFICATION = {
+    "gas_leak":              ("security", "critical"),
+    "earthquake":            ("security", "critical"),
+    "rfid_unauthorized":     ("security", "warning"),
+    "rfid_denied":           ("security", "warning"),
+    "unauthorized_access":   ("security", "warning"),
+    "emotion_change":        ("emotion",  "info"),
+    "stove_left_on":         ("device",   "warning"),
+    "tv_idle_long":          ("device",   "info"),
+    "ac_running_window_open":("device",   "warning"),
+    "device_offline":        ("device",   "warning"),
+    "rfid_authorized":       ("device",   "info"),
+}
+
+
+def _persist_alert_for_home_users(home_id: str, title: str, body: str,
+                                  event_type: str):
+    """Write one user_alerts row per user in the home. Best-effort —
+    catches its own exceptions so a DB hiccup never blocks FCM delivery.
+
+    Bootstraps the user_alerts table on first call so we don't depend on
+    saveAlertEvent having run already.
+    """
+    import uuid
+    conn = None
+    cursor = None
+    try:
+        atype, alevel = _EVENT_CLASSIFICATION.get(event_type, ("device", "info"))
+        conn = psycopg2.connect(
+            host=os.environ["DB_HOST"],
+            user=os.environ["DB_USER"],
+            password=os.environ["DB_PASSWORD"],
+            dbname=os.environ["DB_NAME"],
+            connect_timeout=5,
+        )
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS user_alerts (
+              alert_id    VARCHAR(64) PRIMARY KEY,
+              homeid      VARCHAR(64) NOT NULL,
+              userid      VARCHAR(64) NOT NULL,
+              title       TEXT NOT NULL,
+              description TEXT,
+              alert_type  VARCHAR(32) NOT NULL,
+              alert_level VARCHAR(16) NOT NULL,
+              is_read     BOOLEAN DEFAULT FALSE,
+              created_at  TIMESTAMP NOT NULL DEFAULT NOW()
+            )
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_user_alerts_owner
+              ON user_alerts(homeid, userid, created_at DESC)
+        """)
+        conn.commit()
+
+        cursor.execute(
+            'SELECT DISTINCT "userid" FROM user_homes WHERE "homeid" = %s',
+            (home_id,),
+        )
+        user_ids = [row[0] for row in cursor.fetchall() if row[0]]
+        if not user_ids:
+            return
+
+        rows = [
+            (str(uuid.uuid4()), home_id, uid, title, body, atype, alevel)
+            for uid in user_ids
+        ]
+        cursor.executemany(
+            """
+            INSERT INTO user_alerts
+              (alert_id, homeid, userid, title, description, alert_type, alert_level)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """,
+            rows,
+        )
+        conn.commit()
+        logger.info("Persisted alert to %d user_alerts rows", len(rows))
+    except Exception:
+        logger.exception("Failed to persist alert (non-fatal)")
+        if conn is not None:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+    finally:
+        if cursor is not None:
+            cursor.close()
+        if conn is not None:
+            conn.close()
+
+
 def lambda_handler(event, context):
     try:
         home_id = event.get("homeID")
@@ -109,12 +203,19 @@ def lambda_handler(event, context):
         if not home_id:
             return {"status": "error", "reason": "homeID missing"}
 
+        title, body = _resolve_title_body(event_type, alert_message)
+
+        # Persist the alert server-side BEFORE checking FCM tokens. We
+        # want it to show up in the Notifications screen even when no
+        # device is registered for push (or the push fails) — the user
+        # can still see the history when they next open the app.
+        # Best-effort: failures are logged but never block the push.
+        _persist_alert_for_home_users(home_id, title, body, event_type)
+
         tokens = _get_tokens(home_id)
         if not tokens:
             logger.info("No FCM tokens registered for home %s", home_id)
             return {"status": "no_tokens"}
-
-        title, body = _resolve_title_body(event_type, alert_message)
 
         # Android-specific config: high priority + channel_id are REQUIRED
         # for the notification to surface in the system tray when the app is
