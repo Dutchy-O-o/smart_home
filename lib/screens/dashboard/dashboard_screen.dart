@@ -16,6 +16,8 @@ import '../../providers/mood_provider.dart';
 import '../../providers/navigation_provider.dart';
 import 'home_selection_screen.dart';
 import '../../services/api_service.dart';
+import '../../services/spotify/spotify_api_client.dart';
+import '../ai_hub/widgets/mood_tracks_list.dart' show kSpeakerNamePrefix;
 import 'widgets/my_homes_list.dart';
 import 'widgets/quick_access_button.dart';
 import 'widgets/system_status_card.dart';
@@ -46,10 +48,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   final Map<String, Map<String, dynamic>> _speakerStates = {};
   Timer? _speakerVolumeDebounce;
 
+  /// Transient highlight for the playback button the user just tapped —
+  /// purely visual feedback, NOT real playback state (which lives in the
+  /// user's Spotify session, not our DB). Cleared after [_playbackPulseMs].
+  final Map<String, String> _playbackPulse = {}; // deviceId → 'play' | 'pause'
+  final Map<String, Timer> _playbackPulseTimers = {};
+  static const _playbackPulseMs = 800;
+
   @override
   void dispose() {
     _dashboardPollingTimer?.cancel();
     _speakerVolumeDebounce?.cancel();
+    for (final t in _playbackPulseTimers.values) {
+      t.cancel();
+    }
     super.dispose();
   }
 
@@ -158,6 +170,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       _speakerStates[deviceId]![prop] = value;
       _speakerStates[deviceId]!['_dirty_$prop'] = true;
     });
+    // Clear the dirty flag after the Pi → echo → DB round trip window so
+    // polling won't snap the slider/toggle back to the old DB value while
+    // the echo is still in flight (~1-3s typical, give 4s headroom).
+    Timer(const Duration(seconds: 4), () {
+      if (!mounted) return;
+      setState(() {
+        _speakerStates[deviceId]?.remove('_dirty_$prop');
+      });
+    });
     final ok = await ApiService.sendCommand(
       homeId: homeId,
       deviceId: deviceId,
@@ -165,9 +186,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       value: value is num ? value.toInt().toString() : value,
     );
     if (!mounted) return;
-    setState(() {
-      _speakerStates[deviceId]?.remove('_dirty_$prop');
-    });
+    // Note: the dirty flag is now cleared by the 4s timer above, NOT here —
+    // sendCommand returns when AWS API GW publishes to MQTT, which is well
+    // before the Pi has applied the change and echoed back. Clearing here
+    // would re-open the polling-overwrite race.
     if (!ok) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -582,7 +604,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final name = (primary['device_name'] ?? 'Speaker').toString();
     final state = _speakerStates[id] ?? const {};
     final isOn = state['power'] == 'on';
-    final playback = (state['playback'] ?? 'stop').toString();
     final vol = state['volume'] is num
         ? (state['volume'] as num).toInt()
         : int.tryParse(state['volume']?.toString() ?? '') ?? 50;
@@ -632,9 +653,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             fontWeight: FontWeight.bold),
                       ),
                       Text(
-                        isOn
-                            ? '${_playbackLabel(playback)} · $vol%'
-                            : 'Off',
+                        isOn ? 'Volume $vol%' : 'Off',
                         style: TextStyle(
                           color: isOn ? Colors.pinkAccent : AppColors.textSub(context),
                           fontSize: 12,
@@ -656,9 +675,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _buildPlaybackBtn(id, Icons.play_arrow, 'play', playback == 'play'),
-                _buildPlaybackBtn(id, Icons.pause, 'pause', playback == 'pause'),
-                _buildPlaybackBtn(id, Icons.stop, 'stop', playback == 'stop'),
+                // Highlight'ı geçici tutuyoruz — gerçek playback durumu
+                // Spotify cloud'da yaşıyor, DB'den okumak stale veri verir.
+                // Sadece son tıklanan buton ~800ms parlar.
+                _buildPlaybackBtn(id, Icons.play_arrow, 'play',
+                    _playbackPulse[id] == 'play'),
+                _buildPlaybackBtn(id, Icons.pause, 'pause',
+                    _playbackPulse[id] == 'pause'),
               ],
             ),
             const SizedBox(height: 8),
@@ -732,34 +755,79 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     ];
   }
 
-  String _playbackLabel(String s) {
-    switch (s) {
+  /// Playback control via Spotify Web API (NOT MQTT — Pi only handles
+  /// power/volume; play/pause/stop are routed to the user's own Spotify
+  /// session targeting the Pi as the active Connect device).
+  Future<void> _setSpeakerPlayback(String deviceId, String value) async {
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() {
+      _speakerStates[deviceId] ??= {};
+      _speakerStates[deviceId]!['playback'] = value;
+      _playbackPulse[deviceId] = value;
+    });
+    _playbackPulseTimers[deviceId]?.cancel();
+    _playbackPulseTimers[deviceId] = Timer(
+      const Duration(milliseconds: _playbackPulseMs),
+      () {
+        if (!mounted) return;
+        setState(() => _playbackPulse.remove(deviceId));
+      },
+    );
+
+    final device = await SpotifyApiClient.findDeviceByPrefix(kSpeakerNamePrefix);
+    if (device == null) {
+      if (!mounted) return;
+      messenger.showSnackBar(const SnackBar(
+        content: Text('Hoparlör Spotify ağında bulunamadı — Pi açık mı?'),
+      ));
+      return;
+    }
+    final spId = device['id'].toString();
+    bool ok = false;
+    switch (value) {
       case 'play':
-        return 'Playing';
+        ok = await SpotifyApiClient.resumePlayback(spId);
+        break;
       case 'pause':
-        return 'Paused';
-      default:
-        return 'Stopped';
+      case 'stop':
+        ok = await SpotifyApiClient.pausePlayback(spId);
+        break;
+    }
+    if (!ok && mounted) {
+      messenger.showSnackBar(const SnackBar(
+        content: Text('Playback komutu başarısız (Premium hesap gerekir).'),
+      ));
     }
   }
 
   Widget _buildPlaybackBtn(String id, IconData icon, String value, bool selected) {
-    return GestureDetector(
-      onTap: () => _setSpeakerProp(id, 'playback', value),
-      child: Container(
-        width: 48,
-        height: 48,
-        decoration: BoxDecoration(
-          color: selected
-              ? Colors.pinkAccent.withValues(alpha: 0.18)
-              : AppColors.card(context),
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: selected ? Colors.pinkAccent : AppColors.borderCol(context),
-            width: selected ? 1.5 : 1,
+    return Material(
+      color: Colors.transparent,
+      shape: const CircleBorder(),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => _setSpeakerPlayback(id, value),
+        splashColor: Colors.pinkAccent.withValues(alpha: 0.30),
+        highlightColor: Colors.pinkAccent.withValues(alpha: 0.18),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: selected
+                ? Colors.pinkAccent.withValues(alpha: 0.18)
+                : AppColors.card(context),
+            shape: BoxShape.circle,
+            border: Border.all(
+              color:
+                  selected ? Colors.pinkAccent : AppColors.borderCol(context),
+              width: selected ? 1.5 : 1,
+            ),
           ),
+          child: Icon(icon,
+              color: selected ? Colors.pinkAccent : AppColors.text(context),
+              size: 22),
         ),
-        child: Icon(icon, color: selected ? Colors.pinkAccent : AppColors.text(context), size: 22),
       ),
     );
   }

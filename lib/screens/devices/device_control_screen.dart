@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/app_colors.dart';
 import '../../providers/home_provider.dart';
 import '../../services/api_service.dart';
+import '../../services/spotify/spotify_api_client.dart';
+import '../ai_hub/widgets/mood_tracks_list.dart' show kSpeakerNamePrefix;
 
 class DeviceControlScreen extends ConsumerStatefulWidget {
   const DeviceControlScreen({super.key});
@@ -23,6 +25,18 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
 
   // Timers
   final Map<String, Timer?> _debounceTimers = {};
+
+  /// Properties the user has changed locally; polling won't overwrite until
+  /// the entry expires. Stops the slider/toggle from snapping back while we
+  /// wait for the Pi → state echo → DB → poll round trip (~1-3s).
+  final Map<String, DateTime> _localOverrideUntil = {};
+  static const _localOverrideHold = Duration(seconds: 4);
+
+  /// Transient pulse for the playback button the user just tapped — purely
+  /// visual feedback, NOT real playback state.
+  final Map<String, String> _playbackPulse = {}; // deviceId → 'play' | 'pause'
+  final Map<String, Timer> _playbackPulseTimers = {};
+  static const _playbackPulseMs = 800;
   Timer? _dataPollingTimer;
 
   // Animation Controller
@@ -53,6 +67,9 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
     _dataPollingTimer?.cancel();
     for (final timer in _debounceTimers.values) {
       timer?.cancel();
+    }
+    for (final t in _playbackPulseTimers.values) {
+      t.cancel();
     }
     super.dispose();
   }
@@ -124,6 +141,12 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
             // Only save if value is not null, or we assigned a default (named properties)
             // This way fresh data from another source (sensor) isn't OVERWRITTEN by null.
             if (val != null && val != "null" && val != "") {
+              // Skip if user just changed this locally — let the optimistic
+              // value win until the lock expires (Pi echo round trip).
+              final lockKey = '$id:$pName';
+              final until = _localOverrideUntil[lockKey];
+              if (until != null && until.isAfter(DateTime.now())) continue;
+              _localOverrideUntil.remove(lockKey);
               _deviceStates[id]![pName] = val;
             }
           }
@@ -194,18 +217,66 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
 
   // Dynamic Action Handler
   void _updateDeviceState(String deviceId, String property, dynamic value) {
+    final key = '$deviceId:$property';
     setState(() {
       if (_deviceStates[deviceId] == null) _deviceStates[deviceId] = {};
       _deviceStates[deviceId]![property] = value;
+      // Lock this property against polling overwrites for a few seconds
+      // so the slider/toggle doesn't snap back while we wait for the echo.
+      _localOverrideUntil[key] = DateTime.now().add(_localOverrideHold);
     });
 
     // Key the debounce by device+property so changing brightness then color
     // on the same LED does not cancel the pending brightness send.
-    final key = '$deviceId:$property';
     if (_debounceTimers[key]?.isActive ?? false) _debounceTimers[key]!.cancel();
     _debounceTimers[key] = Timer(const Duration(milliseconds: 500), () {
       _sendDynamicCommand(deviceId, property, value);
     });
+  }
+
+  /// Speaker playback (play/pause/stop) — Spotify Web API direkt, MQTT yok.
+  /// Pi sadece power+volume işliyor; transport kontrolü kullanıcının kendi
+  /// Spotify oturumundan, Pi'yi aktif Connect cihazı olarak hedefleyerek.
+  Future<void> _spotifyPlayback(String deviceId, String value) async {
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() {
+      _deviceStates[deviceId] ??= {};
+      _deviceStates[deviceId]!['playback'] = value;
+      _playbackPulse[deviceId] = value;
+    });
+    _playbackPulseTimers[deviceId]?.cancel();
+    _playbackPulseTimers[deviceId] = Timer(
+      const Duration(milliseconds: _playbackPulseMs),
+      () {
+        if (!mounted) return;
+        setState(() => _playbackPulse.remove(deviceId));
+      },
+    );
+
+    final device = await SpotifyApiClient.findDeviceByPrefix(kSpeakerNamePrefix);
+    if (device == null) {
+      if (!mounted) return;
+      messenger.showSnackBar(const SnackBar(
+        content: Text('Hoparlör Spotify ağında bulunamadı — Pi açık mı?'),
+      ));
+      return;
+    }
+    final spId = device['id'].toString();
+    bool ok = false;
+    switch (value) {
+      case 'play':
+        ok = await SpotifyApiClient.resumePlayback(spId);
+        break;
+      case 'pause':
+      case 'stop':
+        ok = await SpotifyApiClient.pausePlayback(spId);
+        break;
+    }
+    if (!ok && mounted) {
+      messenger.showSnackBar(const SnackBar(
+        content: Text('Playback komutu başarısız (Premium hesap gerekir).'),
+      ));
+    }
   }
 
 
@@ -266,13 +337,17 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                     if (_devices.isEmpty)
                       Center(child: Text("No devices found.", style: TextStyle(color: AppColors.textSub(context)))),
                     ..._devices.where((device) {
-                      // Hide gas and vibration sensors entirely — their alerts
-                      // arrive via push notifications instead of a live tile.
+                      // Hide categories that don't belong on the live tiles:
+                      // gas/vibration → push notifications instead;
+                      // camera → removed product feature;
+                      // rfid → access control runs headless via authorized_cards.
                       final t = (device['device_type'] ?? '').toString().toLowerCase();
                       final n = (device['device_name'] ?? '').toString().toLowerCase();
                       final isGas = n.contains('gas') || n.contains('gaz') || t.contains('gas');
                       final isQuake = n.contains('deprem') || n.contains('earthquake') || t.contains('vibration');
-                      return !isGas && !isQuake;
+                      final isCamera = t.contains('camera') || n.contains('camera') || n.contains('kamera');
+                      final isRfid = t.contains('rfid') || n.contains('rfid');
+                      return !isGas && !isQuake && !isCamera && !isRfid;
                     }).map((device) {
                       Widget card;
                       String type = (device['device_type'] ?? '').toString().toLowerCase();
@@ -358,42 +433,34 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
   }
 
   Widget _buildHeader() {
+    final connectedCount = _devices.length;
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        GestureDetector(
-          onTap: () => Navigator.pop(context),
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.card(context),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.borderCol(context)),
-            ),
-            child: Icon(Icons.arrow_back_ios_new, color: AppColors.text(context), size: 20),
+        Text(
+          "Devices",
+          style: TextStyle(
+            color: AppColors.text(context),
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 0.5,
           ),
         ),
-        Column(
-          children: [
-            Text("Living Room", style: TextStyle(color: AppColors.text(context), fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Container(width: 8, height: 8, decoration: const BoxDecoration(color: AppColors.accentGreen, shape: BoxShape.circle)),
-                const SizedBox(width: 6),
-                Text("4 Devices Connected", style: TextStyle(color: AppColors.textSub(context), fontSize: 13, fontWeight: FontWeight.w500)),
-              ],
-            ),
-          ],
-        ),
+        const SizedBox(width: 12),
         Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: AppColors.card(context).withValues(alpha: 0.5),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.borderCol(context)),
+          width: 8,
+          height: 8,
+          decoration: const BoxDecoration(
+              color: AppColors.accentGreen, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          "$connectedCount connected",
+          style: TextStyle(
+            color: AppColors.textSub(context),
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
           ),
-          child: Icon(Icons.more_vert, color: AppColors.text(context), size: 20),
         ),
       ],
     );
@@ -580,9 +647,16 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _buildModernIconButton(Icons.play_arrow, () => _updateDeviceState(deviceId, 'playback', 'play')),
-              _buildModernIconButton(Icons.pause, () => _updateDeviceState(deviceId, 'playback', 'pause')),
-              _buildModernIconButton(Icons.stop, () => _updateDeviceState(deviceId, 'playback', 'stop')),
+              _buildModernIconButton(
+                Icons.play_arrow,
+                () => _spotifyPlayback(deviceId, 'play'),
+                selected: _playbackPulse[deviceId] == 'play',
+              ),
+              _buildModernIconButton(
+                Icons.pause,
+                () => _spotifyPlayback(deviceId, 'pause'),
+                selected: _playbackPulse[deviceId] == 'pause',
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -1053,17 +1127,36 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
 
   // --- Premium Mini Widgets --- //
 
-  Widget _buildModernIconButton(IconData icon, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 56, height: 56,
-        decoration: BoxDecoration(
-          color: AppColors.card(context),
-          shape: BoxShape.circle,
-          border: Border.all(color: AppColors.borderCol(context)),
+  Widget _buildModernIconButton(IconData icon, VoidCallback onTap,
+      {bool selected = false}) {
+    return Material(
+      color: Colors.transparent,
+      shape: const CircleBorder(),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        splashColor: Colors.pinkAccent.withValues(alpha: 0.30),
+        highlightColor: Colors.pinkAccent.withValues(alpha: 0.18),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            color: selected
+                ? Colors.pinkAccent.withValues(alpha: 0.18)
+                : AppColors.card(context),
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: selected
+                  ? Colors.pinkAccent
+                  : AppColors.borderCol(context),
+              width: selected ? 1.5 : 1,
+            ),
+          ),
+          child: Icon(icon,
+              color: selected ? Colors.pinkAccent : AppColors.text(context),
+              size: 28),
         ),
-        child: Icon(icon, color: AppColors.text(context), size: 28),
       ),
     );
   }

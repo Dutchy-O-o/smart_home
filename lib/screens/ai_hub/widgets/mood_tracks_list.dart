@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../../constants/app_colors.dart';
+import '../../../services/spotify/spotify_api_client.dart';
+
+/// Shared prefix every Pi self-derives at boot — `AkilliEv-<machineid6>`.
+/// Mobile resolves the in-house speaker by prefix, no per-home config.
+const String kSpeakerNamePrefix = 'AkilliEv-';
 
 /// Mood Tracks section: Spotify connect prompt, loading spinner,
 /// empty state, or a list of personalized track rows.
@@ -84,7 +89,9 @@ class MoodTracksList extends StatelessWidget {
       return _empty(context, 'No recommendations found.');
     }
     return Column(
-      children: tracks!.map((t) => _TrackRow(track: t, moodColor: moodColor)).toList(),
+      children: tracks!
+          .map((t) => _TrackRow(track: t, moodColor: moodColor))
+          .toList(),
     );
   }
 
@@ -154,66 +161,131 @@ class _ConnectPrompt extends StatelessWidget {
   }
 }
 
-class _TrackRow extends StatelessWidget {
-  const _TrackRow({required this.track, required this.moodColor});
+class _TrackRow extends StatefulWidget {
+  const _TrackRow({
+    required this.track,
+    required this.moodColor,
+  });
 
   final Map<String, dynamic> track;
   final Color moodColor;
 
   @override
-  Widget build(BuildContext context) {
-    final name = (track['name'] ?? '-').toString();
-    final artist = (track['artist'] ?? '').toString();
+  State<_TrackRow> createState() => _TrackRowState();
+}
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.borderCol(context)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: moodColor.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(Icons.music_note, color: moodColor, size: 20),
+class _TrackRowState extends State<_TrackRow> {
+  bool _busy = false;
+
+  Future<void> _onTap() async {
+    if (_busy) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final uri = (widget.track['uri'] ?? '').toString();
+    final name = (widget.track['name'] ?? '-').toString();
+
+    if (uri.isEmpty) {
+      messenger.showSnackBar(const SnackBar(content: Text('Parça bilgisi eksik.')));
+      return;
+    }
+
+    setState(() => _busy = true);
+    try {
+      final device = await SpotifyApiClient.findDeviceByPrefix(kSpeakerNamePrefix);
+      if (device == null) {
+        if (!mounted) return;
+        messenger.showSnackBar(const SnackBar(
+          content: Text('Hoparlör Spotify ağında bulunamadı — Pi açık mı?'),
+        ));
+        return;
+      }
+      final ok = await SpotifyApiClient.playTracks(
+        deviceId: device['id'].toString(),
+        uris: [uri],
+      );
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(
+        content: Text(ok ? '▶ $name' : 'Çalınamadı: $name'),
+        duration: const Duration(seconds: 2),
+      ));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final name = (widget.track['name'] ?? '-').toString();
+    final artist = (widget.track['artist'] ?? '').toString();
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: _onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: _busy
+              ? widget.moodColor.withValues(alpha: 0.12)
+              : AppColors.card(context),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: _busy ? widget.moodColor : AppColors.borderCol(context),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: AppColors.text(context),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  artist,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: AppColors.textSub(context),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: widget.moodColor.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(Icons.music_note, color: widget.moodColor, size: 20),
             ),
-          ),
-          Icon(Icons.speaker, color: AppColors.textSub(context), size: 18),
-        ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: AppColors.text(context),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    artist,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: AppColors.textSub(context),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (_busy)
+              SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: widget.moodColor,
+                ),
+              )
+            else
+              Icon(Icons.play_circle_fill,
+                  color: widget.moodColor, size: 22),
+          ],
+        ),
       ),
     );
   }

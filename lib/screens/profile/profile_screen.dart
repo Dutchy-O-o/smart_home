@@ -269,27 +269,17 @@ These terms may be updated. Continued use after an update constitutes acceptance
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header
-              Row(
-                children: [
-                  IconButton(
-                    icon: Icon(Icons.arrow_back_ios,
-                        color: AppColors.text(context), size: 20),
-                    onPressed: () => Navigator.maybePop(context),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Text(
+                  'Profile & Settings',
+                  style: TextStyle(
+                    color: AppColors.text(context),
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
                   ),
-                  Expanded(
-                    child: Center(
-                      child: Text(
-                        'Profile & Settings',
-                        style: TextStyle(
-                          color: AppColors.text(context),
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 40),
-                ],
+                ),
               ),
               const SizedBox(height: 20),
 
