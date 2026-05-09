@@ -6,6 +6,8 @@ import '../../providers/home_provider.dart';
 import '../../services/api_service.dart';
 import 'automation_create_screen.dart';
 import 'automation_history_sheet.dart';
+import '../../theme/app_motion.dart';
+import '../../theme/app_spacing.dart';
 
 enum _Filter { all, active, ai, sensor }
 
@@ -68,8 +70,8 @@ class _AutomationsListScreenState extends ConsumerState<AutomationsListScreen> {
   Future<void> _openCreate({Map<String, dynamic>? existing}) async {
     final result = await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => AutomationCreateScreen(existingData: existing),
+      AppMotion.fadeSlideRoute(
+        AutomationCreateScreen(existingData: existing),
       ),
     );
     if (mounted) _fetchAutomations();
@@ -153,7 +155,7 @@ class _AutomationsListScreenState extends ConsumerState<AutomationsListScreen> {
               height: 40,
               decoration: BoxDecoration(
                 color: AppColors.card(context),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(AppRadius.sm),
                 border: Border.all(color: AppColors.borderCol(context)),
               ),
               child: Icon(Icons.arrow_back,
@@ -192,7 +194,7 @@ class _AutomationsListScreenState extends ConsumerState<AutomationsListScreen> {
               margin: const EdgeInsets.only(right: 12),
               decoration: BoxDecoration(
                 color: AppColors.card(context),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(AppRadius.sm),
                 border: Border.all(color: AppColors.borderCol(context)),
               ),
               child: Icon(Icons.history,
@@ -206,7 +208,7 @@ class _AutomationsListScreenState extends ConsumerState<AutomationsListScreen> {
               height: 40,
               decoration: BoxDecoration(
                 color: AppColors.card(context),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(AppRadius.sm),
                 border: Border.all(color: AppColors.borderCol(context)),
               ),
               child: Icon(Icons.refresh,
@@ -254,7 +256,7 @@ class _AutomationsListScreenState extends ConsumerState<AutomationsListScreen> {
               width: 28, height: 28,
               decoration: BoxDecoration(
                 color: color.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(AppRadius.xs),
               ),
               child: Icon(icon, color: color, size: 16),
             ),
@@ -317,7 +319,7 @@ class _AutomationsListScreenState extends ConsumerState<AutomationsListScreen> {
             color: selected
                 ? AppColors.primaryBlue
                 : AppColors.card(context),
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
             border: Border.all(
               color: selected
                   ? AppColors.primaryBlue
@@ -376,7 +378,7 @@ class _AutomationsListScreenState extends ConsumerState<AutomationsListScreen> {
   Widget _buildErrorState() {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(AppSpacing.xxxl),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -400,7 +402,7 @@ class _AutomationsListScreenState extends ConsumerState<AutomationsListScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primaryBlue,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
                 padding:
                     const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -418,7 +420,7 @@ class _AutomationsListScreenState extends ConsumerState<AutomationsListScreen> {
   Widget _buildEmptyState() {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(AppSpacing.xxxl),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -504,7 +506,7 @@ class _AutomationsListScreenState extends ConsumerState<AutomationsListScreen> {
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
           color: AppColors.accentRed,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppRadius.md),
         ),
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -524,7 +526,7 @@ class _AutomationsListScreenState extends ConsumerState<AutomationsListScreen> {
           margin: const EdgeInsets.only(bottom: 12),
           decoration: BoxDecoration(
             color: AppColors.card(context),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(AppRadius.md),
             border: Border.all(
               color: isEnabled
                   ? accent.withValues(alpha: 0.35)
@@ -543,7 +545,7 @@ class _AutomationsListScreenState extends ConsumerState<AutomationsListScreen> {
                       width: 42, height: 42,
                       decoration: BoxDecoration(
                         color: accent.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
                       ),
                       child: Icon(
                         isAI ? Icons.face_retouching_natural : Icons.sensors,
@@ -621,7 +623,7 @@ class _AutomationsListScreenState extends ConsumerState<AutomationsListScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: accent.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
         border: Border.all(color: accent.withValues(alpha: 0.25)),
       ),
       child: Row(
@@ -665,7 +667,7 @@ class _AutomationsListScreenState extends ConsumerState<AutomationsListScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: AppColors.bg(context),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
         border: Border.all(color: AppColors.borderCol(context)),
       ),
       child: Row(
@@ -701,7 +703,7 @@ class _AutomationsListScreenState extends ConsumerState<AutomationsListScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.card(context),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
         title: Text('Delete automation',
             style: TextStyle(color: AppColors.text(context))),
         content: Text(
@@ -763,7 +765,7 @@ class _CreateCta extends StatelessWidget {
           HapticFeedback.lightImpact();
           onTap();
         },
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         child: Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -773,7 +775,7 @@ class _CreateCta extends StatelessWidget {
               end: Alignment.bottomRight,
               colors: [Color(0xFF2196F3), Color(0xFF00BFA5)],
             ),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(AppRadius.md),
             boxShadow: [
               BoxShadow(
                 color: AppColors.primaryBlue.withValues(alpha: 0.35),

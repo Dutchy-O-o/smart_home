@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
+import 'app_spacing.dart';
 
 /// Centralized theme for the app. Material 3 + a shared TextTheme so
 /// individual widgets stop hard-coding fontSize/fontWeight everywhere.
@@ -103,8 +104,11 @@ class AppTheme {
         backgroundColor: AppColors.primaryBlue,
         foregroundColor: Colors.white,
         elevation: 0,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xl,
+          vertical: AppSpacing.md,
+        ),
+        shape: const RoundedRectangleBorder(borderRadius: AppRadius.brMd),
         textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
       ),
     ),
@@ -118,7 +122,7 @@ class AppTheme {
     snackBarTheme: SnackBarThemeData(
       backgroundColor: AppColors.cardDark,
       contentTextStyle: const TextStyle(color: Colors.white),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: const RoundedRectangleBorder(borderRadius: AppRadius.brSm),
       behavior: SnackBarBehavior.floating,
     ),
   );
@@ -152,8 +156,11 @@ class AppTheme {
         backgroundColor: AppColors.primaryBlue,
         foregroundColor: Colors.white,
         elevation: 0,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xl,
+          vertical: AppSpacing.md,
+        ),
+        shape: const RoundedRectangleBorder(borderRadius: AppRadius.brMd),
         textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
       ),
     ),
@@ -167,7 +174,7 @@ class AppTheme {
     snackBarTheme: SnackBarThemeData(
       backgroundColor: Colors.white,
       contentTextStyle: const TextStyle(color: Color(0xFF1A1D2E)),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: const RoundedRectangleBorder(borderRadius: AppRadius.brSm),
       behavior: SnackBarBehavior.floating,
     ),
   );

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/app_colors.dart';
 import '../../providers/home_provider.dart';
 import '../../services/api_service.dart';
+import '../../theme/app_spacing.dart';
 
 class AutomationCreateScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic>? existingData;
@@ -332,7 +333,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
             _sectionLabel('When', Icons.bolt, AppColors.accentOrange),
             const SizedBox(height: 6),
             _softCard(
-              padding: const EdgeInsets.all(4),
+              padding: const EdgeInsets.all(AppSpacing.xs),
               child: Row(
                 children: [
                   _SegBtn(
@@ -407,7 +408,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
               color: isSelected
                   ? baseColor.withValues(alpha: 0.15)
                   : AppColors.card(context),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(AppRadius.sm),
               border: Border.all(
                 color: isSelected
                     ? baseColor
@@ -580,14 +581,14 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
         const SizedBox(height: 10),
         InkWell(
           onTap: _showAddDeviceModal,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 12),
             decoration: BoxDecoration(
               border: Border.all(
                 color: AppColors.primaryBlue.withValues(alpha: 0.4),
               ),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(AppRadius.sm),
               color: AppColors.primaryBlue.withValues(alpha: 0.05),
             ),
             child: Row(
@@ -622,7 +623,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (ctx) {
         return Container(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(AppSpacing.xl),
           height: MediaQuery.of(ctx).size.height * 0.6,
           child: Column(
             children: [
@@ -733,10 +734,10 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(AppSpacing.sm),
                 decoration: BoxDecoration(
                   color: AppColors.primaryBlue.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(AppRadius.xs),
                 ),
                 child: Icon(
                   isLed ? Icons.lightbulb : isSpk ? Icons.speaker : isTv ? Icons.tv : Icons.devices_other,
@@ -1001,7 +1002,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
                             color: Colors.transparent,
                             border: Border.all(
                                 color: AppColors.text(context), width: 3),
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(AppRadius.xs),
                             boxShadow: [
                               BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 4),
                             ],
@@ -1108,7 +1109,7 @@ class _SegBtn extends StatelessWidget {
                 ? const LinearGradient(
                     colors: [Color(0xFF2196F3), Color(0xFF00BFA5)])
                 : null,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(AppRadius.xs),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -1155,7 +1156,7 @@ class _SaveButton extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: isSaving ? null : onTap,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
           child: Ink(
             decoration: BoxDecoration(
               gradient: const LinearGradient(
@@ -1163,7 +1164,7 @@ class _SaveButton extends StatelessWidget {
                 end: Alignment.bottomRight,
                 colors: [Color(0xFF2196F3), Color(0xFF00BFA5)],
               ),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(AppRadius.sm),
               boxShadow: [
                 BoxShadow(
                   color: AppColors.primaryBlue.withValues(alpha: 0.3),
@@ -1311,14 +1312,14 @@ class _SuggestedRow extends StatelessWidget {
           final p = _presets[i];
           return InkWell(
             onTap: () => onPick(p),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppRadius.sm),
             child: Container(
               width: 160,
               padding: const EdgeInsets.symmetric(
                   horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
                 color: AppColors.card(context),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(AppRadius.sm),
                 border: Border.all(
                   color: p.color.withValues(alpha: 0.4),
                 ),

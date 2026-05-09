@@ -12,6 +12,8 @@ import '../../services/api_service.dart';
 import '../../services/scene_presets.dart';
 import '../../services/usage_stats_service.dart';
 import '../auth/login_screen.dart';
+import '../../theme/app_motion.dart';
+import '../../theme/app_spacing.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -248,7 +250,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         expand: false,
         builder: (_, controller) => SingleChildScrollView(
           controller: controller,
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(AppSpacing.xl),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -325,7 +327,7 @@ These terms may be updated. Continued use after an update constitutes acceptance
     if (!mounted) return;
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      AppMotion.fadeSlideRoute(const LoginScreen()),
       (route) => false,
     );
   }
@@ -345,7 +347,7 @@ These terms may be updated. Continued use after an update constitutes acceptance
       backgroundColor: AppColors.bg(context),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(AppSpacing.xl),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -514,7 +516,7 @@ These terms may be updated. Continued use after an update constitutes acceptance
                     backgroundColor: AppColors.accentRed.withValues(alpha: 0.1),
                     foregroundColor: AppColors.accentRed,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
                     ),
                     side: const BorderSide(color: AppColors.accentRed),
                   ),
@@ -558,7 +560,7 @@ These terms may be updated. Continued use after an update constitutes acceptance
         margin: const EdgeInsets.only(top: 10),
         decoration: BoxDecoration(
           color: AppColors.card(context),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppRadius.md),
           border: Border.all(color: AppColors.borderCol(context)),
         ),
         child: Column(children: children),
@@ -570,7 +572,7 @@ These terms may be updated. Continued use after an update constitutes acceptance
       );
 
   Widget _iconBadge(IconData icon, Color color) => Container(
-        padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.all(AppSpacing.sm),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.2),
           shape: BoxShape.circle,
@@ -625,10 +627,10 @@ class _ThemeSegmented extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(4),
+      padding: const EdgeInsets.all(AppSpacing.xs),
       decoration: BoxDecoration(
         color: AppColors.bg(context),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
         border: Border.all(color: AppColors.borderCol(context)),
       ),
       child: Row(
@@ -655,7 +657,7 @@ class _ThemeSegmented extends StatelessWidget {
                     colors: [Color(0xFF2196F3), Color(0xFF00BFA5)],
                   )
                 : null,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(AppRadius.xs),
             boxShadow: active
                 ? [
                     BoxShadow(
@@ -807,7 +809,7 @@ class _UsageStatsPanelState extends ConsumerState<_UsageStatsPanel> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
         border: Border.all(color: AppColors.borderCol(context)),
       ),
       child: Row(

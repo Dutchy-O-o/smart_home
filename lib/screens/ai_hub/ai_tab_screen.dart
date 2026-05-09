@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/app_colors.dart';
 import '../../providers/navigation_provider.dart';
+import '../../theme/app_motion.dart';
+import '../../theme/app_spacing.dart';
 import '../ai_agent/ai_chat_screen.dart';
 import 'emotion_hub_screen.dart';
 
@@ -59,12 +61,12 @@ class _AiSegmented extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
+      padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 14, AppSpacing.xl, 6),
       child: Container(
-        padding: const EdgeInsets.all(4),
+        padding: const EdgeInsets.all(AppSpacing.xs),
         decoration: BoxDecoration(
           color: AppColors.card(context),
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: AppRadius.brSm,
           border: Border.all(color: AppColors.borderCol(context)),
         ),
         child: Row(
@@ -104,11 +106,15 @@ class _SegBtn extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: GestureDetector(
+      child: Semantics(
+        button: true,
+        selected: active,
+        label: label,
+        child: GestureDetector(
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOut,
+          curve: AppMotion.standard,
           height: 40,
           decoration: BoxDecoration(
             gradient: active
@@ -116,7 +122,7 @@ class _SegBtn extends StatelessWidget {
                     colors: [Color(0xFF2196F3), Color(0xFF00BFA5)],
                   )
                 : null,
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: const BorderRadius.all(Radius.circular(10)),
             boxShadow: active
                 ? [
                     BoxShadow(
@@ -147,6 +153,7 @@ class _SegBtn extends StatelessWidget {
             ],
           ),
         ),
+      ),
       ),
     );
   }

@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import '../services/sensor_history_service.dart';
+import '../theme/app_spacing.dart';
 
 /// Single combined card that shows Temperature and Humidity with progress
 /// indicators, replacing the two side-by-side SensorCard tiles. Designed for
@@ -30,10 +31,10 @@ class TempHumidityCard extends StatelessWidget {
     final humNum = double.tryParse(humidity);
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(AppSpacing.xl),
       decoration: BoxDecoration(
         color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: AppRadius.brLg,
         border: Border.all(color: AppColors.borderCol(context)),
         boxShadow: [
           BoxShadow(
@@ -50,18 +51,14 @@ class TempHumidityCard extends StatelessWidget {
             children: [
               Icon(Icons.sensors,
                   color: AppColors.textSub(context), size: 18),
-              const SizedBox(width: 8),
+              AppSpacing.hGapSm,
               Text(
                 'Climate',
-                style: TextStyle(
-                  color: AppColors.text(context),
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: Theme.of(context).textTheme.titleMedium,
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          AppSpacing.vGapLg,
           _MetricRow(
             icon: Icons.thermostat,
             iconColor: AppColors.accentOrange,
@@ -143,7 +140,7 @@ class _MetricRow extends StatelessWidget {
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             color: iconColor.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: AppRadius.brSm,
           ),
           child: Icon(icon, color: iconColor, size: 22),
         ),

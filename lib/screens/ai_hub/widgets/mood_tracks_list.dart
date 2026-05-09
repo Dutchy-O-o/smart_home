@@ -3,6 +3,7 @@ import '../../../constants/app_colors.dart';
 import '../../../providers/home_provider.dart';
 import '../../../services/api_service.dart';
 import '../../../services/spotify/spotify_api_client.dart';
+import '../../../theme/app_spacing.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Shared prefix every Pi self-derives at boot — `AkilliEv-<machineid6>`.
@@ -65,7 +66,7 @@ class _MoodTracksListState extends State<MoodTracksList> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -81,14 +82,10 @@ class _MoodTracksListState extends State<MoodTracksList> {
     return Row(
       children: [
         const Icon(Icons.music_note, color: Color(0xFF1DB954), size: 20),
-        const SizedBox(width: 8),
+        AppSpacing.hGapSm,
         Text(
           'Mood Tracks',
-          style: TextStyle(
-            color: AppColors.text(context),
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
+          style: Theme.of(context).textTheme.titleLarge,
         ),
         const Spacer(),
         if (isConnected && tracks != null)
@@ -168,19 +165,19 @@ class _ConnectPrompt extends StatelessWidget {
       onTap: loading ? null : onTap,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg, horizontal: AppSpacing.xl),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
             colors: [Color(0xFF1DB954), Color(0xFF117A37)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: AppRadius.brSm,
         ),
         child: Row(
           children: [
             const Icon(Icons.music_note, color: Colors.white),
-            const SizedBox(width: 12),
+            AppSpacing.hGapMd,
             const Expanded(
               child: Text(
                 'Connect Spotify — for mood-based tracks',
@@ -351,18 +348,21 @@ class _TrackRowState extends ConsumerState<_TrackRow> {
 
     final highlight = _busy || widget.isActive;
 
-    return GestureDetector(
+    return Semantics(
+      button: true,
+      label: 'Play $name',
+      child: GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: _onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: AppSpacing.md),
         decoration: BoxDecoration(
           color: highlight
               ? widget.moodColor.withValues(alpha: 0.12)
               : AppColors.card(context),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: AppRadius.brSm,
           border: Border.all(
             color: highlight
                 ? widget.moodColor
@@ -386,11 +386,11 @@ class _TrackRowState extends ConsumerState<_TrackRow> {
               height: 38,
               decoration: BoxDecoration(
                 color: widget.moodColor.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: AppRadius.brXs,
               ),
               child: Icon(Icons.music_note, color: widget.moodColor, size: 20),
             ),
-            const SizedBox(width: 12),
+            AppSpacing.hGapMd,
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -435,6 +435,7 @@ class _TrackRowState extends ConsumerState<_TrackRow> {
                   color: widget.moodColor, size: 22),
           ],
         ),
+      ),
       ),
     );
   }

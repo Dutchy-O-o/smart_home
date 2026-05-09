@@ -12,6 +12,7 @@ import '../../constants/app_colors.dart';
 import '../../providers/home_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/mood_provider.dart';
+import '../../theme/app_motion.dart';
 import '../../widgets/main_shell.dart';
 import '../auth/login_screen.dart';
 
@@ -104,7 +105,7 @@ class _HomeSelectionScreenState extends ConsumerState<HomeSelectionScreen> {
 
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => const MainShell()),
+      AppMotion.fadeSlideRoute(const MainShell()),
     );
   }
 
@@ -114,7 +115,7 @@ class _HomeSelectionScreenState extends ConsumerState<HomeSelectionScreen> {
     if (mounted) {
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        AppMotion.fadeSlideRoute(const LoginScreen()),
         (route) => false,
       );
     }
@@ -124,7 +125,7 @@ class _HomeSelectionScreenState extends ConsumerState<HomeSelectionScreen> {
   Future<void> _openScanner() async {
     final scannedToken = await Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const QRScannerScreen()),
+      AppMotion.fadeSlideRoute(const QRScannerScreen()),
     );
 
     if (scannedToken != null && scannedToken is String) {

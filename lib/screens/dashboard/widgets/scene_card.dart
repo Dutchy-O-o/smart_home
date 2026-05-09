@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../constants/app_colors.dart';
+import '../../../theme/app_spacing.dart';
 
 /// Larger, gradient-tinted scene card used in the dashboard's 2×2 Quick
 /// Access grid. Replaces the cramped circular [QuickAccessButton] row.
@@ -34,7 +35,12 @@ class SceneCard extends StatelessWidget {
     final dim = !enabled && !loading;
     final card = AppColors.card(context);
 
-    return Opacity(
+    return Semantics(
+      button: true,
+      enabled: enabled && !loading,
+      label: label,
+      hint: description,
+      child: Opacity(
       opacity: dim ? 0.45 : 1.0,
       child: Material(
         color: Colors.transparent,
@@ -51,12 +57,12 @@ class SceneCard extends StatelessWidget {
                   onLongPress!();
                 }
               : null,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: AppRadius.brLg,
           splashColor: accent.withValues(alpha: 0.15),
           highlightColor: accent.withValues(alpha: 0.06),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
@@ -69,7 +75,7 @@ class SceneCard extends StatelessWidget {
                   ),
                 ],
               ),
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: AppRadius.brLg,
               border: Border.all(
                 color: accent.withValues(alpha: 0.35),
                 width: 1,
@@ -99,7 +105,7 @@ class SceneCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: AppRadius.brSm,
                     boxShadow: [
                       BoxShadow(
                         color: accent.withValues(alpha: 0.45),
@@ -145,6 +151,7 @@ class SceneCard extends StatelessWidget {
           ),
         ),
       ),
+    ),
     );
   }
 }

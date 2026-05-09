@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../constants/app_colors.dart';
 import '../../services/api_service.dart';
+import '../../theme/app_spacing.dart';
 
 class AutomationHistorySheet extends StatefulWidget {
   final String homeId;
@@ -111,10 +112,10 @@ class _AutomationHistorySheetState extends State<AutomationHistorySheet> {
                               
                               return Container(
                                 margin: const EdgeInsets.only(bottom: 12),
-                                padding: const EdgeInsets.all(16),
+                                padding: const EdgeInsets.all(AppSpacing.lg),
                                 decoration: BoxDecoration(
                                   color: AppColors.cardDark.withOpacity(0.5),
-                                  borderRadius: BorderRadius.circular(16),
+                                  borderRadius: BorderRadius.circular(AppRadius.md),
                                   border: Border.all(color: Colors.white10),
                                 ),
                                 child: Row(

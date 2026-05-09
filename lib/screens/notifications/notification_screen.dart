@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/app_colors.dart';
 import '../../providers/alert_provider.dart';
 import '../../providers/home_provider.dart';
+import '../../theme/app_spacing.dart';
+import '../../widgets/empty_state.dart';
 
 class NotificationScreen extends ConsumerStatefulWidget {
   const NotificationScreen({super.key});
@@ -322,7 +324,7 @@ class _FilterChip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: isActive ? AppColors.primaryBlue : AppColors.card(context),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
           border: isActive ? null : Border.all(color: AppColors.borderCol(context)),
         ),
         child: Text(
@@ -359,7 +361,7 @@ class _LevelChip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: AppColors.card(context),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
           border: Border.all(
             color: isActive ? color : color.withValues(alpha: 0.3),
             width: 1.5,
@@ -431,31 +433,14 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.notifications_none,
-              size: 64,
-              color: AppColors.textSub(context),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              isFiltered
-                  ? 'No notifications match this filter.'
-                  : 'No notifications yet.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: AppColors.textSub(context),
-                fontSize: 14,
-              ),
-            ),
-          ],
-        ),
-      ),
+    return EmptyState(
+      icon: Icons.notifications_none,
+      title: isFiltered
+          ? 'No notifications match this filter.'
+          : 'No notifications yet.',
+      message: isFiltered
+          ? 'Try adjusting filters to see more.'
+          : 'You\'ll see security, emotion, and device alerts here.',
     );
   }
 }
@@ -502,7 +487,7 @@ class _NotificationCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.2),
@@ -512,14 +497,14 @@ class _NotificationCard extends StatelessWidget {
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         child: IntrinsicHeight(
           child: Row(
             children: [
               Container(width: 6, color: color),
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: const EdgeInsets.all(AppSpacing.lg),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -651,7 +636,7 @@ class _DismissibleAlert extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 24),
         decoration: BoxDecoration(
           color: AppColors.accentRed,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppRadius.md),
         ),
         child: const Row(
           mainAxisSize: MainAxisSize.min,

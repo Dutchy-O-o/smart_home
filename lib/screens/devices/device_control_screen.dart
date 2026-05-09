@@ -9,6 +9,7 @@ import '../../services/sensor_history_service.dart';
 import '../../services/spotify/spotify_api_client.dart';
 import '../../widgets/temp_humidity_card.dart';
 import '../ai_hub/widgets/mood_tracks_list.dart' show kSpeakerNamePrefix;
+import '../../theme/app_spacing.dart';
 
 class DeviceControlScreen extends ConsumerStatefulWidget {
   const DeviceControlScreen({super.key});
@@ -416,7 +417,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
 
   // ====================== UI COMPONENTS ====================== //
 
-  Widget _buildGlassCard({required Widget child, EdgeInsetsGeometry padding = const EdgeInsets.all(24)}) {
+  Widget _buildGlassCard({required Widget child, EdgeInsetsGeometry padding = const EdgeInsets.all(AppSpacing.xxl)}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     // In dark mode keep the frosted-glass look; in light mode use a clean
     // solid card with a soft shadow that matches the rest of the app.
@@ -448,7 +449,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
       padding: padding,
       decoration: BoxDecoration(
         color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(AppRadius.xl),
         border: Border.all(color: AppColors.borderCol(context)),
         boxShadow: [
           BoxShadow(
@@ -522,7 +523,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
               ),
               const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(AppSpacing.md),
                 decoration: BoxDecoration(color: isEngineOn ? AppColors.primaryBlue.withValues(alpha: 0.3) : AppColors.borderCol(context), shape: BoxShape.circle),
                 child: Icon(Icons.air, color: isEngineOn ? AppColors.primaryBlue : Colors.grey, size: 28),
               ),
@@ -566,10 +567,10 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                   children: [
                     AnimatedContainer(
                       duration: const Duration(milliseconds: 300),
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(AppSpacing.md),
                       decoration: BoxDecoration(
                         color: isLightOn ? lightColor.withValues(alpha: 0.2) : AppColors.borderCol(context),
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(AppRadius.md),
                       ),
                       child: Icon(Icons.lightbulb, color: isLightOn ? lightColor : Colors.grey, size: 24),
                     ),
@@ -649,8 +650,8 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                 child: Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(color: Colors.pinkAccent.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(16)),
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      decoration: BoxDecoration(color: Colors.pinkAccent.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(AppRadius.md)),
                       child: Icon(Icons.speaker_group, color: isEngineOn ? Colors.pinkAccent : Colors.grey, size: 24),
                     ),
                     const SizedBox(width: 16),
@@ -748,12 +749,12 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                   children: [
                     AnimatedContainer(
                       duration: const Duration(milliseconds: 300),
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(AppSpacing.md),
                       decoration: BoxDecoration(
                         color: isOn
                             ? AppColors.primaryBlue.withValues(alpha: 0.2)
                             : AppColors.borderCol(context),
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(AppRadius.md),
                       ),
                       child: Icon(Icons.tv,
                           color: isOn ? AppColors.primaryBlue : Colors.grey,
@@ -876,7 +877,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(AppSpacing.md),
                   decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.15), shape: BoxShape.circle),
                   child: Icon(Icons.nfc, color: statusColor, size: 28),
                 ),
@@ -936,8 +937,8 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: iconColor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(16)),
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(color: iconColor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(AppRadius.md)),
             child: Icon(iconData, color: iconColor, size: 24),
           ),
           const SizedBox(width: 16),
@@ -1115,7 +1116,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                             color: Colors.transparent,
                             border: Border.all(
                                 color: AppColors.text(context), width: 3),
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(AppRadius.xs),
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withValues(alpha: 0.3),

@@ -8,6 +8,8 @@ import '../screens/ai_hub/ai_tab_screen.dart';
 import '../screens/automations/automations_list_screen.dart';
 import '../screens/devices/device_control_screen.dart';
 import '../screens/profile/profile_screen.dart';
+import '../theme/app_motion.dart';
+import '../theme/app_spacing.dart';
 
 /// Top-level shell with the bottom nav and PageView so users can swipe
 /// horizontally between tabs (with smooth animation when tapping the nav).
@@ -58,7 +60,7 @@ class _MainShellState extends ConsumerState<MainShell> {
         _pageController.animateToPage(
           next,
           duration: const Duration(milliseconds: 280),
-          curve: Curves.easeOutCubic,
+          curve: AppMotion.standard,
         );
       }
     });
@@ -145,7 +147,7 @@ class _ModernNavBar extends StatelessWidget {
           height: 68,
           decoration: BoxDecoration(
             color: navColor,
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: AppRadius.brXl,
             border: Border.all(
               color: AppColors.borderCol(context).withValues(alpha: 0.6),
             ),
@@ -198,9 +200,9 @@ class _NavBtn extends StatelessWidget {
         splashColor: AppColors.primaryBlue.withValues(alpha: 0.15),
         highlightColor: Colors.transparent,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOutCubic,
-          margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+          duration: AppMotion.base,
+          curve: AppMotion.standard,
+          margin: const EdgeInsets.symmetric(vertical: 6, horizontal: AppSpacing.xs),
           padding: const EdgeInsets.symmetric(vertical: 6),
           decoration: BoxDecoration(
             gradient: selected
@@ -210,7 +212,7 @@ class _NavBtn extends StatelessWidget {
                     colors: [Color(0xFF2196F3), Color(0xFF00BFA5)],
                   )
                 : null,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: AppRadius.brMd,
             boxShadow: selected
                 ? [
                     BoxShadow(

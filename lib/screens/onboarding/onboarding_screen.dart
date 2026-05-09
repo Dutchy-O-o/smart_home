@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../constants/app_colors.dart';
+import '../../theme/app_motion.dart';
+import '../../theme/app_spacing.dart';
 import '../auth/login_screen.dart';
 
 // This is the introductory (Onboarding) screen of the app.
@@ -106,7 +108,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 ),
                 child: Column(
                   children: [
-                    const SizedBox(height: 20),
+                    AppSpacing.vGapXl,
                     Text(
                       _contents[_currentIndex].title,
                       textAlign: TextAlign.center,
@@ -116,7 +118,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         color: AppColors.textWhite,
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    AppSpacing.vGapLg,
                     Text(
                       _contents[_currentIndex].description,
                       textAlign: TextAlign.center,
@@ -146,15 +148,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             _navigateToLogin();
                           } else {
                             _pageController.nextPage(
-                              duration: const Duration(milliseconds: 300),
-                              curve: Curves.easeInOut,
+                              duration: AppMotion.slow,
+                              curve: AppMotion.standard,
                             );
                           }
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primaryBlue,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30),
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.all(Radius.circular(AppRadius.pill)),
                           ),
                           elevation: 10,
                           shadowColor: AppColors.primaryBlue.withValues(alpha: 0.4),
@@ -173,7 +175,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                               ),
                             ),
                             if (_currentIndex != _contents.length - 1) ...[
-                              const SizedBox(width: 8),
+                              AppSpacing.hGapSm,
                               const Icon(Icons.arrow_forward, color: Colors.white),
                             ],
                           ],
@@ -207,7 +209,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   void _navigateToLogin() {
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => const LoginScreen()),
+      AppMotion.fadeSlideRoute(const LoginScreen()),
     );
   }
 }

@@ -9,8 +9,8 @@ import '../../providers/home_provider.dart';
 import '../../services/emotion_api_service.dart';
 import '../../services/spotify_service.dart';
 import '../../services/api_service.dart';
-import '../../providers/auth_provider.dart';
 import '../../services/mood_history_service.dart';
+import '../../theme/app_spacing.dart';
 import 'widgets/ambient_section.dart';
 import 'widgets/mood_card.dart';
 import 'widgets/mood_picker_sheet.dart';
@@ -234,7 +234,7 @@ class _EmotionHubScreenState extends ConsumerState<EmotionHubScreen> {
                 physics: const BouncingScrollPhysics(),
                 child: Column(
                   children: [
-                    const SizedBox(height: 32),
+                    const SizedBox(height: AppSpacing.xxxl),
                     ScanArea(
                       moodEmoji: moodEmoji,
                       moodColor: moodColor,
@@ -251,9 +251,9 @@ class _EmotionHubScreenState extends ConsumerState<EmotionHubScreen> {
                       mood: mood.mood,
                       confidence: mood.confidence,
                     ),
-                    const SizedBox(height: 24),
+                    AppSpacing.vGapXxl,
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
                       child: MoodWeeklyHeatmap(grid: _weeklyMoodGrid),
                     ),
                     const SizedBox(height: 28),
@@ -268,7 +268,7 @@ class _EmotionHubScreenState extends ConsumerState<EmotionHubScreen> {
                     ),
                     const SizedBox(height: 28),
                     AmbientSection(mood: mood.mood),
-                    const SizedBox(height: 24),
+                    AppSpacing.vGapXxl,
                   ],
                 ),
               ),
@@ -296,18 +296,16 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.lg),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
             'Emotion Hub',
-            style: TextStyle(
-              color: AppColors.text(context),
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              letterSpacing: -0.5,
-            ),
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontSize: 22,
+                  letterSpacing: -0.5,
+                ),
           ),
           _HeaderIcon(
             icon: isConnected ? Icons.link : Icons.link_off,
@@ -338,14 +336,17 @@ class _HeaderIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return Semantics(
+      button: true,
+      label: 'Spotify connection',
+      child: GestureDetector(
       onTap: loading ? null : onTap,
       child: Container(
         width: 40,
         height: 40,
         decoration: BoxDecoration(
           color: AppColors.card(context),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: AppRadius.brSm,
           border: Border.all(color: AppColors.borderCol(context)),
         ),
         child: Center(
@@ -358,6 +359,7 @@ class _HeaderIcon extends StatelessWidget {
                 )
               : Icon(icon, color: color, size: 20),
         ),
+      ),
       ),
     );
   }

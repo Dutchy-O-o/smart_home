@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../constants/app_colors.dart';
+import '../../../theme/app_motion.dart';
 
 /// Big circular tap-to-scan button with mood-colored glow.
 /// Shows a pulse + loader while [isScanning], otherwise renders the mood emoji
@@ -21,11 +22,15 @@ class ScanArea extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: GestureDetector(
+      child: Semantics(
+        button: true,
+        enabled: !isScanning,
+        label: isScanning ? 'Scanning your mood' : 'Tap to scan your mood',
+        child: GestureDetector(
         onTap: isScanning ? null : onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 400),
-          curve: Curves.easeOut,
+          curve: AppMotion.standard,
           width: 220,
           height: 220,
           decoration: BoxDecoration(
@@ -112,6 +117,7 @@ class ScanArea extends StatelessWidget {
             ],
           ),
         ),
+      ),
       ),
     );
   }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../constants/app_colors.dart';
+import '../../../theme/app_spacing.dart';
 
 /// Circular quick-access button used in the dashboard's action row.
 /// When [highlighted] is true the fill uses [highlightColor] (or primary blue
@@ -37,7 +38,12 @@ class QuickAccessButton extends StatelessWidget {
         : AppColors.card(context);
     final dim = !enabled && !loading;
 
-    return Opacity(
+    return Semantics(
+      button: true,
+      enabled: enabled && !loading,
+      label: label,
+      hint: description,
+      child: Opacity(
       opacity: dim ? 0.4 : 1.0,
       child: GestureDetector(
         onTap: (enabled && !loading) ? onTap : null,
@@ -71,7 +77,7 @@ class QuickAccessButton extends StatelessWidget {
                       )
                     : Icon(icon, color: iconColor, size: 28),
               ),
-              const SizedBox(height: 8),
+              AppSpacing.vGapSm,
               Text(
                 label,
                 textAlign: TextAlign.center,
@@ -98,6 +104,7 @@ class QuickAccessButton extends StatelessWidget {
             ],
           ),
         ),
+      ),
       ),
     );
   }

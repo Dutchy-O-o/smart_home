@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../constants/app_colors.dart';
+import '../../theme/app_motion.dart';
+import '../../theme/app_spacing.dart';
 // import '../dashboard/dashboard_screen.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -84,7 +86,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       if (success && mounted) {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => OtpVerificationScreen(email: email)),
+          AppMotion.fadeSlideRoute(OtpVerificationScreen(email: email)),
         );
       }
     } on AuthException catch (e) {
@@ -121,15 +123,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         decoration: const BoxDecoration(
           color: AppColors.cardDark,
           borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
+            topLeft: AppRadius.rLg,
+            topRight: AppRadius.rLg,
           ),
         ),
         child: Column(
           children: [
             Center(
               child: Container(
-                margin: const EdgeInsets.only(top: 10, bottom: 20),
+                margin: const EdgeInsets.only(top: 10, bottom: AppSpacing.xl),
                 width: 50,
                 height: 5,
                 decoration: BoxDecoration(
@@ -146,10 +148,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 16),
+            AppSpacing.vGapLg,
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl, vertical: 10),
                 child: Text(
                   content,
                   style: const TextStyle(
@@ -162,7 +164,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             ),
             // Kapat Butonu
             Padding(
-              padding: const EdgeInsets.all(24.0),
+              padding: const EdgeInsets.all(AppSpacing.xxl),
               child: SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -170,8 +172,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   onPressed: () => Navigator.pop(context),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryBlue,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: AppRadius.brSm,
                     ),
                   ),
                   child: const Text("I Understand", style: TextStyle(color: Colors.white)),
@@ -215,7 +217,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl, vertical: 10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -228,23 +230,23 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 8),
+              AppSpacing.vGapSm,
               const Text(
                 "Connect to your secure smart home network.",
                 style: TextStyle(color: AppColors.textGrey, fontSize: 14),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: AppSpacing.xxxl),
 
               // FORM ALANLARI
               _buildLabel("Full Name"),
               _buildInput(_fullNameController, "e.g., Alex Chen", Icons.person_outline),
-              
-              const SizedBox(height: 16),
-              
+
+              AppSpacing.vGapLg,
+
               _buildLabel("Email Address"),
               _buildInput(_emailController, "alex@example.com", Icons.email_outlined),
 
-              const SizedBox(height: 16),
+              AppSpacing.vGapLg,
               
               _buildLabel("Password"),
               TextField(
@@ -261,14 +263,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     icon: Icon(_isObscured ? Icons.visibility_off : Icons.visibility, color: Colors.grey),
                     onPressed: () => setState(() => _isObscured = !_isObscured),
                   ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+                  border: const OutlineInputBorder(
+                    borderRadius: AppRadius.brSm,
                     borderSide: BorderSide.none,
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
-              
+              AppSpacing.vGapSm,
+
               LinearProgressIndicator(
                 value: _passwordStrength,
                 backgroundColor: Colors.grey[800],
@@ -276,32 +278,32 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 minHeight: 4,
                 borderRadius: BorderRadius.circular(2),
               ),
-              const SizedBox(height: 4),
+              AppSpacing.vGapXs,
               Text(
                 strengthText,
                 style: TextStyle(color: strengthColor, fontSize: 12),
               ),
 
-              const SizedBox(height: 16),
+              AppSpacing.vGapLg,
 
               _buildLabel("Confirm Password"),
               TextField(
                 controller: _confirmPasswordController,
                 obscureText: true,
                 style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   filled: true,
                   fillColor: AppColors.cardDark,
                   hintText: "••••••••",
-                  hintStyle: const TextStyle(color: Colors.grey),
+                  hintStyle: TextStyle(color: Colors.grey),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: AppRadius.brSm,
                     borderSide: BorderSide.none,
                   ),
                 ),
               ),
 
-              const SizedBox(height: 24),
+              AppSpacing.vGapXxl,
 
               // LEGAL & ONAY (Checkbox ve Linkler)
               Row(
@@ -351,7 +353,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ],
               ),
 
-              const SizedBox(height: 24),
+              AppSpacing.vGapXxl,
 
               SizedBox(
                 width: double.infinity,
@@ -362,8 +364,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryBlue,
                     disabledBackgroundColor: AppColors.primaryBlue.withValues(alpha: 0.3),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(AppRadius.pill)),
                     ),
                   ),
                   child: Row(
@@ -384,7 +386,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        AppSpacing.hGapSm,
                         Icon(Icons.arrow_forward, color: _agreedToTerms ? Colors.white : Colors.white54),
                       ]
                     ],
@@ -421,7 +423,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   Widget _buildLabel(String text) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Text(
         text,
         style: const TextStyle(color: AppColors.textWhite, fontWeight: FontWeight.bold),
@@ -439,11 +441,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         hintText: hint,
         hintStyle: const TextStyle(color: Colors.grey),
         suffixIcon: suffixIcon != null ? Icon(suffixIcon, color: Colors.grey) : null,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+        border: const OutlineInputBorder(
+          borderRadius: AppRadius.brSm,
           borderSide: BorderSide.none,
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.lg,
+        ),
       ),
     );
   }

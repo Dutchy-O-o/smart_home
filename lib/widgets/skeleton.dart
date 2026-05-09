@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
+import '../theme/app_spacing.dart';
 
 /// Lightweight shimmer placeholder built without an external package.
 /// Animates a moving highlight gradient across a rounded rectangle.
@@ -11,7 +12,7 @@ class Skeleton extends StatefulWidget {
     super.key,
     required this.width,
     required this.height,
-    this.borderRadius = 12,
+    this.borderRadius = AppRadius.sm,
   });
 
   final double width;

@@ -4,6 +4,7 @@ import '../../../constants/app_colors.dart';
 import '../../../constants/mood_palette.dart';
 import '../../../providers/home_provider.dart';
 import '../../../services/api_service.dart';
+import '../../../theme/app_spacing.dart';
 
 /// Emotion-aware ambient scene applier. One tap sets the home's lighting
 /// (and optionally the speaker) to a coordinated atmosphere matching the
@@ -182,7 +183,7 @@ class _AmbientSectionState extends ConsumerState<AmbientSection> {
     final mood = widget.mood;
     final hasMood = mood != null;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -192,7 +193,7 @@ class _AmbientSectionState extends ConsumerState<AmbientSection> {
             hasMood
                 ? 'Match your home to how you feel.'
                 : 'Detect or pick a mood and your room can match it.',
-            style: TextStyle(color: AppColors.textSub(context), fontSize: 12),
+            style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 14),
           if (!hasMood) _emptyState(context) else _applyCard(context, mood),
@@ -205,19 +206,15 @@ class _AmbientSectionState extends ConsumerState<AmbientSection> {
     return Row(
       children: [
         Icon(Icons.auto_awesome, color: AppColors.textSub(context), size: 20),
-        const SizedBox(width: 8),
+        AppSpacing.hGapSm,
         Text(
           'Ambient',
-          style: TextStyle(
-            color: AppColors.text(context),
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
+          style: Theme.of(context).textTheme.titleLarge,
         ),
         if (hasMood && _lastAppliedMood == widget.mood) ...[
-          const SizedBox(width: 8),
+          AppSpacing.hGapSm,
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 3),
             decoration: BoxDecoration(
               color: AppColors.accentGreen.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(6),
@@ -226,7 +223,7 @@ class _AmbientSectionState extends ConsumerState<AmbientSection> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(Icons.check_circle, color: AppColors.accentGreen, size: 12),
-                const SizedBox(width: 4),
+                AppSpacing.hGapXs,
                 Text(
                   'APPLIED',
                   style: TextStyle(
@@ -250,7 +247,7 @@ class _AmbientSectionState extends ConsumerState<AmbientSection> {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: AppColors.card(context).withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: AppRadius.brSm,
         border: Border.all(
           color: AppColors.borderCol(context).withValues(alpha: 0.5),
           style: BorderStyle.solid,
@@ -260,15 +257,11 @@ class _AmbientSectionState extends ConsumerState<AmbientSection> {
         children: [
           Icon(Icons.lightbulb_outline,
               color: AppColors.textSub(context), size: 22),
-          const SizedBox(width: 12),
+          AppSpacing.hGapMd,
           Expanded(
             child: Text(
               'Scan your face or pick a mood to enable one-tap ambience.',
-              style: TextStyle(
-                color: AppColors.textSub(context),
-                fontSize: 12,
-                height: 1.4,
-              ),
+              style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
         ],
@@ -284,7 +277,7 @@ class _AmbientSectionState extends ConsumerState<AmbientSection> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -294,7 +287,7 @@ class _AmbientSectionState extends ConsumerState<AmbientSection> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: AppRadius.brMd,
         border: Border.all(color: accent.withValues(alpha: 0.4), width: 1),
       ),
       child: Column(
@@ -319,29 +312,21 @@ class _AmbientSectionState extends ConsumerState<AmbientSection> {
                 alignment: Alignment.center,
                 child: Text(emoji, style: const TextStyle(fontSize: 18)),
               ),
-              const SizedBox(width: 12),
+              AppSpacing.hGapMd,
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       label,
-                      style: TextStyle(
-                        color: AppColors.text(context),
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const SizedBox(height: 2),
                     Text(
                       scene.description,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: AppColors.textSub(context),
-                        fontSize: 12,
-                        height: 1.3,
-                      ),
+                      style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
                 ),
@@ -360,8 +345,8 @@ class _AmbientSectionState extends ConsumerState<AmbientSection> {
                 disabledBackgroundColor: accent.withValues(alpha: 0.5),
                 disabledForegroundColor: Colors.white,
                 elevation: 0,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                shape: const RoundedRectangleBorder(
+                    borderRadius: AppRadius.brSm),
               ),
               icon: _running
                   ? const SizedBox(

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../constants/app_colors.dart';
+import '../../theme/app_motion.dart';
+import '../../theme/app_spacing.dart';
 import 'reset_confirmation_screen.dart';
 // import 'login_screen.dart'; // no longer needed
 
@@ -28,7 +30,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const ResetConfirmationScreen()),
+      AppMotion.fadeSlideRoute(const ResetConfirmationScreen()),
     );
   }
 
@@ -48,7 +50,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl, vertical: AppSpacing.xl),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -89,7 +91,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
+              AppSpacing.vGapMd,
               const Center(
                 child: Text(
                   "Don't worry, it happens to the best of us. Enter the email address linked to your Smart Home Hub below, and we'll send you rescue instructions.",
@@ -106,21 +108,21 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
               // 3. EMAIL ALANI
               const Text("Email Address", style: TextStyle(color: AppColors.textWhite, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
+              AppSpacing.vGapSm,
               TextField(
                 controller: _emailController,
                 style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   filled: true,
                   fillColor: AppColors.cardDark,
                   hintText: "name@example.com",
-                  hintStyle: const TextStyle(color: Colors.grey),
-                  prefixIcon: const Icon(Icons.email_outlined, color: Colors.grey),
+                  hintStyle: TextStyle(color: Colors.grey),
+                  prefixIcon: Icon(Icons.email_outlined, color: Colors.grey),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(30),
+                    borderRadius: BorderRadius.all(Radius.circular(AppRadius.pill)),
                     borderSide: BorderSide.none,
                   ),
-                  contentPadding: const EdgeInsets.symmetric(vertical: 18),
+                  contentPadding: EdgeInsets.symmetric(vertical: 18),
                 ),
               ),
 
@@ -133,8 +135,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   onPressed: _handleSendResetLink,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryBlue,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(AppRadius.pill)),
                     ),
                     elevation: 5,
                     shadowColor: AppColors.primaryBlue.withValues(alpha: 0.4),

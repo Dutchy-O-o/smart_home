@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../constants/app_colors.dart';
+import '../../theme/app_motion.dart';
+import '../../theme/app_spacing.dart';
 import 'login_screen.dart';
 
 class ResetConfirmationScreen extends StatelessWidget {
@@ -11,7 +13,7 @@ class ResetConfirmationScreen extends StatelessWidget {
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -40,13 +42,13 @@ class ResetConfirmationScreen extends StatelessWidget {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.all(4),
+                    padding: const EdgeInsets.all(AppSpacing.xs),
                     decoration: const BoxDecoration(
                       color: AppColors.background,
                       shape: BoxShape.circle,
                     ),
                     child: Container(
-                      padding: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.all(AppSpacing.sm),
                       decoration: const BoxDecoration(
                         color: AppColors.accentGreen,
                         shape: BoxShape.circle,
@@ -70,7 +72,7 @@ class ResetConfirmationScreen extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 16),
+              AppSpacing.vGapLg,
               const Text(
                 "We have sent password recovery instructions to your email. Please check your inbox and spam folder.",
                 textAlign: TextAlign.center,
@@ -90,14 +92,14 @@ class ResetConfirmationScreen extends StatelessWidget {
                   onPressed: () {
                     Navigator.pushAndRemoveUntil(
                       context,
-                      MaterialPageRoute(builder: (context) => const LoginScreen()),
+                      AppMotion.fadeSlideRoute(const LoginScreen()),
                       (route) => false,
                     );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryBlue,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(AppRadius.pill)),
                     ),
                     elevation: 5,
                     shadowColor: AppColors.primaryBlue.withValues(alpha: 0.4),
@@ -117,7 +119,7 @@ class ResetConfirmationScreen extends StatelessWidget {
               Column(
                 children: [
                   const Text("Did not receive the email?", style: TextStyle(color: AppColors.textGrey)),
-                  const SizedBox(height: 8),
+                  AppSpacing.vGapSm,
                   GestureDetector(
                     onTap: () {
                       ScaffoldMessenger.of(context).showSnackBar(

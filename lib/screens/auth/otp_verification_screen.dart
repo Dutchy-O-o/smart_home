@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/app_colors.dart';
 import '../../providers/auth_provider.dart';
+import '../../theme/app_motion.dart';
+import '../../theme/app_spacing.dart';
 import 'login_screen.dart';
 
 class OtpVerificationScreen extends ConsumerStatefulWidget {
@@ -34,7 +36,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
         );
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          AppMotion.fadeSlideRoute(const LoginScreen()),
           (route) => false,
         );
       }
@@ -69,13 +71,13 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
       ),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl, vertical: 40),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Icon(Icons.mark_email_read_outlined, size: 80, color: AppColors.primaryBlue),
-              const SizedBox(height: 24),
+              AppSpacing.vGapXxl,
               const Text(
                 "Check your inbox",
                 style: TextStyle(
@@ -84,14 +86,14 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 12),
+              AppSpacing.vGapMd,
               Text(
                 "We've sent a 6-digit confirmation code to\n\${widget.email}",
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: AppColors.textGrey, fontSize: 14),
               ),
               const SizedBox(height: 40),
-              
+
               TextField(
                 controller: _codeController,
                 textAlign: TextAlign.center,
@@ -104,11 +106,11 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                   counterText: "",
                   hintText: "000000",
                   hintStyle: const TextStyle(color: Colors.grey, letterSpacing: 8),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
+                  border: const OutlineInputBorder(
+                    borderRadius: AppRadius.brMd,
                     borderSide: BorderSide.none,
                   ),
-                  contentPadding: const EdgeInsets.symmetric(vertical: 20),
+                  contentPadding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
                 ),
               ),
               const SizedBox(height: 30),
@@ -120,8 +122,8 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                   onPressed: isLoading ? null : _verifyCode,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryBlue,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(AppRadius.pill)),
                     ),
                   ),
                   child: isLoading

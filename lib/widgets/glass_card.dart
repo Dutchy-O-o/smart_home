@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
+import '../theme/app_spacing.dart';
 
 class GlassCard extends StatelessWidget {
   final Widget child;
@@ -11,28 +12,31 @@ class GlassCard extends StatelessWidget {
   final double opacity;
   final VoidCallback? onTap;
   final double blur;
+  final String? semanticsLabel;
 
   const GlassCard({
     super.key,
     required this.child,
     this.padding,
     this.margin,
-    this.borderRadius = 20,
+    this.borderRadius = AppRadius.xl,
     this.glowColor,
     this.opacity = 0.06,
     this.onTap,
     this.blur = 12,
+    this.semanticsLabel,
   });
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final glow = glowColor ?? AppColors.teal;
+    final radius = BorderRadius.circular(borderRadius);
 
-    return Container(
+    Widget card = Container(
       margin: margin,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(borderRadius),
+        borderRadius: radius,
         boxShadow: [
           BoxShadow(
             color: glow.withValues(alpha: 0.08),
@@ -42,20 +46,20 @@ class GlassCard extends StatelessWidget {
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(borderRadius),
+        borderRadius: radius,
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
           child: Material(
             color: Colors.transparent,
             child: InkWell(
               onTap: onTap,
-              borderRadius: BorderRadius.circular(borderRadius),
+              borderRadius: radius,
               splashColor: glow.withValues(alpha: 0.1),
               highlightColor: glow.withValues(alpha: 0.05),
               child: Container(
-                padding: padding ?? const EdgeInsets.all(20),
+                padding: padding ?? const EdgeInsets.all(AppSpacing.xl),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(borderRadius),
+                  borderRadius: radius,
                   color: (isDark ? Colors.white : Colors.black).withValues(alpha: opacity),
                   border: Border.all(
                     color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.08),
@@ -77,5 +81,14 @@ class GlassCard extends StatelessWidget {
         ),
       ),
     );
+
+    if (semanticsLabel != null || onTap != null) {
+      card = Semantics(
+        button: onTap != null,
+        label: semanticsLabel,
+        child: card,
+      );
+    }
+    return card;
   }
 }

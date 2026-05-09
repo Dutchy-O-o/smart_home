@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../constants/app_colors.dart';
+import '../../theme/app_motion.dart';
+import '../../theme/app_spacing.dart';
 import '../dashboard/home_selection_screen.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
@@ -43,7 +45,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (success && mounted) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const HomeSelectionScreen()),
+          AppMotion.fadeSlideRoute(const HomeSelectionScreen()),
         );
       }
     } catch (e) {
@@ -72,15 +74,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl, vertical: 40),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const SizedBox(height: 40),
-              
+
               Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(AppSpacing.xl),
                 decoration: BoxDecoration(
                   color: AppColors.cardDark,
                   shape: BoxShape.circle,
@@ -88,7 +90,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 child: const Icon(Icons.home, size: 50, color: AppColors.textWhite),
               ),
-              const SizedBox(height: 24),
+              AppSpacing.vGapXxl,
               const Text(
                 "Welcome Home",
                 style: TextStyle(
@@ -97,7 +99,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 8),
+              AppSpacing.vGapSm,
               const Text(
                 "Securely access your emotional intelligence hub.",
                 textAlign: TextAlign.center,
@@ -111,13 +113,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 icon: Icons.email_outlined,
                 label: "Email or Username",
               ),
-              const SizedBox(height: 20),
+              AppSpacing.vGapXl,
 
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text("Password", style: TextStyle(color: AppColors.textWhite, fontSize: 14, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
+                  AppSpacing.vGapSm,
                   TextField(
                     controller: _passwordController,
                     obscureText: _isObscured,
@@ -139,8 +141,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           });
                         },
                       ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(30), // Yuvarlak kenarlar
+                      border: const OutlineInputBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(AppRadius.pill)),
                         borderSide: BorderSide.none,
                       ),
                       contentPadding: const EdgeInsets.symmetric(vertical: 18),
@@ -148,16 +150,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                 ],
               ),
-              
+
               // Forgot Password Linki
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
                   onPressed: () {
-                   
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const ForgotPasswordScreen()),
+                      AppMotion.fadeSlideRoute(const ForgotPasswordScreen()),
                     );
                   },
                   child: const Text(
@@ -166,7 +167,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
+              AppSpacing.vGapXxl,
 
               SizedBox(
                 width: double.infinity,
@@ -175,8 +176,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   onPressed: isLoading ? null : _handleLogin,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryBlue,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(AppRadius.pill)),
                     ),
                     elevation: 5,
                     shadowColor: AppColors.primaryBlue.withValues(alpha: 0.4),
@@ -192,7 +193,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         )
                       else ...[
                         const Icon(Icons.bolt, color: Colors.white),
-                        const SizedBox(width: 8),
+                        AppSpacing.hGapSm,
                         const Text(
                           "Secure Login",
                           style: TextStyle(
@@ -212,7 +213,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               const Column(
                 children: [
                   Icon(Icons.face, size: 40, color: Colors.grey),
-                  SizedBox(height: 4),
+                  AppSpacing.vGapXs,
                   Text("Face ID", style: TextStyle(color: Colors.grey, fontSize: 12)),
                 ],
               ),
@@ -227,7 +228,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const RegisterScreen()),
+                        AppMotion.fadeSlideRoute(const RegisterScreen()),
                       );
                     },
                     child: const Text(
@@ -257,7 +258,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label, style: const TextStyle(color: AppColors.textWhite, fontSize: 14, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
+        AppSpacing.vGapSm,
         TextField(
           controller: controller,
           style: const TextStyle(color: Colors.white),
@@ -267,8 +268,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             hintText: hintText,
             hintStyle: const TextStyle(color: Colors.grey),
             prefixIcon: Icon(icon, color: Colors.grey),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(30),
+            border: const OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(AppRadius.pill)),
               borderSide: BorderSide.none,
             ),
             contentPadding: const EdgeInsets.symmetric(vertical: 18),

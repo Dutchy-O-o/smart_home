@@ -7,6 +7,8 @@ import '../devices/device_control_screen.dart';
 import '../notifications/notification_screen.dart';
 import '../automations/automations_list_screen.dart';
 import '../profile/profile_screen.dart';
+import '../../theme/app_motion.dart';
+import '../../theme/app_spacing.dart';
 
 
 class MonitoringScreen extends StatefulWidget {
@@ -21,21 +23,21 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
     if (index == 0) {
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (context) => const DashboardScreen()),
+        AppMotion.fadeSlideRoute(const DashboardScreen()),
         (route) => false,
       );
     } else if (index == 1) {
-      Navigator.push(context, MaterialPageRoute(builder: (context) => const EmotionHubScreen()));
+      Navigator.push(context, AppMotion.fadeSlideRoute(const EmotionHubScreen()));
     } else if (index == 2) {
-      Navigator.push(context, MaterialPageRoute(builder: (context) => const AutomationsListScreen()));
+      Navigator.push(context, AppMotion.fadeSlideRoute(const AutomationsListScreen()));
     } else if (index == 3) {
       // Already on Security
     } else if (index == 4) {
-      Navigator.push(context, MaterialPageRoute(builder: (context) => const DeviceControlScreen()));
+      Navigator.push(context, AppMotion.fadeSlideRoute(const DeviceControlScreen()));
     } else if (index == 5) {
-      Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationScreen()));
+      Navigator.push(context, AppMotion.fadeSlideRoute(const NotificationScreen()));
     } else if (index == 6) {
-      Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen()));
+      Navigator.push(context, AppMotion.fadeSlideRoute(const ProfileScreen()));
     }
   }
 
@@ -103,7 +105,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                 width: double.infinity,
                 decoration: BoxDecoration(
                   color: Colors.black,
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
                   image: DecorationImage(
                     image: const NetworkImage("https://images.unsplash.com/photo-1550989460-0adf9ea622e2?q=80&w=600&auto=format&fit=crop"),
                     fit: BoxFit.cover,
@@ -140,7 +142,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                     ),
                     Center(
                       child: Container(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(AppSpacing.md),
                         decoration: BoxDecoration(
                           color: AppColors.primaryBlue.withValues(alpha: 0.8),
                           shape: BoxShape.circle,
@@ -179,10 +181,10 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
 
               // --- 4. CRITICAL ALERT CARD ---
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(AppSpacing.lg),
                 decoration: BoxDecoration(
                   color: const Color(0xFF2C1E24),
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
                   border: Border.all(color: AppColors.accentRed.withValues(alpha: 0.3)),
                 ),
                 child: Column(
@@ -190,7 +192,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(8),
+                          padding: const EdgeInsets.all(AppSpacing.sm),
                           decoration: BoxDecoration(
                             color: AppColors.accentRed.withValues(alpha: 0.2),
                             shape: BoxShape.circle,
@@ -217,7 +219,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                         label: const Text("Emergency 911"),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.accentRed,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.xl)),
                         ),
                       ),
                     ),
@@ -352,7 +354,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: AppColors.cardDark,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: isGreen ? dotColor.withValues(alpha: 0.3) : Colors.transparent),
       ),
       child: Row(
@@ -381,10 +383,10 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
   }) {
     return Container(
       height: 200, 
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         color: AppColors.cardDark,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(AppRadius.xl),
       ),
       child: Column(
         children: [
@@ -402,7 +404,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: isTrendPositive ? AppColors.accentGreen.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
                 child: Text(
                   trend,

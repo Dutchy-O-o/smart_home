@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../constants/app_colors.dart';
 import '../../../constants/mood_palette.dart';
 import '../../../services/mood_history_service.dart';
+import '../../../theme/app_spacing.dart';
 
 /// 7×24 grid showing the dominant mood per hour over the last week. Each
 /// cell is colored by mood (using [MoodPalette.colorFor]); empty cells
@@ -19,10 +20,10 @@ class MoodWeeklyHeatmap extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 16, 12, 14),
+      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg, AppSpacing.md, 14),
       decoration: BoxDecoration(
         color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: AppRadius.brLg,
         border: Border.all(color: AppColors.borderCol(context)),
       ),
       child: Column(

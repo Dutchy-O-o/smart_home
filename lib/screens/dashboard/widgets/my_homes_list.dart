@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../constants/app_colors.dart';
+import '../../../theme/app_spacing.dart';
 import '../../../widgets/skeleton.dart';
 
 /// Horizontal scrolling list of the user's homes shown on the dashboard.
@@ -26,8 +27,8 @@ class MyHomesList extends StatelessWidget {
           scrollDirection: Axis.horizontal,
           itemCount: 3,
           itemBuilder: (_, __) => const Padding(
-            padding: EdgeInsets.only(right: 16),
-            child: Skeleton(width: 140, height: 100, borderRadius: 16),
+            padding: EdgeInsets.only(right: AppSpacing.lg),
+            child: Skeleton(width: 140, height: 100, borderRadius: AppRadius.md),
           ),
         ),
       );
@@ -68,12 +69,12 @@ class _HomeCard extends StatelessWidget {
 
     return Container(
       width: 140,
-      margin: const EdgeInsets.only(right: 16),
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(right: AppSpacing.lg),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.card(context),
         border: Border.all(color: accent.withValues(alpha: 0.5)),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: AppRadius.brMd,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -88,7 +89,7 @@ class _HomeCard extends StatelessWidget {
                 color: accent,
                 size: 18,
               ),
-              const SizedBox(width: 8),
+              AppSpacing.hGapSm,
               Expanded(
                 child: Text(
                   home['home_name'] ?? 'Home $index',
@@ -101,12 +102,15 @@ class _HomeCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          AppSpacing.vGapSm,
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: AppSpacing.xs,
+            ),
             decoration: BoxDecoration(
               color: accent.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: AppRadius.brXs,
             ),
             child: Text(
               role.toString().toUpperCase(),

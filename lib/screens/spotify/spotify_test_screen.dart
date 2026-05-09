@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../constants/app_colors.dart';
 import '../../services/spotify_service.dart';
+import '../../theme/app_spacing.dart';
 
 /// Spotify connection test and mood recommendation test screen.
 /// This screen is only for development/testing purposes.
@@ -162,7 +163,7 @@ class _SpotifyTestScreenState extends State<SpotifyTestScreen> {
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -196,10 +197,10 @@ class _SpotifyTestScreenState extends State<SpotifyTestScreen> {
   Widget _buildStatusCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         color: _isConnected ? const Color(0xFF1DB954).withValues(alpha: 0.1) : AppColors.card(context),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
         border: Border.all(
           color: _isConnected ? const Color(0xFF1DB954) : AppColors.borderCol(context),
         ),
@@ -260,7 +261,7 @@ class _SpotifyTestScreenState extends State<SpotifyTestScreen> {
               backgroundColor: const Color(0xFF1DB954),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
               textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ),
@@ -339,7 +340,7 @@ class _SpotifyTestScreenState extends State<SpotifyTestScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
                 color: const Color(0xFF1DB954).withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(AppRadius.lg),
               ),
               child: Text(
                 artist,
@@ -402,7 +403,7 @@ class _SpotifyTestScreenState extends State<SpotifyTestScreen> {
               backgroundColor: const Color(0xFF1DB954),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
             ),
           ),
         ),
@@ -425,10 +426,10 @@ class _SpotifyTestScreenState extends State<SpotifyTestScreen> {
         const SizedBox(height: 8),
         ..._testResults.map((result) => Container(
           margin: const EdgeInsets.only(bottom: 8),
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
             color: AppColors.card(context),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppRadius.sm),
             border: Border.all(
               color: result.success ? const Color(0xFF1DB954) : AppColors.accentRed,
               width: 0.5,

@@ -4,6 +4,9 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:showcaseview/showcaseview.dart';
 import '../../constants/app_colors.dart';
+import '../../theme/app_breakpoints.dart';
+import '../../theme/app_motion.dart';
+import '../../theme/app_spacing.dart';
 import '../../widgets/onboarding_keys.dart';
 import '../../widgets/temp_humidity_card.dart';
 import '../auth/login_screen.dart';
@@ -248,7 +251,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     if (mounted) {
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        AppMotion.fadeSlideRoute(const LoginScreen()),
         (route) => false,
       );
     }
@@ -635,7 +638,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     "Opens the AI Mood screen, where the camera-detected emotion drives matching automations you've defined."),
                 const SizedBox(height: 12),
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(AppSpacing.md),
                   decoration: BoxDecoration(
                     color: AppColors.primaryBlue.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(10),
@@ -795,9 +798,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       builder: (BuildContext context) {
         return Dialog(
           backgroundColor: AppColors.card(context),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.xl)),
           child: Padding(
-            padding: const EdgeInsets.all(24.0),
+            padding: const EdgeInsets.all(AppSpacing.xxl),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -815,10 +818,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ),
                 const SizedBox(height: 24),
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(AppSpacing.lg),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(AppRadius.md),
                   ),
                   child:QrImageView(
                     data: secureToken, // Encrypted text received from AWS
@@ -833,7 +836,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primaryBlue.withValues(alpha: 0.2),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
                     onPressed: () => Navigator.pop(context),
@@ -865,10 +868,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     return [
       const SizedBox(height: 24),
       Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(AppSpacing.xl),
         decoration: BoxDecoration(
           color: AppColors.card(context),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
           border: Border.all(color: AppColors.borderCol(context)),
           boxShadow: [
             BoxShadow(
@@ -1215,9 +1218,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               onSwap: () {
                 Navigator.pushReplacement(
                   context,
-                  MaterialPageRoute(
-                    builder: (context) => const HomeSelectionScreen(),
-                  ),
+                  AppMotion.fadeSlideRoute(const HomeSelectionScreen()),
                 );
               },
               onQr: homeRole == 'ADMIN'
@@ -1234,9 +1235,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               onNotifications: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) => const NotificationScreen(),
-                  ),
+                  AppMotion.fadeSlideRoute(const NotificationScreen()),
                 );
               },
               onLogout: _handleLogout,
@@ -1313,11 +1312,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 child: GridView(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                gridDelegate:
-                    const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  // Phones get a 2-column grid; tablets/landscape get 4 so
+                  // scene cards stop ballooning into oversized rectangles.
+                  crossAxisCount:
+                      AppBreakpoints.isTabletOrLarger(context) ? 4 : 2,
+                  mainAxisSpacing: AppSpacing.md,
+                  crossAxisSpacing: AppSpacing.md,
                   mainAxisExtent: 150,
                 ),
                 children: [
@@ -1496,7 +1497,7 @@ class _HeroHeader extends StatelessWidget {
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.22),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(AppRadius.xs),
                     border: Border.all(
                         color: Colors.white.withValues(alpha: 0.35)),
                   ),
