@@ -70,7 +70,7 @@ lib/repomix-output.xml
 chapter5_additions.md
 insert_chapter5.py
 render_mermaid.py
-RASPI_RFID_BRIEF.md
+RASPI_*BRIEF.md
 images/fig_*
 
 # Debug dumps / accidental commits
