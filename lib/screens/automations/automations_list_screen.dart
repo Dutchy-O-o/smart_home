@@ -148,21 +148,28 @@ class _AutomationsListScreenState extends ConsumerState<AutomationsListScreen> {
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
       child: Row(
         children: [
-          GestureDetector(
-            onTap: () => Navigator.maybePop(context),
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: AppColors.card(context),
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-                border: Border.all(color: AppColors.borderCol(context)),
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: AppColors.brandGradient,
               ),
-              child: Icon(Icons.arrow_back,
-                  size: 20, color: AppColors.text(context)),
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primaryBlue.withValues(alpha: 0.40),
+                  blurRadius: 14,
+                  offset: const Offset(0, 5),
+                ),
+              ],
             ),
+            child: const Icon(Icons.auto_awesome_rounded,
+                color: Colors.white, size: 22),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -172,8 +179,9 @@ class _AutomationsListScreenState extends ConsumerState<AutomationsListScreen> {
                   style: TextStyle(
                     color: AppColors.text(context),
                     fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: -0.5,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.4,
+                    height: 1.05,
                   ),
                 ),
                 Text(
@@ -181,41 +189,43 @@ class _AutomationsListScreenState extends ConsumerState<AutomationsListScreen> {
                   style: TextStyle(
                     color: AppColors.textSub(context),
                     fontSize: 12,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
             ),
           ),
-          GestureDetector(
-            onTap: _showHistorySheet,
-            child: Container(
-              width: 40,
-              height: 40,
-              margin: const EdgeInsets.only(right: 12),
-              decoration: BoxDecoration(
-                color: AppColors.card(context),
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-                border: Border.all(color: AppColors.borderCol(context)),
-              ),
-              child: Icon(Icons.history,
-                  size: 20, color: AppColors.textSub(context)),
-            ),
-          ),
-          GestureDetector(
-            onTap: _isLoading ? null : _fetchAutomations,
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: AppColors.card(context),
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-                border: Border.all(color: AppColors.borderCol(context)),
-              ),
-              child: Icon(Icons.refresh,
-                  size: 20, color: AppColors.textSub(context)),
-            ),
+          _headerIcon(Icons.history_rounded, _showHistorySheet,
+              margin: const EdgeInsets.only(right: 8)),
+          _headerIcon(
+            Icons.refresh_rounded,
+            _isLoading ? null : _fetchAutomations,
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _headerIcon(IconData icon, VoidCallback? onTap,
+      {EdgeInsets? margin}) {
+    return Container(
+      margin: margin,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: AppColors.card(context),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.borderCol(context)),
+            ),
+            child: Icon(icon, size: 20, color: AppColors.textSub(context)),
+          ),
+        ),
       ),
     );
   }
@@ -773,14 +783,19 @@ class _CreateCta extends StatelessWidget {
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [Color(0xFF2196F3), Color(0xFF00BFA5)],
+              colors: AppColors.brandGradient,
             ),
             borderRadius: BorderRadius.circular(AppRadius.md),
             boxShadow: [
               BoxShadow(
-                color: AppColors.primaryBlue.withValues(alpha: 0.35),
-                blurRadius: 14,
-                offset: const Offset(0, 6),
+                color: AppColors.primaryBlue.withValues(alpha: 0.40),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+              BoxShadow(
+                color: AppColors.teal.withValues(alpha: 0.20),
+                blurRadius: 22,
+                offset: const Offset(0, 4),
               ),
             ],
           ),

@@ -3,145 +3,121 @@ import '../../constants/app_colors.dart';
 import '../../theme/app_motion.dart';
 import '../../theme/app_spacing.dart';
 import 'login_screen.dart';
+import 'widgets/auth_scaffold.dart';
 
 class ResetConfirmationScreen extends StatelessWidget {
   const ResetConfirmationScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+    return AuthScaffold(
+      children: [
+        const SizedBox(height: 48),
+        Center(
+          child: Stack(
+            alignment: Alignment.bottomRight,
             children: [
-              const Spacer(flex: 2),
-              Stack(
-                alignment: Alignment.bottomRight,
-                children: [
-                  Container(
-                    width: 120,
-                    height: 120,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF8DAE98),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.2),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.mail_outline,
-                      size: 60,
-                      color: Color(0xFFD6A042),
-                    ),
+              Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: AppColors.brandGradient,
                   ),
-                  Container(
-                    padding: const EdgeInsets.all(AppSpacing.xs),
-                    decoration: const BoxDecoration(
-                      color: AppColors.background,
-                      shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primaryBlue.withValues(alpha: 0.45),
+                      blurRadius: 28,
+                      offset: const Offset(0, 12),
                     ),
-                    child: Container(
-                      padding: const EdgeInsets.all(AppSpacing.sm),
-                      decoration: const BoxDecoration(
-                        color: AppColors.accentGreen,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.check,
-                        size: 20,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 40),
-              const Text(
-                "Check your mail",
-                style: TextStyle(
-                  color: AppColors.textWhite,
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
+                  ],
+                ),
+                child: const Icon(
+                  Icons.mail_outline_rounded,
+                  size: 56,
+                  color: Colors.white,
                 ),
               ),
-              AppSpacing.vGapLg,
-              const Text(
-                "We have sent password recovery instructions to your email. Please check your inbox and spam folder.",
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: AppColors.textGrey,
-                  fontSize: 15,
-                  height: 1.5,
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.xs),
+                decoration: BoxDecoration(
+                  color: AppColors.bg(context),
+                  shape: BoxShape.circle,
                 ),
-              ),
-
-              const SizedBox(height: 40),
-
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      AppMotion.fadeSlideRoute(const LoginScreen()),
-                      (route) => false,
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryBlue,
-                    shape: const RoundedRectangleBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(AppRadius.pill)),
-                    ),
-                    elevation: 5,
-                    shadowColor: AppColors.primaryBlue.withValues(alpha: 0.4),
+                child: Container(
+                  padding: const EdgeInsets.all(AppSpacing.sm),
+                  decoration: const BoxDecoration(
+                    color: AppColors.accentGreen,
+                    shape: BoxShape.circle,
                   ),
-                  child: const Text(
-                    "Return to Login",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  child: const Icon(
+                    Icons.check_rounded,
+                    size: 20,
+                    color: Colors.white,
                   ),
                 ),
               ),
-
-              const Spacer(flex: 3),
-              Column(
-                children: [
-                  const Text("Did not receive the email?", style: TextStyle(color: AppColors.textGrey)),
-                  AppSpacing.vGapSm,
-                  GestureDetector(
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("Email resent successfully!")),
-                      );
-                    },
-                    child: const Text(
-                      "Resend Email",
-                      style: TextStyle(
-                        color: AppColors.primaryBlue,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 40),
             ],
           ),
         ),
-      ),
+        const SizedBox(height: 36),
+        Text(
+          "Check your mail",
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.displayLarge,
+        ),
+        AppSpacing.vGapLg,
+        Text(
+          "We have sent password recovery instructions to your email. Please check your inbox and spam folder.",
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: AppColors.textSub(context),
+            fontSize: 15,
+            height: 1.5,
+          ),
+        ),
+        const SizedBox(height: 36),
+        AuthPrimaryButton(
+          label: "Return to Login",
+          icon: Icons.login_rounded,
+          onPressed: () {
+            Navigator.pushAndRemoveUntil(
+              context,
+              AppMotion.fadeSlideRoute(const LoginScreen()),
+              (route) => false,
+            );
+          },
+        ),
+        const SizedBox(height: 40),
+        Center(
+          child: Column(
+            children: [
+              Text("Did not receive the email?",
+                  style: TextStyle(color: AppColors.textSub(context))),
+              AppSpacing.vGapSm,
+              GestureDetector(
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text("Email resent successfully!")),
+                  );
+                },
+                child: Text(
+                  "Resend Email",
+                  style: TextStyle(
+                    color: AppColors.primaryBlue,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

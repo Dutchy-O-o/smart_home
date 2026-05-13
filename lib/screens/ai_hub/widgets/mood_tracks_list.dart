@@ -245,7 +245,7 @@ class _TrackRowState extends ConsumerState<_TrackRow> {
     final name = (widget.track['name'] ?? '-').toString();
 
     if (uri.isEmpty) {
-      messenger.showSnackBar(const SnackBar(content: Text('Parça bilgisi eksik.')));
+      messenger.showSnackBar(const SnackBar(content: Text('Track info missing.')));
       return;
     }
 
@@ -332,7 +332,7 @@ class _TrackRowState extends ConsumerState<_TrackRow> {
       // Only surface a snackbar on failure.
       if (!ok) {
         messenger.showSnackBar(SnackBar(
-          content: Text('Çalınamadı: $name'),
+          content: Text("Couldn't play: $name"),
           duration: const Duration(seconds: 2),
         ));
       }

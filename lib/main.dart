@@ -1,4 +1,8 @@
+import 'dart:ui';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:amplify_flutter/amplify_flutter.dart';
 import 'package:amplify_auth_cognito/amplify_auth_cognito.dart';
@@ -6,8 +10,8 @@ import 'package:showcaseview/showcaseview.dart';
 
 // --- FIREBASE LIBRARIES ---
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'firebase_options.dart';
 
 // PROJECT IMPORTS
@@ -22,6 +26,7 @@ import 'theme/app_theme.dart';
 import 'providers/alert_provider.dart';
 import 'screens/dashboard/home_selection_screen.dart';
 import 'screens/onboarding/onboarding_screen.dart';
+import 'services/alert_localizer.dart';
 
 // 1. GLOBAL NAVIGATOR KEY (used to show dialogs from anywhere)
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -38,8 +43,23 @@ Future<void> main() async {
   // Bind Flutter engine
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Load .env
-  await dotenv.load(fileName: ".env");
+  // Edge-to-edge: let the body draw under both status and navigation bars
+  // so the aurora background reaches the very bottom of the screen instead
+  // of getting cut off by an opaque system nav strip on Android.
+  await SystemChrome.setEnabledSystemUIMode(
+    SystemUiMode.edgeToEdge,
+  );
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarDividerColor: Colors.transparent,
+      systemNavigationBarContrastEnforced: false,
+    ),
+  );
+
+  // Secrets are injected via --dart-define at compile time (see
+  // lib/config/env.dart). No .env bundle is shipped with release builds.
 
   // Restore the previously signed-in user id so per-user scoped data
   // (mood history, scene slots, theme) is keyed correctly before any
@@ -59,6 +79,20 @@ Future<void> main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+
+    // Crashlytics — route uncaught Flutter framework errors and async
+    // platform errors to the Crashlytics dashboard. Disabled in debug
+    // so local stack traces still print to the console without being
+    // double-reported.
+    FlutterError.onError = (errorDetails) {
+      FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
+    };
+    PlatformDispatcher.instance.onError = (error, stack) {
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      return true;
+    };
+    await FirebaseCrashlytics.instance
+        .setCrashlyticsCollectionEnabled(!kDebugMode);
 
     // Register the background listener
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
@@ -92,7 +126,15 @@ Future<void> main() async {
 
       if (currentContext != null) {
         // FCM bildirimini alert listesine ekle
-        final eventType = message.data['event'] ?? 'alert';
+        final eventType = (message.data['event'] ?? 'alert').toString();
+        // Swap the server's English-only title/body for the bilingual
+        // copy when the event_type is one we localize. Anything not in
+        // the map keeps the original FCM strings.
+        final localized = localizeAlert(eventType, body);
+        if (localized != null) {
+          title = localized.title;
+          body = localized.body;
+        }
         // ignore: use_build_context_synchronously
         final container = ProviderScope.containerOf(currentContext);
         final now = DateTime.now();

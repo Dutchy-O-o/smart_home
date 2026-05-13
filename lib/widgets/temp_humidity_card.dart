@@ -29,18 +29,29 @@ class TempHumidityCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final tempNum = double.tryParse(temperature);
     final humNum = double.tryParse(humidity);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.xl),
       decoration: BoxDecoration(
-        color: AppColors.card(context),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.card(context),
+            Color.alphaBlend(
+              AppColors.primaryBlue.withValues(alpha: isDark ? 0.10 : 0.05),
+              AppColors.card(context),
+            ),
+          ],
+        ),
         borderRadius: AppRadius.brLg,
         border: Border.all(color: AppColors.borderCol(context)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            color: AppColors.primaryBlue.withValues(alpha: 0.10),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -49,8 +60,15 @@ class TempHumidityCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.sensors,
-                  color: AppColors.textSub(context), size: 18),
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryBlue.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.sensors,
+                    color: AppColors.primaryBlue, size: 16),
+              ),
               AppSpacing.hGapSm,
               Text(
                 'Climate',
@@ -63,7 +81,8 @@ class TempHumidityCard extends StatelessWidget {
             icon: Icons.thermostat,
             iconColor: AppColors.accentOrange,
             label: 'Temperature',
-            value: temperature,
+            value: tempNum,
+            rawText: temperature,
             unit: '°C',
             progress: tempNum == null
                 ? null
@@ -81,7 +100,8 @@ class TempHumidityCard extends StatelessWidget {
             icon: Icons.water_drop,
             iconColor: AppColors.primaryBlue,
             label: 'Humidity',
-            value: humidity,
+            value: humNum,
+            rawText: humidity,
             unit: '%',
             progress:
                 humNum == null ? null : (humNum / 100).clamp(0.0, 1.0),
@@ -101,7 +121,7 @@ class TempHumidityCard extends StatelessWidget {
   Color _tempColor(double? t) {
     if (t == null) return AppColors.accentOrange;
     if (t < 18) return AppColors.primaryBlue;
-    if (t > 28) return Colors.redAccent;
+    if (t > 28) return AppColors.accentRed;
     return AppColors.accentOrange;
   }
 }
@@ -112,6 +132,7 @@ class _MetricRow extends StatelessWidget {
     required this.iconColor,
     required this.label,
     required this.value,
+    required this.rawText,
     required this.unit,
     required this.progress,
     required this.progressColor,
@@ -123,7 +144,8 @@ class _MetricRow extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
   final String label;
-  final String value;
+  final double? value;
+  final String rawText;
   final String unit;
   final double? progress;
   final Color progressColor;
@@ -139,8 +161,19 @@ class _MetricRow extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: iconColor.withValues(alpha: 0.15),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                iconColor.withValues(alpha: 0.20),
+                iconColor.withValues(alpha: 0.08),
+              ],
+            ),
             borderRadius: AppRadius.brSm,
+            border: Border.all(
+              color: iconColor.withValues(alpha: 0.30),
+              width: 1,
+            ),
           ),
           child: Icon(icon, color: iconColor, size: 22),
         ),
@@ -163,18 +196,20 @@ class _MetricRow extends StatelessWidget {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text(
-                        value,
+                      _CountUpText(
+                        value: value,
+                        fallback: rawText,
                         style: TextStyle(
                           color: AppColors.text(context),
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
                           height: 1,
+                          letterSpacing: -0.5,
                         ),
                       ),
                       const SizedBox(width: 2),
                       Padding(
-                        padding: const EdgeInsets.only(bottom: 3),
+                        padding: const EdgeInsets.only(bottom: 4),
                         child: Text(
                           unit,
                           style: TextStyle(
@@ -191,11 +226,16 @@ class _MetricRow extends StatelessWidget {
               const SizedBox(height: 6),
               ClipRRect(
                 borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: progress,
-                  minHeight: 6,
-                  backgroundColor: AppColors.borderCol(context),
-                  valueColor: AlwaysStoppedAnimation(progressColor),
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0, end: progress ?? 0),
+                  duration: const Duration(milliseconds: 600),
+                  curve: Curves.easeOutCubic,
+                  builder: (context, val, _) => LinearProgressIndicator(
+                    value: progress == null ? null : val,
+                    minHeight: 6,
+                    backgroundColor: AppColors.borderCol(context),
+                    valueColor: AlwaysStoppedAnimation(progressColor),
+                  ),
                 ),
               ),
               const SizedBox(height: 6),
@@ -224,6 +264,37 @@ class _MetricRow extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Animates from the previous shown value to [value] using a TweenAnimationBuilder.
+/// When [value] is null, falls back to [fallback] (e.g. "--" before the
+/// first reading). Keeps one decimal place to match the DHT22 resolution.
+class _CountUpText extends StatelessWidget {
+  const _CountUpText({
+    required this.value,
+    required this.fallback,
+    required this.style,
+  });
+
+  final double? value;
+  final String fallback;
+  final TextStyle style;
+
+  @override
+  Widget build(BuildContext context) {
+    if (value == null) {
+      return Text(fallback, style: style);
+    }
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: value!),
+      duration: const Duration(milliseconds: 700),
+      curve: Curves.easeOutCubic,
+      builder: (context, v, _) {
+        final shown = v.toStringAsFixed(value! % 1 == 0 ? 0 : 1);
+        return Text(shown, style: style);
+      },
     );
   }
 }

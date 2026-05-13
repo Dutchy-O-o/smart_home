@@ -113,22 +113,24 @@ class _SegBtn extends StatelessWidget {
         child: GestureDetector(
         onTap: onTap,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
+          duration: const Duration(milliseconds: 220),
           curve: AppMotion.standard,
-          height: 40,
+          height: 42,
           decoration: BoxDecoration(
             gradient: active
                 ? const LinearGradient(
-                    colors: [Color(0xFF2196F3), Color(0xFF00BFA5)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: AppColors.brandGradient,
                   )
                 : null,
-            borderRadius: const BorderRadius.all(Radius.circular(10)),
+            borderRadius: const BorderRadius.all(Radius.circular(12)),
             boxShadow: active
                 ? [
                     BoxShadow(
-                      color: AppColors.primaryBlue.withValues(alpha: 0.35),
-                      blurRadius: 10,
-                      offset: const Offset(0, 3),
+                      color: AppColors.primaryBlue.withValues(alpha: 0.40),
+                      blurRadius: 14,
+                      offset: const Offset(0, 5),
                     ),
                   ]
                 : null,

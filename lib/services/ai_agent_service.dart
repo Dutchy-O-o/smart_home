@@ -1,8 +1,125 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../config/env.dart';
 import 'api_service.dart';
+
+/// JSON-Schema tool definitions sent to Claude. Pulled out to a top-level
+/// constant so unit tests can assert structure without standing up the
+/// full Anthropic request loop.
+@visibleForTesting
+final List<Map<String, dynamic>> aiAgentTools = [
+  {
+    'name': 'get_sensor_data',
+    'description':
+        'Get current sensor readings (temperature, humidity, gas level, vibration) from the smart home sensors.',
+    'input_schema': {
+      'type': 'object',
+      'properties': <String, dynamic>{},
+      'required': <String>[],
+    },
+  },
+  {
+    'name': 'get_devices',
+    'description':
+        'Get list of all connected smart home devices. Each device has a "deviceid" field (use this for control_device), "device_name", "device_type", and "properties" array with current values.',
+    'input_schema': {
+      'type': 'object',
+      'properties': <String, dynamic>{},
+      'required': <String>[],
+    },
+  },
+  {
+    'name': 'control_device',
+    'description':
+        'Send a command to control a smart home device. You MUST call get_devices first to get the exact "deviceid" value. Send one property change at a time. For multiple changes (e.g. power + target_temp), call this tool multiple times.\n\nSupported properties per device type:\n• Light/LED strip: power, brightness, color\n• Speaker: power, volume, playback\n• TV: power, volume, channel\n• Air Conditioner (device_type "ac" or "climate"): power, target_temp, mode, fan_speed\n• Oven / stove (device_type "oven" or "stove"): power, target_temp, mode, timer',
+    'input_schema': {
+      'type': 'object',
+      'properties': {
+        'device_id': {
+          'type': 'string',
+          'description':
+              'The exact "deviceid" value from get_devices response (e.g. "dev_abc123")',
+        },
+        'action': {
+          'type': 'string',
+          'description': 'The property_name to change.',
+          'enum': [
+            'power',
+            'brightness',
+            'color',
+            'volume',
+            'channel',
+            'playback',
+            'target_temp',
+            'mode',
+            'fan_speed',
+            'timer',
+          ],
+        },
+        'value': {
+          'description':
+              'The value, always passed as a string:\n'
+                  '• power → "on" / "off"\n'
+                  '• brightness, volume → "0"-"100"\n'
+                  '• channel → integer string\n'
+                  '• color → hex like "#0000FF"\n'
+                  '• playback → "play" / "pause" / "stop"\n'
+                  '• target_temp on AC → "16"-"30" (°C)\n'
+                  '• target_temp on Oven → "50"-"250" (°C, step 10)\n'
+                  '• mode on AC → "cool" / "heat" / "auto" / "fan" / "dry"\n'
+                  '• mode on Oven → "bake" / "broil" / "fan" / "defrost"\n'
+                  '• fan_speed (AC only) → "low" / "mid" / "high" / "auto"\n'
+                  '• timer (Oven only) → "0"-"180" minutes (step 5)',
+        },
+      },
+      'required': ['device_id', 'action', 'value'],
+    },
+  },
+  {
+    'name': 'get_automations',
+    'description':
+        'Get list of all automation rules configured in the smart home.',
+    'input_schema': {
+      'type': 'object',
+      'properties': <String, dynamic>{},
+      'required': <String>[],
+    },
+  },
+  {
+    'name': 'set_mood',
+    'description':
+        "Update the user's current emotional state. Use this when the user tells you how they feel, OR when they say the previous emotion detection (from face scan) was wrong and want to correct it. This will update the Emotion Hub and trigger new mood-based music recommendations.",
+    'input_schema': {
+      'type': 'object',
+      'properties': {
+        'mood': {
+          'type': 'string',
+          'description':
+              'One of: happy, sad, melancholy, angry, calm, excited, neutral, fear, surprise, disgust',
+          'enum': [
+            'happy',
+            'sad',
+            'melancholy',
+            'angry',
+            'calm',
+            'excited',
+            'neutral',
+            'fear',
+            'surprise',
+            'disgust',
+          ],
+        },
+        'confidence': {
+          'type': 'number',
+          'description':
+              'How certain you are (0.0-1.0). Use 1.0 if user explicitly stated their mood.',
+        },
+      },
+      'required': ['mood', 'confidence'],
+    },
+  },
+];
 
 class ChatMessage {
   final String role; // 'user' or 'assistant'
@@ -17,14 +134,21 @@ class AiAgentService {
   static const String _model = 'claude-haiku-4-5-20251001';
   static const String _apiUrl = 'https://api.anthropic.com/v1/messages';
 
-  static String get _apiKey => dotenv.env['CLAUDE_API_KEY'] ?? '';
-  static bool get isConfigured => _apiKey.isNotEmpty;
+  static String get _apiKey => Env.claudeApiKey;
+  static bool get isConfigured => Env.hasClaudeKey;
 
   static Future<String> chat({
     required List<Map<String, dynamic>> messages,
     required String homeId,
     void Function(String action)? onToolAction,
     void Function(String mood, double confidence)? onSetMood,
+    /// Raw control_device tool-call hook. Fires before the AWS round trip
+    /// so the UI can push an optimistic value into [deviceOverridesProvider]
+    /// — the Pi firmware doesn't echo AC/oven detail properties yet, so
+    /// without this overlay the devices screen would snap back to the
+    /// polled DB state and the user would think the assistant did nothing.
+    void Function(String deviceId, String action, dynamic value)?
+        onControlDevice,
     /// Called with each text delta as the model streams its reply. The
     /// caller appends to its bubble for a typewriter effect. Tool-use
     /// turns don't emit text deltas — only the final response does.
@@ -34,55 +158,7 @@ class AiAgentService {
       return 'API key is not configured. Set it in lib/config/env.dart';
     }
 
-    final tools = [
-      {
-        'name': 'get_sensor_data',
-        'description': 'Get current sensor readings (temperature, humidity, gas level, vibration) from the smart home sensors.',
-        'input_schema': {'type': 'object', 'properties': {}, 'required': []},
-      },
-      {
-        'name': 'get_devices',
-        'description': 'Get list of all connected smart home devices. Each device has a "deviceid" field (use this for control_device), "device_name", "device_type", and "properties" array with current values.',
-        'input_schema': {'type': 'object', 'properties': {}, 'required': []},
-      },
-      {
-        'name': 'control_device',
-        'description': 'Send a command to control a smart home device. You MUST call get_devices first to get the exact "deviceid" value. Send one property change at a time. For multiple changes (e.g. power + brightness), call this tool multiple times.',
-        'input_schema': {
-          'type': 'object',
-          'properties': {
-            'device_id': {'type': 'string', 'description': 'The exact "deviceid" value from get_devices response (e.g. "dev_abc123")'},
-            'action': {'type': 'string', 'description': 'The property_name to change: "power", "brightness", "color", "volume", "channel", "playback"'},
-            'value': {'description': 'The value: for power use "on"/"off", for brightness/volume use integer 0-100, for channel use integer, for color use hex string like "#0000FF", for playback use "play"/"pause"/"stop"'},
-          },
-          'required': ['device_id', 'action', 'value'],
-        },
-      },
-      {
-        'name': 'get_automations',
-        'description': 'Get list of all automation rules configured in the smart home.',
-        'input_schema': {'type': 'object', 'properties': {}, 'required': []},
-      },
-      {
-        'name': 'set_mood',
-        'description': 'Update the user\'s current emotional state. Use this when the user tells you how they feel, OR when they say the previous emotion detection (from face scan) was wrong and want to correct it. This will update the Emotion Hub and trigger new mood-based music recommendations.',
-        'input_schema': {
-          'type': 'object',
-          'properties': {
-            'mood': {
-              'type': 'string',
-              'description': 'One of: happy, sad, melancholy, angry, calm, excited, neutral, fear, surprise, disgust',
-              'enum': ['happy', 'sad', 'melancholy', 'angry', 'calm', 'excited', 'neutral', 'fear', 'surprise', 'disgust'],
-            },
-            'confidence': {
-              'type': 'number',
-              'description': 'How certain you are (0.0-1.0). Use 1.0 if user explicitly stated their mood.',
-            },
-          },
-          'required': ['mood', 'confidence'],
-        },
-      },
-    ];
+    final tools = aiAgentTools;
 
     const systemPrompt = '''You're the smart home assistant the user lives with — talk like a friend, not a manual.
 
@@ -99,7 +175,11 @@ How tools work (don't mention these to the user):
 - Use the "deviceid" value exactly as returned (e.g. "dev_abc123").
 - For multiple property changes on one device, call control_device once per property.
 - power → "on" / "off". brightness/volume → 0-100. color → hex like "#FF8800". playback → "play" / "pause" / "stop".
+- AC (device_type "ac"/"climate") supports target_temp ("16"-"30"), mode ("cool"/"heat"/"auto"/"fan"/"dry"), fan_speed ("low"/"mid"/"high"/"auto").
+- Oven (device_type "oven"/"stove") supports target_temp ("50"-"250", step 10), mode ("bake"/"broil"/"fan"/"defrost"), timer ("0"-"180" minutes, step 5).
 - Always send the control_device command when asked, even if the cached state looks right — state can be stale.
+- When the user asks for a feature that exists on the device type (e.g. fan or defrost on the oven), JUST DO IT — don't say "the device doesn't support it". The schemas above are authoritative.
+- If multiple devices match the user's request (e.g. two AC units, or an oven called "Oven" with device_type "stove"), pick the most likely one based on the user's wording, or list them and ask which one if it's truly ambiguous.
 - If the user describes how they feel ("I'm sad", "scanner got it wrong, I'm calm"), call set_mood and casually confirm.
 
 When reporting sensor data, give the number with its unit and a tiny human take ("23°C — pretty comfortable" rather than "Temperature: 23 degrees Celsius").''';
@@ -137,6 +217,16 @@ When reporting sensor data, give the number with its unit and a tiny human take 
             final input = block['input'] as Map<String, dynamic>;
 
             onToolAction?.call(_describeAction(toolName, input));
+
+            // Fire optimistic device-state hook so the devices screen can
+            // overlay the new value before AWS / Pi round trip completes.
+            if (toolName == 'control_device' && onControlDevice != null) {
+              final devId = (input['device_id'] ?? '').toString();
+              final act = (input['action'] ?? '').toString();
+              if (devId.isNotEmpty && act.isNotEmpty) {
+                onControlDevice(devId, act, input['value']);
+              }
+            }
 
             // Handle set_mood directly via callback — no API call needed
             if (toolName == 'set_mood' && onSetMood != null) {
@@ -179,15 +269,146 @@ When reporting sensor data, give the number with its unit and a tiny human take 
     return 'Too many tool calls. Please try a simpler request.';
   }
 
+  /// Builds the small italic chip text that flashes under the assistant
+  /// bubble while a tool call is in flight. Robotic strings like
+  /// "Controlling: target_temp → 26" break immersion during a demo, so we
+  /// map each (action, value) pair to a natural English phrase. Unknown
+  /// combinations fall through to a generic "Sending command..." line
+  /// rather than leaking the raw property name.
   static String _describeAction(String toolName, Map<String, dynamic> input) {
     switch (toolName) {
-      case 'get_sensor_data': return 'Reading sensor data...';
-      case 'get_devices': return 'Fetching devices...';
-      case 'control_device': return 'Controlling: ${input['action']} → ${input['value']}';
-      case 'get_automations': return 'Fetching automations...';
-      case 'set_mood': return 'Updating mood: ${input['mood']}';
-      default: return 'Processing...';
+      case 'get_sensor_data':
+        return 'Reading sensor data...';
+      case 'get_devices':
+        return 'Fetching devices...';
+      case 'get_automations':
+        return 'Fetching automations...';
+      case 'set_mood':
+        return 'Updating mood: ${(input['mood'] ?? '').toString()}';
+      case 'control_device':
+        return _describeControl(input);
+      default:
+        return 'Working on it...';
     }
+  }
+
+  /// Sentence-form, log-friendly version of [_describeControl]. The chat
+  /// screen uses this for the alerts feed entry it writes when the
+  /// assistant touches a device — full sentences so a user scrolling
+  /// notifications reads "Set the temperature to 26°C" rather than a
+  /// key-value blob like "Temperature 26°C".
+  static String describeControlForLog(String action, dynamic rawValue) {
+    final value = rawValue?.toString() ?? '';
+    switch (action) {
+      case 'power':
+        return value == 'on'
+            ? 'Turned the device on.'
+            : 'Turned the device off.';
+      case 'target_temp':
+        return 'Set the temperature to $value°C.';
+      case 'mode':
+        return 'Switched to ${_modeLabel(value)} mode.';
+      case 'fan_speed':
+        return 'Set the fan speed to ${_fanLabel(value)}.';
+      case 'brightness':
+        return 'Set the brightness to $value%.';
+      case 'volume':
+        return 'Set the volume to $value%.';
+      case 'color':
+        return 'Changed the light color.';
+      case 'timer':
+        return value == '0'
+            ? 'Cleared the timer.'
+            : 'Started a $value-minute timer.';
+      case 'channel':
+        return 'Switched to channel $value.';
+      case 'playback':
+        switch (value) {
+          case 'play':
+            return 'Started playing music.';
+          case 'pause':
+            return 'Paused playback.';
+          case 'stop':
+            return 'Stopped playback.';
+        }
+        return 'Sent a playback command.';
+    }
+    return 'Updated $action to $value.';
+  }
+
+  static String _describeControl(Map<String, dynamic> input) {
+    final action = (input['action'] ?? '').toString();
+    final raw = input['value'];
+    final value = raw?.toString() ?? '';
+    switch (action) {
+      case 'power':
+        return value == 'on' ? 'Turning on...' : 'Turning off...';
+      case 'target_temp':
+        return 'Setting temperature to $value°C...';
+      case 'mode':
+        return 'Switching to ${_modeLabel(value)} mode...';
+      case 'fan_speed':
+        return 'Setting fan to ${_fanLabel(value)}...';
+      case 'brightness':
+        return 'Setting brightness to $value%...';
+      case 'volume':
+        return 'Setting volume to $value%...';
+      case 'color':
+        return 'Changing color...';
+      case 'timer':
+        return value == '0'
+            ? 'Clearing timer...'
+            : 'Setting timer to $value min...';
+      case 'channel':
+        return 'Switching to channel $value...';
+      case 'playback':
+        switch (value) {
+          case 'play':
+            return 'Starting playback...';
+          case 'pause':
+            return 'Pausing playback...';
+          case 'stop':
+            return 'Stopping playback...';
+        }
+        return 'Sending playback command...';
+    }
+    return 'Sending command...';
+  }
+
+  static String _modeLabel(String mode) {
+    switch (mode) {
+      case 'cool':
+        return 'cool';
+      case 'heat':
+        return 'heat';
+      case 'fan':
+        return 'fan';
+      case 'dry':
+        return 'dry';
+      case 'auto':
+        return 'auto';
+      case 'bake':
+        return 'bake';
+      case 'broil':
+        return 'broil';
+      case 'defrost':
+        return 'defrost';
+    }
+    return mode;
+  }
+
+  static String _fanLabel(String v) {
+    switch (v) {
+      case 'low':
+        return 'low';
+      case 'mid':
+        return 'medium';
+      case 'high':
+        return 'high';
+      case 'auto':
+        return 'auto';
+    }
+    return v;
   }
 
   static Future<String> _executeTool(String name, Map<String, dynamic> input, String homeId) async {

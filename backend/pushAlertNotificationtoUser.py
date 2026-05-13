@@ -17,52 +17,52 @@ if not firebase_admin._apps:
 # is replaced by the dynamic alert_message coming from the IoT rule payload.
 EVENT_TITLES = {
     "gas_leak": (
-        "🚨 DİKKAT: GAZ KAÇAĞI!",
-        "Evde yüksek seviyede gaz tespit edildi. Lütfen derhal evi havalandırın.",
+        "🚨 WARNING: GAS LEAK!",
+        "High gas levels detected. Please ventilate your home immediately.",
     ),
     "earthquake": (
-        "⚠️ DEPREM ALARMI!",
-        "Sarsıntı tespit edildi. Lütfen güvenli bir yere geçin.",
+        "⚠️ EARTHQUAKE ALERT!",
+        "Tremor detected. Please move to a safe location.",
     ),
     "emotion_change": (
-        "🧠 Duygu Değişimi",
-        "Yeni duygu tespit edildi: {message}",
+        "🧠 Mood Change",
+        "New mood detected: {message}",
     ),
     "rfid_unauthorized": (
-        "🔒 Yetkisiz Giriş Denemesi",
-        "Tanınmayan bir RFID kart tespit edildi. Güvenlik kayıtlarını kontrol edin.",
+        "🔒 Unauthorized Access Attempt",
+        "An unrecognized RFID card was detected. Check the security log.",
     ),
     "rfid_authorized": (
-        "✅ Kapı Açıldı",
-        "Yetkili giriş kaydedildi: {message}",
+        "✅ Door Unlocked",
+        "Authorized entry recorded: {message}",
     ),
     "stove_left_on": (
-        "🔥 Ocak Açık Unutuldu",
-        "Evde kimse yokken ocak açık. Lütfen kontrol edin.",
+        "🔥 Stove Left On",
+        "The stove is on while nobody is home. Please check on it.",
     ),
     "tv_idle_long": (
-        "📺 TV Açık Kaldı",
-        "TV uzun süredir kullanılmıyor. Otomatik kapatmak ister misiniz?",
+        "📺 TV Left On",
+        "TV has been idle for a while. Turn it off automatically?",
     ),
     "ac_running_window_open": (
-        "❄️ Klima Açık, Pencere Açık",
-        "Pencere açıkken klima çalışıyor. Enerji israfını önlemek için kontrol edin.",
+        "❄️ AC Running, Window Open",
+        "AC is running with a window open. Check to save energy.",
     ),
     "device_offline": (
-        "📡 Cihaz Bağlantısı Kesildi",
-        "Cihaz çevrimdışı: {message}",
+        "📡 Device Disconnected",
+        "Device is offline: {message}",
     ),
 }
 
-DEFAULT_TITLE = "🔔 Akıllı Ev Bildirimi"
-DEFAULT_BODY = "Evinizde bir olay tespit edildi: {message}"
+DEFAULT_TITLE = "🔔 Smart Home Notification"
+DEFAULT_BODY = "An event was detected at your home: {message}"
 
 
 def _resolve_title_body(event_type: str, alert_message: str):
     title, body_template = EVENT_TITLES.get(
         event_type, (DEFAULT_TITLE, DEFAULT_BODY)
     )
-    body = body_template.format(message=alert_message or "Detay yok")
+    body = body_template.format(message=alert_message or "No details")
     return title, body
 
 

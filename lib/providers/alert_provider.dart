@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../services/alert_localizer.dart';
 import '../services/api_service.dart';
 import '../services/user_scope.dart';
 
@@ -18,6 +19,11 @@ class AlertItem {
   final AlertType type;
   final AlertLevel level;
   bool isRead;
+  /// How many identical events were folded into this single entry by the
+  /// coalescing logic in [AlertListNotifier.addAlert]. 1 for a normal
+  /// alert; >1 when, e.g., the vibration sensor fired ten times in a
+  /// minute and the notifications screen would otherwise be unreadable.
+  int count;
 
   AlertItem({
     required this.id,
@@ -28,6 +34,7 @@ class AlertItem {
     required this.type,
     required this.level,
     this.isRead = false,
+    this.count = 1,
   });
 
   Map<String, dynamic> toJson() => {
@@ -39,6 +46,7 @@ class AlertItem {
         'type': type.name,
         'level': level.name,
         'isRead': isRead,
+        'count': count,
       };
 
   factory AlertItem.fromJson(Map<String, dynamic> json) => AlertItem(
@@ -56,6 +64,7 @@ class AlertItem {
           orElse: () => AlertLevel.info,
         ),
         isRead: json['isRead'] == true,
+        count: (json['count'] is num) ? (json['count'] as num).toInt() : 1,
       );
 }
 
@@ -82,6 +91,15 @@ class AlertListNotifier extends Notifier<List<AlertItem>> {
   static const _baseStorageKey = 'alerts_v1';
   static String get _storageKey => UserScope.key(_baseStorageKey);
   static const _maxStored = 200;
+  /// Window during which identical alerts get folded into a single entry
+  /// instead of stacking. Five minutes is wide enough to catch the
+  /// vibration-sensor-firing-10-times-in-a-minute case while still
+  /// surfacing a *new* tremor that follows half an hour later.
+  static const _coalesceWindow = Duration(minutes: 5);
+  /// How far down the list we look for a coalesce target. Bounded so a
+  /// fresh alert that genuinely matches something old (e.g. half an hour
+  /// later) still creates a new row.
+  static const _coalesceScanDepth = 8;
 
   @override
   List<AlertItem> build() {
@@ -95,10 +113,26 @@ class AlertListNotifier extends Notifier<List<AlertItem>> {
       final raw = prefs.getString(_storageKey);
       if (raw == null || raw.isEmpty) return;
       final list = jsonDecode(raw) as List<dynamic>;
-      state = list
-          .whereType<Map<String, dynamic>>()
-          .map(AlertItem.fromJson)
-          .toList();
+      // Upgrade English-only records that were saved before the bilingual
+      // rollout to the new TR/EN format. Matches on title keywords —
+      // `reskinAlert` returns null when nothing recognizable is found, in
+      // which case we leave the original copy alone.
+      state = list.whereType<Map<String, dynamic>>().map((j) {
+        final item = AlertItem.fromJson(j);
+        final reskinned = reskinAlert(item.title, item.description);
+        if (reskinned == null) return item;
+        return AlertItem(
+          id: item.id,
+          title: reskinned.title,
+          description: reskinned.body,
+          time: item.time,
+          day: item.day,
+          type: item.type,
+          level: item.level,
+          isRead: item.isRead,
+          count: item.count,
+        );
+      }).toList();
     } catch (_) {
       // Corrupt payload — start fresh.
     }
@@ -115,18 +149,63 @@ class AlertListNotifier extends Notifier<List<AlertItem>> {
     }
   }
 
-  void addAlert(AlertItem alert) {
+  /// Adds [alert] to the list. If an identical alert (same title,
+  /// description, and type) was already inserted within
+  /// [_coalesceWindow], bumps that entry's `count` and refreshes its
+  /// timestamp instead of stacking a new row — keeps the notifications
+  /// screen readable when, e.g., the vibration sensor fires repeatedly.
+  ///
+  /// Returns `true` if a brand-new row was prepended, `false` if the
+  /// call was folded into an existing one. [addAlertSynced] uses the
+  /// return value to skip the AWS POST on duplicates.
+  bool addAlert(AlertItem alert) {
+    final now = DateTime.now();
+    final scanEnd =
+        state.length < _coalesceScanDepth ? state.length : _coalesceScanDepth;
+    for (var i = 0; i < scanEnd; i++) {
+      final existing = state[i];
+      if (existing.title != alert.title) continue;
+      if (existing.description != alert.description) continue;
+      if (existing.type != alert.type) continue;
+      final ts = int.tryParse(existing.id);
+      if (ts == null) continue;
+      final age = now.difference(DateTime.fromMillisecondsSinceEpoch(ts));
+      if (age > _coalesceWindow) continue;
+
+      // Coalesce: bump count, refresh time, keep severity/read state.
+      final folded = AlertItem(
+        id: existing.id,
+        title: existing.title,
+        description: existing.description,
+        time: alert.time.isNotEmpty ? alert.time : existing.time,
+        day: existing.day,
+        type: existing.type,
+        level: existing.level,
+        isRead: false, // a new identical event should re-notify the user
+        count: existing.count + 1,
+      );
+      state = [
+        for (var j = 0; j < state.length; j++)
+          if (j == i) folded else state[j],
+      ];
+      _save();
+      return false;
+    }
+
     state = [alert, ...state];
     _save();
+    return true;
   }
 
   /// Same as [addAlert] but also pushes the entry to the AWS alerts
   /// endpoint (`POST /{homeId}/alerts`) so it survives across devices.
   /// The local copy is added immediately for snappy UI; the server
   /// call is fire-and-forget and silently no-ops when the route isn't
-  /// deployed yet.
+  /// deployed yet. Skips the POST when [addAlert] folded the entry into
+  /// an existing one — no point in syncing duplicates.
   void addAlertSynced(AlertItem alert, {required String homeId}) {
-    addAlert(alert);
+    final added = addAlert(alert);
+    if (!added) return;
     if (homeId.isEmpty) return;
     ApiService.postAlert(
       homeId: homeId,
@@ -178,12 +257,24 @@ class AlertListNotifier extends Notifier<List<AlertItem>> {
         default:
           l = AlertLevel.info;
       }
+      var rawTitle = (j['title'] ?? '').toString();
+      var rawBody = (j['description'] ?? '').toString();
+      // Old server-side records from before the bilingual rollout still
+      // hold English-only titles like "⚠️ EARTHQUAKE ALERT!". Sniff the
+      // title and swap them for the bilingual version on hydrate so the
+      // notifications screen doesn't show a permanent reminder that the
+      // feature was added halfway through the project.
+      final reskinned = reskinAlert(rawTitle, rawBody);
+      if (reskinned != null) {
+        rawTitle = reskinned.title;
+        rawBody = reskinned.body;
+      }
       loaded.add(AlertItem(
         id: ts != null
             ? ts.millisecondsSinceEpoch.toString()
             : (j['id']?.toString() ?? ''),
-        title: (j['title'] ?? '').toString(),
-        description: (j['description'] ?? '').toString(),
+        title: rawTitle,
+        description: rawBody,
         time: ts != null
             ? '${ts.hour.toString().padLeft(2, '0')}:${ts.minute.toString().padLeft(2, '0')}'
             : '',

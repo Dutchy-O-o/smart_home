@@ -5,7 +5,7 @@ import os
 def get_iot_client():
     env_endpoint = os.environ.get('IOT_ENDPOINT')
     if not env_endpoint:
-        raise ValueError("IOT_ENDPOINT ortam degiskeni (environment variable) ayarlanamadı! Lutfen Lambda ayarlarina ekleyin.")
+        raise ValueError("IOT_ENDPOINT environment variable is not set. Please add it to the Lambda configuration.")
     return boto3.client('iot-data', endpoint_url=f"https://{env_endpoint}")
 
 client = get_iot_client()
@@ -25,7 +25,7 @@ def lambda_handler(event, context):
             return {
                 'statusCode': 400,
                 'headers': {'Access-Control-Allow-Origin': '*'},
-                'body': json.dumps({'error': 'Eksik parametre: homeID, deviceID veya commands bulunamadı.'})
+                'body': json.dumps({'error': 'Missing parameter: homeID, deviceID or commands not found.'})
             }
         
         # 3. Raspberry Pi'nin anlayacağı JSON payload'ını hazırla
@@ -52,19 +52,19 @@ def lambda_handler(event, context):
                 'Content-Type': 'application/json',
                 'Access-Control-Allow-Origin': '*'
             },
-            'body': json.dumps({'status': 'success', 'message': 'Komut Raspberry Pi cihazina iletildi.'})
+            'body': json.dumps({'status': 'success', 'message': 'Command delivered to the Raspberry Pi.'})
         }
         
     except json.JSONDecodeError:
         return {
             'statusCode': 400,
             'headers': {'Access-Control-Allow-Origin': '*'},
-            'body': json.dumps({'error': 'Geçersiz JSON formatı.'})
+            'body': json.dumps({'error': 'Invalid JSON format.'})
         }
     except Exception as e:
-        print(f"Hata oluştu: {str(e)}")
+        print(f"An error occurred: {str(e)}")
         return {
             'statusCode': 500,
             'headers': {'Access-Control-Allow-Origin': '*'},
-            'body': json.dumps({'error': 'Sunucu içi hata.', 'details': str(e)})
+            'body': json.dumps({'error': 'Internal server error.', 'details': str(e)})
         }

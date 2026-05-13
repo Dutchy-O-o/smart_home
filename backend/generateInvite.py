@@ -26,10 +26,10 @@ def lambda_handler(event, context):
         home_id = path_params.get('homeID')
         
         if not user_id:
-            return {'statusCode': 401, 'body': json.dumps("Yetkisiz işlem: Token bulunamadı.")}
-            
+            return {'statusCode': 401, 'body': json.dumps("Unauthorized: token not found.")}
+
         if not home_id:
-            return {'statusCode': 400, 'body': json.dumps("homeID path parametresi eksik!")}
+            return {'statusCode': 400, 'body': json.dumps("homeID path parameter is missing.")}
 
         # 3. Veritabanına Bağlan ve Admin Kontrolü Yap
         conn = psycopg2.connect(host=DB_HOST, database=DB_NAME, user=DB_USER, password=DB_PASSWORD, connect_timeout=5)
@@ -43,12 +43,11 @@ def lambda_handler(event, context):
         result = cur.fetchone()
         
         if not result:
-            return {'statusCode': 403, 'body': json.dumps("Hata: Bu eve erişim izniniz yok.")}
-            
+            return {'statusCode': 403, 'body': json.dumps("You don't have access to this home.")}
+
         role = result[0].lower()
         if role != 'admin':
-            # Kullanıcı evde var ama misafir! Davet oluşturamaz.
-            return {'statusCode': 403, 'body': json.dumps("Güvenlik İhlali: Sadece ev sahibi (ADMIN) davet kodu üretebilir.")}
+            return {'statusCode': 403, 'body': json.dumps("Security violation: only the home owner (ADMIN) can generate invite codes.")}
 
         # 4. Kişi gerçekten ADMIN ise 5 Dakikalık Mühürlü Token'ı Oluştur
         expiration_time = int(time.time()) + 300
@@ -68,8 +67,8 @@ def lambda_handler(event, context):
         }
 
     except Exception as e:
-        print(f"HATA: {str(e)}")
-        return {'statusCode': 500, 'body': json.dumps(f"Sunucu hatası: {str(e)}")}
+        print(f"ERROR: {str(e)}")
+        return {'statusCode': 500, 'body': json.dumps(f"Server error: {str(e)}")}
     finally:
         if conn:
             cur.close()

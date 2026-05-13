@@ -3,10 +3,13 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/app_colors.dart';
+import '../../providers/device_state_provider.dart';
 import '../../providers/home_provider.dart';
+import '../../providers/speaker_provider.dart';
 import '../../services/api_service.dart';
 import '../../services/sensor_history_service.dart';
 import '../../services/spotify/spotify_api_client.dart';
+import '../../widgets/led_color_picker.dart';
 import '../../widgets/temp_humidity_card.dart';
 import '../ai_hub/widgets/mood_tracks_list.dart' show kSpeakerNamePrefix;
 import '../../theme/app_spacing.dart';
@@ -38,11 +41,8 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
   final Map<String, DateTime> _localOverrideUntil = {};
   static const _localOverrideHold = Duration(seconds: 4);
 
-  /// Persistent highlight for the last playback action (play / pause). Local
-  /// feedback only — real playback state lives in the user's Spotify session,
-  /// not our DB, so we mirror what the user pressed and keep it shown until
-  /// they press the opposite button.
-  final Map<String, String> _playbackPulse = {}; // deviceId → 'play' | 'pause'
+  // Playback pulse + now-playing now live in the shared speakerSyncProvider
+  // so the Dashboard mini-card and this screen always agree on state.
   Timer? _dataPollingTimer;
 
   // Animation Controller
@@ -93,7 +93,16 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
     _dataPollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
       _fetchLatestSensorData();
       _fetchDevices(); // Also fetch actuators from the table every 5 seconds
+      _refreshNowPlaying();
     });
+    // Kick one off immediately so the speaker card has a track on first paint.
+    _refreshNowPlaying();
+  }
+
+  Future<void> _refreshNowPlaying() async {
+    final track = await SpotifyApiClient.getCurrentlyPlaying();
+    if (!mounted) return;
+    ref.read(speakerSyncProvider.notifier).setNowPlaying(track);
   }
 
   Future<void> _fetchDevices() async {
@@ -253,6 +262,10 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
       // so the slider/toggle doesn't snap back while we wait for the echo.
       _localOverrideUntil[key] = DateTime.now().add(_localOverrideHold);
     });
+    // Mirror the change into the shared optimistic overlay so the AI chat
+    // and any other screen that watches deviceOverridesProvider stay in sync
+    // for properties the Pi never echoes back.
+    ref.read(deviceOverridesProvider.notifier).set(deviceId, property, value);
 
     // Key the debounce by device+property so changing brightness then color
     // on the same LED does not cancel the pending brightness send.
@@ -262,26 +275,40 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
     });
   }
 
-  /// Speaker playback (play/pause/stop) — Spotify Web API direkt, MQTT yok.
-  /// Pi sadece power+volume işliyor; transport kontrolü kullanıcının kendi
-  /// Spotify oturumundan, Pi'yi aktif Connect cihazı olarak hedefleyerek.
+  /// Speaker playback (play/pause/stop) — direct Spotify Web API, no MQTT.
+  /// Pi only handles power + volume; transport control runs from the user's
+  /// own Spotify session, targeting the Pi as the active Connect device.
   Future<void> _spotifyPlayback(String deviceId, String value) async {
     final messenger = ScaffoldMessenger.of(context);
     setState(() {
       _deviceStates[deviceId] ??= {};
       _deviceStates[deviceId]!['playback'] = value;
-      _playbackPulse[deviceId] = value;
     });
+    // Push to the shared provider so the Dashboard mini speaker matches.
+    ref.read(speakerSyncProvider.notifier).setPlayback(deviceId, value);
 
-    final device = await SpotifyApiClient.findDeviceByPrefix(kSpeakerNamePrefix);
-    if (device == null) {
+    String? spId;
+    final byPrefix =
+        await SpotifyApiClient.findDeviceByPrefix(kSpeakerNamePrefix);
+    if (byPrefix != null) spId = byPrefix['id']?.toString();
+
+    // Fallback: if device list is cold but something IS playing, pull the
+    // device id off the active session so pause still works.
+    if (spId == null) {
+      final nowPlaying = ref.read(speakerSyncProvider).nowPlaying ??
+          await SpotifyApiClient.getCurrentlyPlaying();
+      final dev = nowPlaying?['device'];
+      if (dev is Map && dev['id'] != null) spId = dev['id'].toString();
+    }
+
+    if (spId == null) {
       if (!mounted) return;
       messenger.showSnackBar(const SnackBar(
-        content: Text('Hoparlör Spotify ağında bulunamadı — Pi açık mı?'),
+        content: Text("Speaker not found on the Spotify network — is the Pi on?"),
       ));
       return;
     }
-    final spId = device['id'].toString();
+
     bool ok = false;
     switch (value) {
       case 'play':
@@ -294,8 +321,13 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
     }
     if (!ok && mounted) {
       messenger.showSnackBar(const SnackBar(
-        content: Text('Playback komutu başarısız (Premium hesap gerekir).'),
+        content: Text('Playback command failed (Spotify Premium required).'),
       ));
+    }
+    // Refresh now-playing into the shared provider so the UI reacts.
+    final track = await SpotifyApiClient.getCurrentlyPlaying();
+    if (mounted) {
+      ref.read(speakerSyncProvider.notifier).setNowPlaying(track);
     }
   }
 
@@ -303,6 +335,22 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // Pull the shared optimistic overlay (assistant tool calls + manual
+    // updates from any screen) and apply on top of polled DB state. Pi
+    // firmware doesn't echo AC/oven/LED detail properties yet, so without
+    // this merge `_fetchDevices` wipes them on every 5-second poll.
+    final overrides = ref.watch(deviceOverridesProvider);
+    if (overrides.isNotEmpty) {
+      for (final entry in overrides.entries) {
+        final devId = entry.key;
+        _deviceStates[devId] ??= {};
+        for (final prop in entry.value.entries) {
+          _deviceStates[devId]![prop.key] = prop.value;
+        }
+      }
+    }
+
     return Scaffold(
       backgroundColor: AppColors.bg(context),
       body: Stack(
@@ -383,8 +431,10 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                       String type = (device['device_type'] ?? '').toString().toLowerCase();
                       String name = (device['device_name'] ?? '').toString().toLowerCase();
 
-                      if (type == 'climate' || type == 'ac') {
+                      if (type == 'climate' || type == 'ac' || name.contains('klima')) {
                         card = _buildClimateCard(device);
+                      } else if (type == 'oven' || name.contains('oven') || name.contains('fırın') || name.contains('firin')) {
+                        card = _buildOvenCard(device);
                       } else if (type == 'tv' || name.contains('tv') || name.contains('television')) {
                         card = _buildTvCard(device);
                       } else if (type == 'light' || type == 'led' || type == 'led_strip') {
@@ -399,7 +449,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                         card = _buildGenericCard(device);
                       }
                       return Padding(
-                        padding: const EdgeInsets.only(bottom: 24),
+                        padding: const EdgeInsets.only(bottom: AppSpacing.lg),
                         child: card,
                       );
                     }),
@@ -417,26 +467,26 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
 
   // ====================== UI COMPONENTS ====================== //
 
-  Widget _buildGlassCard({required Widget child, EdgeInsetsGeometry padding = const EdgeInsets.all(AppSpacing.xxl)}) {
+  Widget _buildGlassCard({required Widget child, EdgeInsetsGeometry padding = const EdgeInsets.all(AppSpacing.xl)}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     // In dark mode keep the frosted-glass look; in light mode use a clean
     // solid card with a soft shadow that matches the rest of the app.
     if (isDark) {
       return ClipRRect(
-        borderRadius: BorderRadius.circular(32),
+        borderRadius: BorderRadius.circular(AppRadius.xl),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
           child: Container(
             padding: padding,
             decoration: BoxDecoration(
               color: AppColors.card(context).withValues(alpha: 0.6),
-              borderRadius: BorderRadius.circular(32),
-              border: Border.all(color: AppColors.borderCol(context), width: 1.5),
+              borderRadius: BorderRadius.circular(AppRadius.xl),
+              border: Border.all(color: AppColors.borderCol(context)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.2),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
+                  color: Colors.black.withValues(alpha: 0.12),
+                  blurRadius: 14,
+                  offset: const Offset(0, 6),
                 ),
               ],
             ),
@@ -454,8 +504,8 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -468,29 +518,62 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Text(
-          "Devices",
-          style: TextStyle(
-            color: AppColors.text(context),
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 0.5,
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: AppColors.brandGradient,
+            ),
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primaryBlue.withValues(alpha: 0.40),
+                blurRadius: 14,
+                offset: const Offset(0, 5),
+              ),
+            ],
           ),
+          child: const Icon(Icons.devices_rounded,
+              color: Colors.white, size: 22),
         ),
         const SizedBox(width: 12),
-        Container(
-          width: 8,
-          height: 8,
-          decoration: const BoxDecoration(
-              color: AppColors.accentGreen, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          "$connectedCount connected",
-          style: TextStyle(
-            color: AppColors.textSub(context),
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Devices",
+                style: TextStyle(
+                  color: AppColors.text(context),
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.4,
+                  height: 1.05,
+                ),
+              ),
+              Row(
+                children: [
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                        color: AppColors.accentGreen, shape: BoxShape.circle),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    "$connectedCount connected",
+                    style: TextStyle(
+                      color: AppColors.textSub(context),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ],
@@ -500,47 +583,355 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
     String deviceId = device['deviceid'];
     String deviceName = device['device_name'] ?? 'Air Conditioner';
     Map<String, dynamic> state = _deviceStates[deviceId] ?? {};
-    
-    // Actuator power: on | off
+
     bool isEngineOn = state['power'] == 'on';
-    
+    int targetTemp = _readInt(state, 'target_temp', fallback: 22).clamp(16, 30);
+    String mode = (state['mode'] ?? 'cool').toString().toLowerCase();
+    String fanSpeed = (state['fan_speed'] ?? 'auto').toString().toLowerCase();
+
+    const Map<String, IconData> modes = {
+      'cool': Icons.ac_unit,
+      'heat': Icons.local_fire_department,
+      'auto': Icons.autorenew,
+      'fan': Icons.cyclone,
+      'dry': Icons.water_drop,
+    };
+    const fanSpeeds = ['low', 'mid', 'high', 'auto'];
+
+    String cap(String s) => s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
+
     return _buildGlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                decoration: BoxDecoration(
+                  color: isEngineOn ? AppColors.primaryBlue.withValues(alpha: 0.2) : AppColors.borderCol(context),
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                ),
+                child: Icon(Icons.ac_unit, color: isEngineOn ? AppColors.primaryBlue : Colors.grey, size: 20),
+              ),
+              const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(deviceName, overflow: TextOverflow.ellipsis, maxLines: 1, style: TextStyle(color: AppColors.text(context), fontSize: 22, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 4),
-                    Text(isEngineOn ? "Airflow Active" : "Standby Mode", style: const TextStyle(color: AppColors.primaryBlue, fontSize: 13, fontWeight: FontWeight.w600)),
+                    Text(deviceName, overflow: TextOverflow.ellipsis, maxLines: 1, style: TextStyle(color: AppColors.text(context), fontSize: 18, fontWeight: FontWeight.bold)),
+                    Text(
+                      isEngineOn ? '${cap(mode)} · $targetTemp°C' : 'Standby',
+                      style: TextStyle(color: isEngineOn ? AppColors.primaryBlue : Colors.grey, fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                decoration: BoxDecoration(color: isEngineOn ? AppColors.primaryBlue.withValues(alpha: 0.3) : AppColors.borderCol(context), shape: BoxShape.circle),
-                child: Icon(Icons.air, color: isEngineOn ? AppColors.primaryBlue : Colors.grey, size: 28),
+              Switch.adaptive(
+                value: isEngineOn,
+                activeThumbColor: AppColors.primaryBlue,
+                onChanged: (val) => _updateDeviceState(deviceId, 'power', val ? 'on' : 'off'),
               ),
             ],
           ),
-          const SizedBox(height: 24),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildModernIconButton(Icons.power_settings_new, () {
-                _updateDeviceState(deviceId, 'power', isEngineOn ? 'off' : 'on');
-              }),
-            ],
+          AnimatedSize(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOutCubic,
+            child: !isEngineOn
+                ? const SizedBox.shrink()
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: AppSpacing.md),
+                      Row(
+                        children: [
+                          Icon(Icons.thermostat, color: AppColors.textSub(context), size: 16),
+                          const SizedBox(width: 4),
+                          Text('Target', style: TextStyle(color: AppColors.textSub(context), fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.4)),
+                          const Spacer(),
+                          Text('$targetTemp°C', style: TextStyle(color: AppColors.text(context), fontSize: 15, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                      SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          trackHeight: 4,
+                          activeTrackColor: AppColors.primaryBlue,
+                          inactiveTrackColor: AppColors.borderCol(context),
+                          thumbColor: AppColors.primaryBlue,
+                          overlayShape: SliderComponentShape.noOverlay,
+                        ),
+                        child: Slider(
+                          value: targetTemp.toDouble(),
+                          min: 16,
+                          max: 30,
+                          divisions: 14,
+                          onChanged: (val) => _updateDeviceState(deviceId, 'target_temp', val.toInt().toString()),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text('Mode', style: TextStyle(color: AppColors.textSub(context), fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.4)),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: modes.entries.map((e) => _buildOptionChip(
+                              label: cap(e.key),
+                              icon: e.value,
+                              selected: mode == e.key,
+                              accent: AppColors.primaryBlue,
+                              onTap: () => _updateDeviceState(deviceId, 'mode', e.key),
+                            )).toList(),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      Text('Fan', style: TextStyle(color: AppColors.textSub(context), fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.4)),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: fanSpeeds.map((f) => _buildOptionChip(
+                              label: cap(f),
+                              selected: fanSpeed == f,
+                              accent: AppColors.primaryBlue,
+                              onTap: () => _updateDeviceState(deviceId, 'fan_speed', f),
+                            )).toList(),
+                      ),
+                    ],
+                  ),
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildOvenCard(Map<String, dynamic> device) {
+    String deviceId = device['deviceid'];
+    String deviceName = device['device_name'] ?? 'Oven';
+    Map<String, dynamic> state = _deviceStates[deviceId] ?? {};
+
+    bool isOn = state['power'] == 'on';
+    int targetTemp = _readInt(state, 'target_temp', fallback: 180).clamp(50, 250);
+    int timer = _readInt(state, 'timer', fallback: 0).clamp(0, 180);
+    String mode = (state['mode'] ?? 'bake').toString().toLowerCase();
+
+    const Map<String, IconData> modes = {
+      'bake': Icons.cake,
+      'broil': Icons.local_fire_department,
+      'fan': Icons.cyclone,
+      'defrost': Icons.ac_unit,
+    };
+    final accent = Colors.deepOrangeAccent;
+
+    String cap(String s) => s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
+
+    return _buildGlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                decoration: BoxDecoration(
+                  color: isOn ? accent.withValues(alpha: 0.2) : AppColors.borderCol(context),
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                ),
+                child: Icon(Icons.microwave, color: isOn ? accent : Colors.grey, size: 20),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(deviceName, overflow: TextOverflow.ellipsis, maxLines: 1, style: TextStyle(color: AppColors.text(context), fontSize: 18, fontWeight: FontWeight.bold)),
+                    Text(
+                      isOn ? '${cap(mode)} · $targetTemp°C${timer > 0 ? ' · ${timer}m' : ''}' : 'Off',
+                      style: TextStyle(color: isOn ? accent : Colors.grey, fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+              ),
+              Switch.adaptive(
+                value: isOn,
+                activeThumbColor: accent,
+                onChanged: (val) => _updateDeviceState(deviceId, 'power', val ? 'on' : 'off'),
+              ),
+            ],
+          ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOutCubic,
+            child: !isOn
+                ? const SizedBox.shrink()
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: AppSpacing.md),
+                      Row(
+                        children: [
+                          Icon(Icons.thermostat, color: AppColors.textSub(context), size: 16),
+                          const SizedBox(width: 4),
+                          Text('Target', style: TextStyle(color: AppColors.textSub(context), fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.4)),
+                          const Spacer(),
+                          Text('$targetTemp°C', style: TextStyle(color: AppColors.text(context), fontSize: 15, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                      SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          trackHeight: 4,
+                          activeTrackColor: accent,
+                          inactiveTrackColor: AppColors.borderCol(context),
+                          thumbColor: accent,
+                          overlayShape: SliderComponentShape.noOverlay,
+                        ),
+                        child: Slider(
+                          value: targetTemp.toDouble(),
+                          min: 50,
+                          max: 250,
+                          divisions: 20,
+                          onChanged: (val) {
+                            final stepped = (val / 10).round() * 10;
+                            _updateDeviceState(deviceId, 'target_temp', stepped.toString());
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text('Mode', style: TextStyle(color: AppColors.textSub(context), fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.4)),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: modes.entries.map((e) => _buildOptionChip(
+                              label: cap(e.key),
+                              icon: e.value,
+                              selected: mode == e.key,
+                              accent: accent,
+                              onTap: () => _updateDeviceState(deviceId, 'mode', e.key),
+                            )).toList(),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      Row(
+                        children: [
+                          Icon(Icons.timer_outlined, color: AppColors.textSub(context), size: 16),
+                          const SizedBox(width: 4),
+                          Text('Timer', style: TextStyle(color: AppColors.textSub(context), fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.4)),
+                          const Spacer(),
+                          Text(
+                            _formatTimer(timer),
+                            style: TextStyle(color: AppColors.text(context), fontSize: 15, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                      // 1-minute granularity slider — replaces the previous
+                      // ±5 stepper so the user can dial in exact bake
+                      // durations like 1 h 45 m without seven taps.
+                      SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          trackHeight: 4,
+                          activeTrackColor: accent,
+                          inactiveTrackColor: AppColors.borderCol(context),
+                          thumbColor: accent,
+                          overlayShape: SliderComponentShape.noOverlay,
+                        ),
+                        child: Slider(
+                          value: timer.toDouble(),
+                          min: 0,
+                          max: 180,
+                          divisions: 180,
+                          onChanged: (val) {
+                            _updateDeviceState(
+                                deviceId, 'timer', val.toInt().toString());
+                          },
+                        ),
+                      ),
+                      // Quick presets for common bake durations — one tap
+                      // jumps the slider straight to the chosen value.
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [0, 15, 30, 45, 60, 90, 120]
+                            .map((m) => _buildOptionChip(
+                                  label: _formatTimer(m),
+                                  selected: timer == m,
+                                  accent: accent,
+                                  onTap: () => _updateDeviceState(
+                                      deviceId, 'timer', m.toString()),
+                                ))
+                            .toList(),
+                      ),
+                    ],
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOptionChip({
+    required String label,
+    required bool selected,
+    required Color accent,
+    required VoidCallback onTap,
+    IconData? icon,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(AppRadius.pill),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        splashColor: accent.withValues(alpha: 0.25),
+        highlightColor: accent.withValues(alpha: 0.12),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          curve: Curves.easeOutCubic,
+          padding: EdgeInsets.symmetric(horizontal: icon == null ? 12 : 10, vertical: 7),
+          decoration: BoxDecoration(
+            color: selected ? accent.withValues(alpha: 0.18) : AppColors.card(context),
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+            border: Border.all(
+              color: selected ? accent : AppColors.borderCol(context),
+              width: selected ? 1.2 : 1,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 14, color: selected ? accent : AppColors.textSub(context)),
+                const SizedBox(width: 5),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  color: selected ? accent : AppColors.text(context),
+                  fontSize: 12,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Compact "1h 30m" / "45m" / "Off" formatting for the oven timer
+  /// display. Used on both the slider header and the quick-preset chips.
+  String _formatTimer(int minutes) {
+    if (minutes <= 0) return 'Off';
+    if (minutes < 60) return '${minutes}m';
+    final h = minutes ~/ 60;
+    final rem = minutes % 60;
+    return rem == 0 ? '${h}h' : '${h}h ${rem}m';
+  }
+
+  int _readInt(Map<String, dynamic> state, String key, {required int fallback}) {
+    final v = state[key];
+    if (v == null) return fallback;
+    if (v is num) return v.toInt();
+    return int.tryParse(v.toString()) ?? fallback;
   }
   Widget _buildLightingCard(Map<String, dynamic> device) {
     String deviceId = device['deviceid'];
@@ -554,6 +945,11 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
     int brightness = state['brightness'] != null ? (state['brightness'] is num ? state['brightness'].toInt() : int.tryParse(state['brightness'].toString()) ?? 50) : 50;
     String hexColor = state['color'] ?? '#FFFFFF';
     Color lightColor = _parseHex(hexColor);
+    // When the LED is set to white (or near-white), the raw color is invisible
+    // against the light theme card. Substitute a warm "daylight" amber for the
+    // icon + label only — the actual color still gets pushed to the strip.
+    final isWhite = _isNearWhite(lightColor);
+    final Color iconTint = isWhite ? AppColors.accentAmber : lightColor;
 
     return _buildGlassCard(
       child: Column(
@@ -567,14 +963,18 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                   children: [
                     AnimatedContainer(
                       duration: const Duration(milliseconds: 300),
-                      padding: const EdgeInsets.all(AppSpacing.md),
+                      padding: const EdgeInsets.all(AppSpacing.sm),
                       decoration: BoxDecoration(
-                        color: isLightOn ? lightColor.withValues(alpha: 0.2) : AppColors.borderCol(context),
-                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        color: isLightOn ? iconTint.withValues(alpha: 0.2) : AppColors.borderCol(context),
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
                       ),
-                      child: Icon(Icons.lightbulb, color: isLightOn ? lightColor : Colors.grey, size: 24),
+                      child: Icon(
+                        isWhite && isLightOn ? Icons.wb_sunny_rounded : Icons.lightbulb,
+                        color: isLightOn ? iconTint : Colors.grey,
+                        size: 20,
+                      ),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: AppSpacing.md),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -582,8 +982,8 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                           Text(deviceName, overflow: TextOverflow.ellipsis, maxLines: 1, style: TextStyle(color: AppColors.text(context), fontSize: 18, fontWeight: FontWeight.bold)),
                           AnimatedDefaultTextStyle(
                             duration: const Duration(milliseconds: 200),
-                            style: TextStyle(color: isLightOn ? lightColor : Colors.grey, fontSize: 13, fontWeight: FontWeight.w600),
-                            child: Text(isLightOn ? "Turned On" : "Turned Off"),
+                            style: TextStyle(color: isLightOn ? iconTint : Colors.grey, fontSize: 13, fontWeight: FontWeight.w600),
+                            child: Text(isLightOn ? (isWhite ? "Daylight" : "Turned On") : "Turned Off"),
                           ),
                         ],
                       ),
@@ -594,14 +994,18 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
               const SizedBox(width: 8),
               Switch.adaptive(
                 value: isLightOn,
-                activeColor: lightColor,
+                activeThumbColor: lightColor,
                 onChanged: (val) => _updateDeviceState(deviceId, 'power', val ? 'on' : 'off'),
               ),
             ],
           ),
-          const SizedBox(height: 24),
-          _buildHueSpectrum(deviceId, hexColor),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
+          LedColorPicker(
+            currentHex: hexColor,
+            onChanged: (hex) =>
+                _updateDeviceState(deviceId, 'color', hex),
+          ),
+          const SizedBox(height: AppSpacing.md),
           Row(
             children: [
               Icon(Icons.brightness_low, color: AppColors.textSub(context), size: 20),
@@ -635,9 +1039,23 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
     String deviceId = device['deviceid'];
     String deviceName = device['device_name'] ?? 'Smart Speaker';
     Map<String, dynamic> state = _deviceStates[deviceId] ?? {};
-    
+
     bool isEngineOn = state['power'] == 'on';
-    int volume = state['volume'] != null ? (state['volume'] is num ? state['volume'].toInt() : int.tryParse(state['volume'].toString()) ?? 50) : 50;
+    int volume = state['volume'] != null
+        ? (state['volume'] is num
+            ? state['volume'].toInt()
+            : int.tryParse(state['volume'].toString()) ?? 50)
+        : 50;
+
+    // Pull live playback + currently-playing track from the shared provider
+    // so this card matches the Dashboard mini speaker, even between polls.
+    final sync = ref.watch(speakerSyncProvider);
+    final pulse = sync.playbackPulse[deviceId];
+    final track = sync.nowPlaying?['track'] as Map?;
+    final trackName = (track?['name'] ?? '').toString();
+    final artist = (track?['artist'] ?? '').toString();
+    final isPlaying = sync.nowPlaying?['is_playing'] == true;
+    final hasTrack = trackName.isNotEmpty;
 
     return _buildGlassCard(
       child: Column(
@@ -650,17 +1068,87 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                 child: Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      decoration: BoxDecoration(color: Colors.pinkAccent.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(AppRadius.md)),
-                      child: Icon(Icons.speaker_group, color: isEngineOn ? Colors.pinkAccent : Colors.grey, size: 24),
+                      padding: const EdgeInsets.all(AppSpacing.sm),
+                      decoration: BoxDecoration(
+                        gradient: isEngineOn
+                            ? LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  AppColors.accentPink,
+                                  Color.alphaBlend(
+                                    Colors.white.withValues(alpha: 0.25),
+                                    AppColors.accentPink,
+                                  ),
+                                ],
+                              )
+                            : null,
+                        color: isEngineOn ? null : AppColors.borderCol(context),
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                        boxShadow: isEngineOn
+                            ? [
+                                BoxShadow(
+                                  color: AppColors.accentPink
+                                      .withValues(alpha: 0.30),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: Icon(Icons.speaker_group,
+                          color: isEngineOn ? Colors.white : Colors.grey,
+                          size: 20),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: AppSpacing.md),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(deviceName, overflow: TextOverflow.ellipsis, maxLines: 1, style: TextStyle(color: AppColors.text(context), fontSize: 18, fontWeight: FontWeight.bold)),
-                          Text(isEngineOn ? "Volume: $volume%" : "Offline", style: TextStyle(color: isEngineOn ? Colors.pinkAccent : Colors.grey, fontSize: 13, fontWeight: FontWeight.w600)),
+                          Text(deviceName,
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                              style: TextStyle(
+                                  color: AppColors.text(context),
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold)),
+                          if (isEngineOn && hasTrack)
+                            Row(
+                              children: [
+                                Icon(
+                                  isPlaying
+                                      ? Icons.graphic_eq
+                                      : Icons.pause_circle_outline,
+                                  size: 12,
+                                  color: AppColors.accentPink,
+                                ),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    artist.isEmpty
+                                        ? trackName
+                                        : '$trackName · $artist',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: AppColors.accentPink,
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            )
+                          else
+                            Text(
+                              isEngineOn ? "Volume $volume%" : "Offline",
+                              style: TextStyle(
+                                  color: isEngineOn
+                                      ? AppColors.accentPink
+                                      : Colors.grey,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600),
+                            ),
                         ],
                       ),
                     ),
@@ -669,53 +1157,118 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
               ),
               Switch.adaptive(
                 value: isEngineOn,
-                activeColor: Colors.pinkAccent,
-                onChanged: (val) => _updateDeviceState(deviceId, 'power', val ? 'on' : 'off'),
+                activeThumbColor: AppColors.accentPink,
+                onChanged: (val) =>
+                    _updateDeviceState(deviceId, 'power', val ? 'on' : 'off'),
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: AppSpacing.md),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _buildModernIconButton(
-                Icons.play_arrow,
-                () => _spotifyPlayback(deviceId, 'play'),
-                selected: _playbackPulse[deviceId] == 'play',
-              ),
-              _buildModernIconButton(
-                Icons.pause,
-                () => _spotifyPlayback(deviceId, 'pause'),
-                selected: _playbackPulse[deviceId] == 'pause',
-              ),
+              _buildPlaybackBtn(
+                  Icons.play_arrow, () => _spotifyPlayback(deviceId, 'play'),
+                  selected: pulse == 'play'),
+              _buildPlaybackBtn(
+                  Icons.pause, () => _spotifyPlayback(deviceId, 'pause'),
+                  selected: pulse == 'pause'),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.sm),
           Row(
             children: [
-              Icon(Icons.volume_down, color: AppColors.textSub(context), size: 20),
+              Icon(Icons.volume_down,
+                  color: AppColors.textSub(context), size: 20),
               Expanded(
                 child: SliderTheme(
                   data: SliderTheme.of(context).copyWith(
                     trackHeight: 6,
-                    activeTrackColor: Colors.pinkAccent,
+                    activeTrackColor: AppColors.accentPink,
                     inactiveTrackColor: AppColors.borderCol(context),
-                    thumbColor: Colors.pinkAccent,
+                    thumbColor: AppColors.accentPink,
                   ),
                   child: Slider(
                     value: volume.toDouble(),
                     min: 0,
                     max: 100,
-                    onChanged: (val) => _updateDeviceState(deviceId, 'volume', val.toInt().toString()),
+                    onChanged: (val) => _updateDeviceState(
+                        deviceId, 'volume', val.toInt().toString()),
                   ),
                 ),
               ),
-              Icon(Icons.volume_up, color: AppColors.textSub(context), size: 20),
+              Icon(Icons.volume_up,
+                  color: AppColors.textSub(context), size: 20),
               const SizedBox(width: 8),
-              SizedBox(width: 36, child: Text('$volume%', style: TextStyle(color: AppColors.text(context), fontSize: 13, fontWeight: FontWeight.bold), textAlign: TextAlign.right)),
+              SizedBox(
+                  width: 36,
+                  child: Text('$volume%',
+                      style: TextStyle(
+                          color: AppColors.text(context),
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.right)),
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  /// Pink-themed play/pause button used by the speaker card. Highlights with
+  /// a gradient + glow when [selected] is true so the user can see at a
+  /// glance whether the speaker is in play or pause mode.
+  Widget _buildPlaybackBtn(IconData icon, VoidCallback onTap,
+      {bool selected = false}) {
+    return Material(
+      color: Colors.transparent,
+      shape: const CircleBorder(),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        splashColor: AppColors.accentPink.withValues(alpha: 0.30),
+        highlightColor: AppColors.accentPink.withValues(alpha: 0.18),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            gradient: selected
+                ? LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      AppColors.accentPink,
+                      Color.alphaBlend(
+                        Colors.white.withValues(alpha: 0.25),
+                        AppColors.accentPink,
+                      ),
+                    ],
+                  )
+                : null,
+            color: selected ? null : AppColors.card(context),
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: selected
+                  ? AppColors.accentPink
+                  : AppColors.borderCol(context),
+              width: selected ? 1.5 : 1,
+            ),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: AppColors.accentPink.withValues(alpha: 0.45),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Icon(icon,
+              color: selected ? Colors.white : AppColors.text(context),
+              size: 20),
+        ),
       ),
     );
   }
@@ -749,18 +1302,18 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                   children: [
                     AnimatedContainer(
                       duration: const Duration(milliseconds: 300),
-                      padding: const EdgeInsets.all(AppSpacing.md),
+                      padding: const EdgeInsets.all(AppSpacing.sm),
                       decoration: BoxDecoration(
                         color: isOn
                             ? AppColors.primaryBlue.withValues(alpha: 0.2)
                             : AppColors.borderCol(context),
-                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
                       ),
                       child: Icon(Icons.tv,
                           color: isOn ? AppColors.primaryBlue : Colors.grey,
-                          size: 24),
+                          size: 20),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: AppSpacing.md),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -798,7 +1351,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: AppSpacing.md),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
@@ -811,11 +1364,11 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
                   Text("Channel",
                       style: TextStyle(
                           color: AppColors.textSub(context), fontSize: 11)),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 2),
                   Text("$channel",
                       style: TextStyle(
                           color: AppColors.text(context),
-                          fontSize: 22,
+                          fontSize: 20,
                           fontWeight: FontWeight.bold)),
                 ],
               ),
@@ -825,7 +1378,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
               }),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.sm),
           Row(
             children: [
               Icon(Icons.volume_down,
@@ -877,11 +1430,11 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(AppSpacing.md),
+                  padding: const EdgeInsets.all(AppSpacing.sm),
                   decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.15), shape: BoxShape.circle),
-                  child: Icon(Icons.nfc, color: statusColor, size: 28),
+                  child: Icon(Icons.nfc, color: statusColor, size: 22),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -915,33 +1468,69 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
     
     bool isEngineOn = state['power'] == 'on';
     
-    IconData iconData = Icons.device_hub;
+    IconData iconData = Icons.electrical_services;
     Color iconColor = Colors.purpleAccent;
     String nameLr = deviceName.toLowerCase();
 
-    if (nameLr.contains('door')) {
+    if (nameLr.contains('door') || nameLr.contains('kapı') || nameLr.contains('kapi')) {
       iconData = Icons.door_front_door;
-    } else if (nameLr.contains('window')) {
+      iconColor = Colors.brown.shade400;
+    } else if (nameLr.contains('window') || nameLr.contains('pencere')) {
       iconData = Icons.window;
-    } else if (nameLr.contains('fan')) {
-      iconData = Icons.mode_fan_off;
+      iconColor = Colors.lightBlueAccent;
+    } else if (nameLr.contains('curtain') || nameLr.contains('perde') || nameLr.contains('jaluzi') || nameLr.contains('blind')) {
+      iconData = Icons.curtains;
+      iconColor = Colors.teal;
+    } else if (nameLr.contains('lock') || nameLr.contains('kilit')) {
+      iconData = Icons.lock;
+      iconColor = Colors.amber.shade700;
+    } else if (nameLr.contains('fan') || nameLr.contains('vantilatör') || nameLr.contains('vantilator') || nameLr.contains('pervane')) {
+      iconData = Icons.cyclone;
       iconColor = Colors.blueAccent;
-    } else if (nameLr.contains('plug')) {
-      iconData = Icons.power;
-    } else if (nameLr.contains('stove')) {
-      iconData = Icons.soup_kitchen;
+    } else if (nameLr.contains('oven') || nameLr.contains('fırın') || nameLr.contains('firin')) {
+      iconData = Icons.microwave;
       iconColor = Colors.deepOrangeAccent;
+    } else if (nameLr.contains('stove') || nameLr.contains('ocak') || nameLr.contains('cooktop')) {
+      iconData = Icons.local_fire_department;
+      iconColor = Colors.deepOrangeAccent;
+    } else if (nameLr.contains('kettle') || nameLr.contains('çaydanlık') || nameLr.contains('caydanlik') || nameLr.contains('teapot')) {
+      iconData = Icons.local_cafe;
+      iconColor = Colors.brown.shade300;
+    } else if (nameLr.contains('coffee') || nameLr.contains('kahve')) {
+      iconData = Icons.coffee_maker;
+      iconColor = Colors.brown.shade300;
+    } else if (nameLr.contains('kombi') || nameLr.contains('boiler') || nameLr.contains('heater') || nameLr.contains('ısıtıcı') || nameLr.contains('isitici') || nameLr.contains('radyatör') || nameLr.contains('radyator')) {
+      iconData = Icons.thermostat;
+      iconColor = Colors.orangeAccent;
+    } else if (nameLr.contains('vacuum') || nameLr.contains('vakum') || nameLr.contains('süpürge') || nameLr.contains('supurge')) {
+      iconData = Icons.cleaning_services;
+      iconColor = Colors.cyan;
+    } else if (nameLr.contains('charger') || nameLr.contains('şarj') || nameLr.contains('sarj') || nameLr.contains('battery') || nameLr.contains('pil')) {
+      iconData = Icons.battery_charging_full;
+      iconColor = Colors.greenAccent;
+    } else if (nameLr.contains('plug') || nameLr.contains('priz') || nameLr.contains('soket') || nameLr.contains('socket') || nameLr.contains('outlet')) {
+      iconData = Icons.power;
+      iconColor = Colors.amberAccent;
+    } else if (nameLr.contains('washer') || nameLr.contains('çamaşır') || nameLr.contains('camasir') || nameLr.contains('laundry')) {
+      iconData = Icons.local_laundry_service;
+      iconColor = Colors.lightBlue;
+    } else if (nameLr.contains('dishwasher') || nameLr.contains('bulaşık') || nameLr.contains('bulasik')) {
+      iconData = Icons.local_dining;
+      iconColor = Colors.tealAccent;
+    } else if (nameLr.contains('fridge') || nameLr.contains('buzdolabı') || nameLr.contains('buzdolabi') || nameLr.contains('refrigerator')) {
+      iconData = Icons.kitchen;
+      iconColor = Colors.lightBlueAccent;
     }
 
     return _buildGlassCard(
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(color: iconColor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(AppRadius.md)),
-            child: Icon(iconData, color: iconColor, size: 24),
+            padding: const EdgeInsets.all(AppSpacing.sm),
+            decoration: BoxDecoration(color: iconColor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(AppRadius.sm)),
+            child: Icon(iconData, color: iconColor, size: 22),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -953,7 +1542,7 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
           ),
           Switch.adaptive(
             value: isEngineOn,
-            activeColor: iconColor,
+            activeThumbColor: iconColor,
             onChanged: (val) => _updateDeviceState(deviceId, 'power', val ? 'on' : 'off'),
           ),
         ],
@@ -1032,138 +1621,17 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
     return Color(0xFF000000 | v);
   }
 
-  String _hexFromColor(Color c) {
+  /// Returns true when [c] is white-or-near-white, i.e. high luminance with
+  /// near-equal channels. We use this to swap the LED card's bulb tint for a
+  /// readable amber so the icon doesn't vanish on the light theme.
+  bool _isNearWhite(Color c) {
     final argb = c.toARGB32();
     final r = (argb >> 16) & 0xFF;
     final g = (argb >> 8) & 0xFF;
     final b = argb & 0xFF;
-    String two(int n) => n.toRadixString(16).padLeft(2, '0').toUpperCase();
-    return '#${two(r)}${two(g)}${two(b)}';
-  }
-
-  /// Returns hue 0..360 for a hex like "#FF8800". For grayscale (R==G==B)
-  /// returns -1 — caller should treat that as "white selected, no hue".
-  double _hueFromHex(String hex) {
-    final c = _parseHex(hex);
-    final argb = c.toARGB32();
-    final r = (argb >> 16) & 0xFF;
-    final g = (argb >> 8) & 0xFF;
-    final b = argb & 0xFF;
-    if (r == g && g == b) return -1;
-    return HSVColor.fromColor(Color.fromARGB(255, r, g, b)).hue;
-  }
-
-  void _onHuePicked(String deviceId, double dx, double width) {
-    final t = (dx / width).clamp(0.0, 1.0);
-    final hue = t * 360.0;
-    final color = HSVColor.fromAHSV(1.0, hue, 1.0, 1.0).toColor();
-    _updateDeviceState(deviceId, 'color', _hexFromColor(color));
-  }
-
-  Widget _buildHueSpectrum(String deviceId, String currentHex) {
-    final isWhite = _hueFromHex(currentHex) < 0;
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // Reserve space for the white pill on the right.
-        const whitePillWidth = 44.0;
-        const gap = 12.0;
-        final barWidth = constraints.maxWidth - whitePillWidth - gap;
-        final hue = _hueFromHex(currentHex);
-        final indicatorX = hue < 0 ? -1.0 : (hue / 360.0) * barWidth;
-
-        return Row(
-          children: [
-            SizedBox(
-              width: barWidth,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTapDown: (d) =>
-                    _onHuePicked(deviceId, d.localPosition.dx, barWidth),
-                onPanDown: (d) =>
-                    _onHuePicked(deviceId, d.localPosition.dx, barWidth),
-                onPanUpdate: (d) =>
-                    _onHuePicked(deviceId, d.localPosition.dx, barWidth),
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  alignment: Alignment.centerLeft,
-                  children: [
-                    Container(
-                      height: 28,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(14),
-                        gradient: const LinearGradient(
-                          colors: [
-                            Color(0xFFFF0000),
-                            Color(0xFFFFFF00),
-                            Color(0xFF00FF00),
-                            Color(0xFF00FFFF),
-                            Color(0xFF0000FF),
-                            Color(0xFFFF00FF),
-                            Color(0xFFFF0000),
-                          ],
-                        ),
-                        border: Border.all(
-                            color: AppColors.borderCol(context), width: 1),
-                      ),
-                    ),
-                    if (indicatorX >= 0)
-                      Positioned(
-                        left: (indicatorX - 8).clamp(0.0, barWidth - 16),
-                        child: Container(
-                          width: 16,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: Colors.transparent,
-                            border: Border.all(
-                                color: AppColors.text(context), width: 3),
-                            borderRadius: BorderRadius.circular(AppRadius.xs),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.3),
-                                blurRadius: 4,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: gap),
-            GestureDetector(
-              onTap: () =>
-                  _updateDeviceState(deviceId, 'color', '#FFFFFF'),
-              child: Container(
-                width: whitePillWidth,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: isWhite
-                        ? AppColors.primaryBlue
-                        : AppColors.borderCol(context),
-                    width: isWhite ? 2.5 : 1,
-                  ),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  'W',
-                  style: TextStyle(
-                    color: isWhite
-                        ? AppColors.primaryBlue
-                        : Colors.grey.shade600,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
+    final minCh = r < g ? (r < b ? r : b) : (g < b ? g : b);
+    final maxCh = r > g ? (r > b ? r : b) : (g > b ? g : b);
+    return minCh >= 220 && (maxCh - minCh) <= 12;
   }
 
   // --- Premium Mini Widgets --- //
@@ -1176,30 +1644,31 @@ class _DeviceControlScreenState extends ConsumerState<DeviceControlScreen>
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        splashColor: Colors.pinkAccent.withValues(alpha: 0.30),
-        highlightColor: Colors.pinkAccent.withValues(alpha: 0.18),
+        splashColor: AppColors.primaryBlue.withValues(alpha: 0.30),
+        highlightColor: AppColors.primaryBlue.withValues(alpha: 0.18),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
-          width: 56,
-          height: 56,
+          width: 44,
+          height: 44,
           decoration: BoxDecoration(
             color: selected
-                ? Colors.pinkAccent.withValues(alpha: 0.18)
+                ? AppColors.primaryBlue.withValues(alpha: 0.18)
                 : AppColors.card(context),
             shape: BoxShape.circle,
             border: Border.all(
               color: selected
-                  ? Colors.pinkAccent
+                  ? AppColors.primaryBlue
                   : AppColors.borderCol(context),
               width: selected ? 1.5 : 1,
             ),
           ),
           child: Icon(icon,
-              color: selected ? Colors.pinkAccent : AppColors.text(context),
-              size: 28),
+              color: selected ? AppColors.primaryBlue : AppColors.text(context),
+              size: 22),
         ),
       ),
     );
   }
 
 }
+

@@ -3,10 +3,10 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
+import '../../config/env.dart';
 import 'spotify_api_client.dart';
 import 'spotify_logger.dart';
 
@@ -23,8 +23,8 @@ class SpotifyClaudeAgent {
   static const Duration _cacheTtl = Duration(minutes: 10);
   static const int _candidateCount = 20;
 
-  static String get _apiKey => dotenv.env['CLAUDE_API_KEY'] ?? '';
-  static bool get isConfigured => _apiKey.isNotEmpty;
+  static String get _apiKey => Env.claudeApiKey;
+  static bool get isConfigured => Env.hasClaudeKey;
 
   static final Map<String, _CacheEntry> _cache = {};
 

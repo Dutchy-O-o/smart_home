@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:showcaseview/showcaseview.dart';
 import '../../constants/app_colors.dart';
 import '../../theme/app_breakpoints.dart';
 import '../../theme/app_motion.dart';
 import '../../theme/app_spacing.dart';
+import '../../widgets/aurora_background.dart';
 import '../../widgets/onboarding_keys.dart';
 import '../../widgets/temp_humidity_card.dart';
 import '../auth/login_screen.dart';
@@ -22,6 +24,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/alert_provider.dart';
 import '../../providers/mood_provider.dart';
 import '../../providers/navigation_provider.dart';
+import '../../providers/speaker_provider.dart';
 import 'home_selection_screen.dart';
 import '../../services/api_service.dart';
 import '../../services/scene_presets.dart';
@@ -62,15 +65,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   final Map<String, Map<String, dynamic>> _speakerStates = {};
   Timer? _speakerVolumeDebounce;
 
-  /// Persistent highlight for the last playback action (play / pause). Local
-  /// feedback only — real playback state lives in the user's Spotify session,
-  /// not our DB, so we mirror what the user pressed and keep it shown until
-  /// they press the opposite button.
-  final Map<String, String> _playbackPulse = {}; // deviceId → 'play' | 'pause'
+  // Playback pulse + now-playing now live in a Riverpod provider so the
+  // Devices screen sees the same state. Read via ref.watch in build().
 
-  /// Currently-playing track from Spotify (title/artist), refreshed on
-  /// the dashboard poll so the speaker card can show "▶ Track — Artist".
-  Map<String, dynamic>? _nowPlaying;
+  /// Number of guests in the currently-selected home (admin view only).
+  /// Refreshed when the home changes; powers the hero header chip so the
+  /// admin sees the access count at a glance without entering the
+  /// Guest Management screen.
+  int? _guestCount;
+  String _lastGuestCountHomeId = '';
 
   @override
   void dispose() {
@@ -740,54 +743,71 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Future<void> _fetchNowPlaying() async {
     final track = await SpotifyApiClient.getCurrentlyPlaying();
     if (!mounted) return;
-    // Only update if something changed, to avoid pointless rebuilds.
-    final newName = track?['track']?['name'];
-    final oldName = _nowPlaying?['track']?['name'];
-    if (newName != oldName ||
-        track?['is_playing'] != _nowPlaying?['is_playing']) {
-      setState(() => _nowPlaying = track);
-    }
+    // Push into the shared provider so Dashboard + Devices stay in sync.
+    ref.read(speakerSyncProvider.notifier).setNowPlaying(track);
+  }
+
+  /// Count non-admin members so the hero header chip can show "👥 X" for
+  /// admin users. Only fires when the home actually changes (not on every
+  /// poll tick) to keep the API quiet.
+  Future<void> _fetchGuestCount(String homeId, String role) async {
+    if (role.toUpperCase() != 'ADMIN') return;
+    if (homeId == _lastGuestCountHomeId && _guestCount != null) return;
+    _lastGuestCountHomeId = homeId;
+    final members = await ApiService.fetchHomeMembers(homeId);
+    if (!mounted) return;
+    setState(() {
+      _guestCount = members
+          ?.where((m) => (m['role'] ?? '').toString().toLowerCase() != 'admin')
+          .length;
+    });
   }
 
   // --- FUNCTION THAT FETCHES THE ENCRYPTED QR TOKEN FROM THE REAL API ---
   Future<void> _generateAndShowQr(String homeId, String homeName) async {
-    debugPrint("🕵️‍♂️ 3. API REQUEST FUNCTION STARTED. Target Home: $homeId");
-    showDialog(context: context, barrierDismissible: false, builder: (c) => const Center(child: CircularProgressIndicator(color: AppColors.primaryBlue)));
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (c) => const Center(
+        child: CircularProgressIndicator(color: AppColors.primaryBlue),
+      ),
+    );
 
     try {
       final session = await Amplify.Auth.fetchAuthSession() as CognitoAuthSession;
       final token = session.userPoolTokensResult.value.idToken.raw;
-      debugPrint("🕵️‍♂️ 4. COGNITO TOKEN RECEIVED, CONNECTING TO AWS...");
+      final url = Uri.parse(
+          "https://zz3kr12z0f.execute-api.us-east-1.amazonaws.com/prod/$homeId/generate-invite");
 
-      final url = Uri.parse("https://zz3kr12z0f.execute-api.us-east-1.amazonaws.com/prod/$homeId/generate-invite");
-      debugPrint("🕵️‍♂️ 5. REQUESTED URL: $url");
-      
       final response = await http.post(
         url,
-        headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
         body: jsonEncode({}),
       );
 
       if (!mounted) return;
       Navigator.pop(context); // Close the loading spinner
 
-      debugPrint("🕵️‍♂️ 6. RESPONSE RECEIVED FROM AWS! Status Code: ${response.statusCode}");
-      debugPrint("🕵️‍♂️ 7. AWS RESPONSE BODY: ${response.body}");
-
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final secureToken = data['secure_token'];
-        debugPrint("✅ 8. ENCRYPTED TOKEN RECEIVED, OPENING MODAL!");
         _showQrInviteModal(context, secureToken, homeName);
       } else {
-        debugPrint("❌ ERROR: AWS rejected the request.");
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Could not generate QR: ${response.body}"), backgroundColor: AppColors.accentRed));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text("Could not generate QR: ${response.body}"),
+          backgroundColor: AppColors.accentRed,
+        ));
       }
     } catch (e) {
       if (!mounted) return;
       Navigator.pop(context);
-      debugPrint("❌ SYSTEM ERROR (Catch): $e");
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Connection error: $e"), backgroundColor: AppColors.accentRed));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text("Connection error: $e"),
+        backgroundColor: AppColors.accentRed,
+      ));
     }
   }
 
@@ -865,19 +885,32 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ? (state['volume'] as num).toInt()
         : int.tryParse(state['volume']?.toString() ?? '') ?? 50;
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return [
       const SizedBox(height: 24),
       Container(
         padding: const EdgeInsets.all(AppSpacing.xl),
         decoration: BoxDecoration(
-          color: AppColors.card(context),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppColors.card(context),
+              Color.alphaBlend(
+                AppColors.accentPink.withValues(alpha: isDark ? 0.14 : 0.06),
+                AppColors.card(context),
+              ),
+            ],
+          ),
           borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(color: AppColors.borderCol(context)),
+          border: Border.all(
+            color: AppColors.accentPink.withValues(alpha: isOn ? 0.30 : 0.12),
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+              color: AppColors.accentPink.withValues(alpha: isOn ? 0.20 : 0.08),
+              blurRadius: 18,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
@@ -889,11 +922,36 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.pinkAccent.withValues(alpha: 0.15),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: isOn
+                          ? [
+                              AppColors.accentPink,
+                              Color.alphaBlend(
+                                Colors.white.withValues(alpha: 0.25),
+                                AppColors.accentPink,
+                              ),
+                            ]
+                          : [
+                              AppColors.borderCol(context),
+                              AppColors.borderCol(context),
+                            ],
+                    ),
                     borderRadius: BorderRadius.circular(14),
+                    boxShadow: isOn
+                        ? [
+                            BoxShadow(
+                              color: AppColors.accentPink
+                                  .withValues(alpha: 0.50),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ]
+                        : null,
                   ),
                   child: Icon(Icons.speaker_group,
-                      color: isOn ? Colors.pinkAccent : Colors.grey, size: 22),
+                      color: isOn ? Colors.white : Colors.grey, size: 22),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -915,7 +973,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ),
                 Switch.adaptive(
                   value: isOn,
-                  activeThumbColor: Colors.pinkAccent,
+                  activeThumbColor: AppColors.accentPink,
                   onChanged: (val) {
                     HapticFeedback.selectionClick();
                     _setSpeakerProp(id, 'power', val ? 'on' : 'off');
@@ -924,18 +982,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ],
             ),
             const SizedBox(height: 14),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                // Persistent highlight — last tapped button stays selected so
-                // the user can see at a glance whether the speaker is in play
-                // or pause mode (real Spotify state isn't read back).
-                _buildPlaybackBtn(id, Icons.play_arrow, 'play',
-                    _playbackPulse[id] == 'play'),
-                _buildPlaybackBtn(id, Icons.pause, 'pause',
-                    _playbackPulse[id] == 'pause'),
-              ],
-            ),
+            Builder(builder: (context) {
+              final pulse = ref.watch(speakerSyncProvider).playbackPulse[id];
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  // Persistent highlight — last tapped button stays selected so
+                  // the user can see at a glance whether the speaker is in play
+                  // or pause mode (real Spotify state isn't read back).
+                  _buildPlaybackBtn(
+                      id, Icons.play_arrow, 'play', pulse == 'play'),
+                  _buildPlaybackBtn(
+                      id, Icons.pause, 'pause', pulse == 'pause'),
+                ],
+              );
+            }),
             const SizedBox(height: 8),
             Row(
               children: [
@@ -944,9 +1005,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   child: SliderTheme(
                     data: SliderTheme.of(context).copyWith(
                       trackHeight: 5,
-                      activeTrackColor: Colors.pinkAccent,
+                      activeTrackColor: AppColors.accentPink,
                       inactiveTrackColor: AppColors.borderCol(context),
-                      thumbColor: Colors.pinkAccent,
+                      thumbColor: AppColors.accentPink,
                     ),
                     child: Slider(
                       value: vol.toDouble().clamp(0, 100),
@@ -1015,8 +1076,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     setState(() {
       _speakerStates[deviceId] ??= {};
       _speakerStates[deviceId]!['playback'] = value;
-      _playbackPulse[deviceId] = value;
     });
+    // Shared with Devices screen so its play/pause highlight matches.
+    ref.read(speakerSyncProvider.notifier).setPlayback(deviceId, value);
 
     // Resolve the Spotify device id, with cascading fallbacks so we
     // can still pause music that's already playing even when the
@@ -1035,7 +1097,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     //    raspotify is mid-stream but hasn't (re-)registered with the
     //    devices endpoint.
     if (spId == null) {
-      final nowPlaying = _nowPlaying ??
+      final nowPlaying = ref.read(speakerSyncProvider).nowPlaying ??
           await SpotifyApiClient.getCurrentlyPlaying();
       final dev = nowPlaying?['device'];
       if (dev is Map && dev['id'] != null) spId = dev['id'].toString();
@@ -1045,8 +1107,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       if (!mounted) return;
       messenger.showSnackBar(const SnackBar(
         content: Text(
-            'Hoparlör Spotify ağında görünmüyor — açıkken bir şarkı '
-            'çalıp tekrar deneyin.'),
+            "Speaker not visible on the Spotify network — play a song "
+            "while it's on and try again."),
         duration: Duration(seconds: 3),
       ));
       return;
@@ -1064,7 +1126,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     }
     if (!ok && mounted) {
       messenger.showSnackBar(const SnackBar(
-        content: Text('Playback komutu başarısız (Premium hesap gerekir).'),
+        content: Text('Playback command failed (Spotify Premium required).'),
       ));
     }
   }
@@ -1074,10 +1136,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   /// paused), otherwise falls back to "Volume X%" / "Off". Track name is
   /// truncated with ellipsis so long titles don't break the layout.
   Widget _buildSpeakerSubtitle({required bool isOn, required int volume}) {
-    final track = _nowPlaying?['track'] as Map?;
+    final nowPlaying = ref.watch(speakerSyncProvider).nowPlaying;
+    final track = nowPlaying?['track'] as Map?;
     final trackName = (track?['name'] ?? '').toString();
     final artist = (track?['artist'] ?? '').toString();
-    final isPlaying = _nowPlaying?['is_playing'] == true;
+    final isPlaying = nowPlaying?['is_playing'] == true;
     final hasTrack = trackName.isNotEmpty;
 
     if (isOn && hasTrack) {
@@ -1086,7 +1149,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           Icon(
             isPlaying ? Icons.graphic_eq : Icons.pause_circle_outline,
             size: 12,
-            color: Colors.pinkAccent,
+            color: AppColors.accentPink,
           ),
           const SizedBox(width: 4),
           Flexible(
@@ -1094,8 +1157,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               artist.isEmpty ? trackName : '$trackName · $artist',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.pinkAccent,
+              style: TextStyle(
+                color: AppColors.accentPink,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
@@ -1108,7 +1171,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     return Text(
       isOn ? 'Volume $volume%' : 'Off',
       style: TextStyle(
-        color: isOn ? Colors.pinkAccent : AppColors.textSub(context),
+        color: isOn ? AppColors.accentPink : AppColors.textSub(context),
         fontSize: 12,
         fontWeight: FontWeight.w600,
       ),
@@ -1122,25 +1185,47 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () => _setSpeakerPlayback(id, value),
-        splashColor: Colors.pinkAccent.withValues(alpha: 0.30),
-        highlightColor: Colors.pinkAccent.withValues(alpha: 0.18),
+        splashColor: AppColors.accentPink.withValues(alpha: 0.30),
+        highlightColor: AppColors.accentPink.withValues(alpha: 0.18),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          width: 48,
-          height: 48,
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          width: 52,
+          height: 52,
           decoration: BoxDecoration(
-            color: selected
-                ? Colors.pinkAccent.withValues(alpha: 0.18)
-                : AppColors.card(context),
+            gradient: selected
+                ? LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      AppColors.accentPink,
+                      Color.alphaBlend(
+                        Colors.white.withValues(alpha: 0.25),
+                        AppColors.accentPink,
+                      ),
+                    ],
+                  )
+                : null,
+            color: selected ? null : AppColors.card(context),
             shape: BoxShape.circle,
             border: Border.all(
-              color:
-                  selected ? Colors.pinkAccent : AppColors.borderCol(context),
+              color: selected
+                  ? AppColors.accentPink
+                  : AppColors.borderCol(context),
               width: selected ? 1.5 : 1,
             ),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: AppColors.accentPink.withValues(alpha: 0.55),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
+                  ]
+                : null,
           ),
           child: Icon(icon,
-              color: selected ? Colors.pinkAccent : AppColors.text(context),
+              color: selected ? Colors.white : AppColors.text(context),
               size: 22),
         ),
       ),
@@ -1161,6 +1246,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
          _fetchSensors(homeId);
          _fetchDevicesForScenes(homeId);
          _fetchNowPlaying();
+         _fetchGuestCount(homeId, homeRole);
        });
 
        _dashboardPollingTimer?.cancel();
@@ -1177,7 +1263,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.bg(context),
-      body: RefreshIndicator(
+      body: Stack(
+        children: [
+          // Subtle drifting aurora behind the entire dashboard. Lower
+          // intensity than auth so it never competes with content.
+          const Positioned.fill(child: AuroraBackground(intensity: 0.55)),
+          RefreshIndicator(
         color: AppColors.primaryBlue,
         backgroundColor: AppColors.card(context),
         onRefresh: () async {
@@ -1213,6 +1304,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               homeName: homeName,
               homeRole: homeRole,
               unreadCount: unreadCount,
+              guestCount: _guestCount,
               onProfile: () =>
                   ref.read(tabIndexProvider.notifier).setTab(4),
               onSwap: () {
@@ -1342,7 +1434,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           _runScene(key, _slots[i].label);
                         }
                       },
-                    ),
+                    )
+                        .animate(delay: (80 * i).ms)
+                        .fadeIn(duration: 380.ms, curve: Curves.easeOutCubic)
+                        .slideY(begin: 0.12, end: 0, duration: 380.ms),
                 ],
                 ),
               ),
@@ -1354,6 +1449,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ],
         ),
         ),
+      ),
+        ],
       ),
     );
   }
@@ -1375,6 +1472,7 @@ class _HeroHeader extends StatelessWidget {
     required this.onNotifications,
     required this.onLogout,
     this.onQr,
+    this.guestCount,
   });
 
   final String homeName;
@@ -1386,20 +1484,22 @@ class _HeroHeader extends StatelessWidget {
   final VoidCallback onLogout;
   final VoidCallback? onQr;
 
+  /// Number of guests in this home. Only shown for admin role since the
+  /// chip leads to manageable info. `null` while still loading.
+  final int? guestCount;
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final gradient = LinearGradient(
+    final gradient = const LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
-      colors: isDark
-          ? const [Color(0xFF1B2654), Color(0xFF2196F3), Color(0xFF00BFA5)]
-          : const [Color(0xFF2196F3), Color(0xFF00BFA5)],
+      colors: AppColors.brandGradient,
     );
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 50, 20, 28),
+      padding: const EdgeInsets.fromLTRB(20, 50, 20, 30),
       decoration: BoxDecoration(
         gradient: gradient,
         borderRadius: const BorderRadius.only(
@@ -1408,13 +1508,56 @@ class _HeroHeader extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primaryBlue.withValues(alpha: 0.35),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
+            color: AppColors.primaryBlue.withValues(alpha: isDark ? 0.45 : 0.30),
+            blurRadius: 32,
+            offset: const Offset(0, 14),
+          ),
+          BoxShadow(
+            color: AppColors.teal.withValues(alpha: 0.20),
+            blurRadius: 28,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
-      child: Column(
+      child: Stack(
+        children: [
+          // Decorative glow blobs inside the hero — adds depth without
+          // a separate background widget.
+          Positioned(
+            top: -40,
+            right: -30,
+            child: Container(
+              width: 160,
+              height: 160,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    Colors.white.withValues(alpha: 0.22),
+                    Colors.white.withValues(alpha: 0),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: -30,
+            left: -20,
+            child: Container(
+              width: 140,
+              height: 140,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    AppColors.accentPink.withValues(alpha: 0.30),
+                    AppColors.accentPink.withValues(alpha: 0),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
@@ -1452,14 +1595,7 @@ class _HeroHeader extends StatelessWidget {
           const SizedBox(height: 22),
           Row(
             children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: const BoxDecoration(
-                  color: AppColors.accentGreen,
-                  shape: BoxShape.circle,
-                ),
-              ),
+              const _PulseDot(color: AppColors.accentGreen),
               const SizedBox(width: 8),
               Text(
                 'Online · Welcome back',
@@ -1512,8 +1648,44 @@ class _HeroHeader extends StatelessWidget {
                   ),
                 ),
               ],
+              // Guest count chip — admin-only, only when we actually have
+              // a count to show (so the chip doesn't flicker in/out while
+              // the network is loading).
+              if (homeRole == 'ADMIN' && guestCount != null) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(AppRadius.xs),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.30),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.group_rounded,
+                          color: Colors.white, size: 11),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$guestCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
+        ],
+      ),
         ],
       ),
     );
@@ -1575,6 +1747,79 @@ class _GlassIconBtn extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// Soft pulsing status dot — used by the hero header to telegraph "live".
+/// A halo expands and fades around a solid core every 1.6s.
+class _PulseDot extends StatefulWidget {
+  const _PulseDot({required this.color});
+  final Color color;
+
+  @override
+  State<_PulseDot> createState() => _PulseDotState();
+}
+
+class _PulseDotState extends State<_PulseDot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1600),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 18,
+      height: 18,
+      child: Center(
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            AnimatedBuilder(
+              animation: _ctrl,
+              builder: (context, _) {
+                final t = _ctrl.value;
+                return Container(
+                  width: 8 + 14 * t,
+                  height: 8 + 14 * t,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: widget.color.withValues(alpha: (1 - t) * 0.55),
+                  ),
+                );
+              },
+            ),
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: widget.color,
+                boxShadow: [
+                  BoxShadow(
+                    color: widget.color.withValues(alpha: 0.5),
+                    blurRadius: 6,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

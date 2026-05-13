@@ -19,7 +19,7 @@ def lambda_handler(event, context):
         sensor_data_dict = event.get('data', {})
         
         if not device_id or not sensor_data_dict:
-            raise Exception("Hata: deviceID veya data objesi bulunamadı!")
+            raise Exception("Error: deviceID or data object not found.")
 
         # 2. Veritabanına bağlan
         conn = psycopg2.connect(
@@ -56,20 +56,20 @@ def lambda_handler(event, context):
         cur.executemany(insert_query, records_to_insert)
         conn.commit()
         
-        print(f"✅ Başarılı: {device_id} cihazından gelen {len(records_to_insert)} adet sensör verisi kaydedildi.")
-        
+        print(f"Success: saved {len(records_to_insert)} sensor records from {device_id}.")
+
         return {
             'statusCode': 200,
-            'body': json.dumps('Veriler başarıyla kaydedildi!')
+            'body': json.dumps('Data saved successfully.')
         }
 
     except Exception as e:
-        print(f"❌ HATA: {e}")
+        print(f"ERROR: {e}")
         if conn:
             conn.rollback()
         return {
             'statusCode': 500,
-            'body': json.dumps(f"Veri yazılamadı: {str(e)}")
+            'body': json.dumps(f"Could not write data: {str(e)}")
         }
     finally:
         if conn:

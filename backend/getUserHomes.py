@@ -75,14 +75,14 @@ def lambda_handler(event, context):
         }
 
     except Exception as e:
-        print("Veritabanı VEYA İşlem Hatası:", e)
+        print("Database or processing error:", e)
         return {
             "statusCode": 500,
             "headers": {
                 "Access-Control-Allow-Origin": "*"
             },
             "body": json.dumps({
-                "error": "Sunucu hatası, evler listelenemedi.",
+                "error": "Server error: homes could not be listed.",
                 "details": str(e)
             })
         }

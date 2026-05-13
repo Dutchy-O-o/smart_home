@@ -18,7 +18,7 @@ def lambda_handler(event, context):
                     'Content-Type': 'application/json',
                     'Access-Control-Allow-Origin': '*'
                 },
-                'body': json.dumps({'error': 'Eksik parametre: homeID veya emotion bulunamadı.'})
+                'body': json.dumps({'error': 'Missing parameter: homeID or emotion not found.'})
             }
 
         conn = psycopg2.connect(
@@ -95,12 +95,12 @@ WHERE r.homeid = %s
         }
         
     except Exception as e:
-        print(f"Hata oluştu: {str(e)}")
+        print(f"An error occurred: {str(e)}")
         return {
             'statusCode': 500,
             'headers': {
                 'Content-Type': 'application/json',
                 'Access-Control-Allow-Origin': '*'
             },
-            'body': json.dumps({'error': 'Sunucu içi hata oluştu.', 'details': str(e)})
+            'body': json.dumps({'error': 'Internal server error.', 'details': str(e)})
         }

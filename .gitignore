@@ -47,9 +47,13 @@ app.*.map.json
 # Agent related files
 .agent/
 
-# API keys & env
+# API keys & env. lib/config/env.dart only references compile-time
+# String.fromEnvironment values (no real secrets), so it's tracked.
+# Anything else dropped under lib/config/ should stay private.
 .env
-lib/config/
+dart-define-args.json
+lib/config/secrets.dart
+lib/config/*_local.dart
 .claude/
 
 # Lambda deploy backups (contain firebase-service-account.json)

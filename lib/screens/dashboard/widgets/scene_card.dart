@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../../../constants/app_colors.dart';
 import '../../../theme/app_spacing.dart';
 
@@ -7,7 +8,8 @@ import '../../../theme/app_spacing.dart';
 /// Access grid. Replaces the cramped circular [QuickAccessButton] row.
 ///
 /// Visual idiom: rounded rectangle with a soft tint of [accent] and a
-/// glowing icon chip in the top-left. Tap area covers the full card.
+/// glowing icon chip in the top-left. While running, the icon chip
+/// pulses to confirm an in-flight action. Tap area covers the full card.
 class SceneCard extends StatelessWidget {
   const SceneCard({
     super.key,
@@ -34,6 +36,40 @@ class SceneCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final dim = !enabled && !loading;
     final card = AppColors.card(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final iconChip = Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            accent,
+            Color.alphaBlend(
+              Colors.white.withValues(alpha: 0.22),
+              accent,
+            ),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: accent.withValues(alpha: 0.55),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: loading
+          ? const Padding(
+              padding: EdgeInsets.all(11),
+              child: CircularProgressIndicator(
+                strokeWidth: 2.4,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            )
+          : Icon(icon, color: Colors.white, size: 22),
+    );
 
     return Semantics(
       button: true,
@@ -58,10 +94,11 @@ class SceneCard extends StatelessWidget {
                 }
               : null,
           borderRadius: AppRadius.brLg,
-          splashColor: accent.withValues(alpha: 0.15),
+          splashColor: accent.withValues(alpha: 0.18),
           highlightColor: accent.withValues(alpha: 0.06),
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
             padding: const EdgeInsets.all(AppSpacing.lg),
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -70,20 +107,20 @@ class SceneCard extends StatelessWidget {
                 colors: [
                   card,
                   Color.alphaBlend(
-                    accent.withValues(alpha: 0.10),
+                    accent.withValues(alpha: isDark ? 0.16 : 0.10),
                     card,
                   ),
                 ],
               ),
               borderRadius: AppRadius.brLg,
               border: Border.all(
-                color: accent.withValues(alpha: 0.35),
-                width: 1,
+                color: accent.withValues(alpha: loading ? 0.6 : 0.32),
+                width: loading ? 1.4 : 1,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: accent.withValues(alpha: 0.18),
-                  blurRadius: 14,
+                  color: accent.withValues(alpha: loading ? 0.32 : 0.18),
+                  blurRadius: loading ? 22 : 14,
                   offset: const Offset(0, 6),
                 ),
               ],
@@ -92,39 +129,16 @@ class SceneCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        accent,
-                        Color.alphaBlend(
-                          Colors.white.withValues(alpha: 0.18),
-                          accent,
-                        ),
-                      ],
-                    ),
-                    borderRadius: AppRadius.brSm,
-                    boxShadow: [
-                      BoxShadow(
-                        color: accent.withValues(alpha: 0.45),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: loading
-                      ? const Padding(
-                          padding: EdgeInsets.all(10),
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.4,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white),
-                          ),
+                loading
+                    ? iconChip
+                        .animate(onPlay: (c) => c.repeat(reverse: true))
+                        .scale(
+                          begin: const Offset(1, 1),
+                          end: const Offset(1.08, 1.08),
+                          duration: 900.ms,
+                          curve: Curves.easeInOut,
                         )
-                      : Icon(icon, color: Colors.white, size: 22),
-                ),
+                    : iconChip,
                 const SizedBox(height: 14),
                 Text(
                   label,

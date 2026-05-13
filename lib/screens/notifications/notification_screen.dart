@@ -186,30 +186,71 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 8, 16),
+      padding: const EdgeInsets.fromLTRB(20, 20, 12, 16),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Expanded(
-            child: Text(
-              'Notifications',
-              style: TextStyle(
-                color: AppColors.text(context),
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: AppColors.brandGradient,
               ),
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primaryBlue.withValues(alpha: 0.40),
+                  blurRadius: 14,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: const Icon(Icons.notifications_active_rounded,
+                color: Colors.white, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Notifications',
+                  style: TextStyle(
+                    color: AppColors.text(context),
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.4,
+                    height: 1.05,
+                  ),
+                ),
+                Text(
+                  hasAlerts ? 'Recent activity' : 'All caught up',
+                  style: TextStyle(
+                    color: AppColors.textSub(context),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ),
           if (hasAlerts) ...[
             TextButton(
               onPressed: onMarkAllRead,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primaryBlue,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              ),
               child: const Text(
                 'Read all',
-                style: TextStyle(color: AppColors.primaryBlue),
+                style: TextStyle(fontWeight: FontWeight.w700),
               ),
             ),
             IconButton(
-              icon: Icon(Icons.delete_sweep,
+              icon: Icon(Icons.delete_sweep_rounded,
                   color: AppColors.textSub(context)),
               tooltip: 'Clear all',
               onPressed: onClearAll,
@@ -319,13 +360,32 @@ class _FilterChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
         margin: const EdgeInsets.only(right: 8),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isActive ? AppColors.primaryBlue : AppColors.card(context),
+          gradient: isActive
+              ? const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: AppColors.brandGradient,
+                )
+              : null,
+          color: isActive ? null : AppColors.card(context),
           borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: isActive ? null : Border.all(color: AppColors.borderCol(context)),
+          border: isActive
+              ? null
+              : Border.all(color: AppColors.borderCol(context)),
+          boxShadow: isActive
+              ? [
+                  BoxShadow(
+                    color: AppColors.primaryBlue.withValues(alpha: 0.35),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : null,
         ),
         child: Text(
           label,
@@ -471,7 +531,7 @@ class _NotificationCard extends StatelessWidget {
       case AlertType.security:
         return AppColors.accentRed;
       case AlertType.emotion:
-        return Colors.pinkAccent;
+        return AppColors.accentPink;
       case AlertType.device:
         return AppColors.primaryBlue;
     }
@@ -563,13 +623,41 @@ class _NotificationCard extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              alert.title,
-                              style: TextStyle(
-                                color: AppColors.text(context),
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                              ),
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    alert.title,
+                                    style: TextStyle(
+                                      color: AppColors.text(context),
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                if (alert.count > 1) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 7, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: color.withValues(alpha: 0.18),
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
+                                          color: color.withValues(alpha: 0.5),
+                                          width: 1),
+                                    ),
+                                    child: Text(
+                                      '×${alert.count}',
+                                      style: TextStyle(
+                                        color: color,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                             const SizedBox(height: 4),
                             Text(

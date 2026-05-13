@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
+import '../config/env.dart';
 
 class EmotionApiResult {
   final String mood;
@@ -18,8 +18,7 @@ class EmotionApiResult {
 }
 
 class EmotionApiService {
-  static String get _endpoint =>
-      dotenv.env['EMOTION_API_URL'] ?? 'https://ramazan.local:8000/predict';
+  static String get _endpoint => Env.emotionApiUrl;
 
   // PRODUCTION NOTE: Temporary bypass for the Pi's self-signed cert.
   // In production, install a Let's Encrypt or root-CA cert on the Pi

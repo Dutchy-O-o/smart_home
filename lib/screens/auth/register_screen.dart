@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import '../../constants/app_colors.dart';
 import '../../theme/app_motion.dart';
 import '../../theme/app_spacing.dart';
-// import '../dashboard/dashboard_screen.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
 import 'otp_verification_screen.dart';
+import 'widgets/auth_scaffold.dart';
 import 'package:amplify_flutter/amplify_flutter.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
@@ -23,32 +23,20 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final TextEditingController _confirmPasswordController = TextEditingController();
 
   bool _isObscured = true;
-
   bool _agreedToTerms = false;
-
   double _passwordStrength = 0.0;
-
 
   void _checkPasswordStrength(String value) {
     double score = 0.0;
-
     if (value.isEmpty) {
       setState(() => _passwordStrength = 0.0);
       return;
     }
-
-    // Kriter 1: Uzunluk en az 8 karakter mi? (+0.25 Puan)
     if (value.length >= 8) score += 0.25;
-
     if (value.contains(RegExp(r'[A-Z]'))) score += 0.25;
-
     if (value.contains(RegExp(r'[0-9]'))) score += 0.25;
-
     if (value.contains(RegExp(r'[!@#\$%^&*(),.?":{}|<>]'))) score += 0.25;
-
-    setState(() {
-      _passwordStrength = score; 
-    });
+    setState(() => _passwordStrength = score);
   }
 
   Future<void> _handleRegister() async {
@@ -61,17 +49,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       _showError("All fields are required.");
       return;
     }
-
     if (!email.contains('@')) {
       _showError("Invalid email format.");
       return;
     }
-
     if (password != confirmPassword) {
       _showError("Passwords do not match.");
       return;
     }
-
     if (!_agreedToTerms) {
       _showError("You must agree to the Terms of Service.");
       return;
@@ -79,10 +64,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
     try {
       final success = await ref.read(authProvider.notifier).signUp(
-        email: email,
-        password: password,
-      );
-
+            email: email,
+            password: password,
+          );
       if (success && mounted) {
         Navigator.push(
           context,
@@ -93,16 +77,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       if (mounted) {
         String message = e.message;
         if (e.message.toLowerCase().contains("password did not conform")) {
-          message = "Password must be at least 8 characters and contain a special character (e.g. !@#\$%).";
+          message =
+              "Password must be at least 8 characters and contain a special character (e.g. !@#\$%).";
         } else if (e.message.toLowerCase().contains("already exists")) {
           message = "An account with this email already exists.";
         }
         _showError(message);
       }
     } catch (e) {
-      if (mounted) {
-        _showError("Registration failed: \${e.toString()}");
-      }
+      if (mounted) _showError("Registration failed: ${e.toString()}");
     }
   }
 
@@ -112,7 +95,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     );
   }
 
-  // --- 3. Yasal Metin Penceresi (MODAL BOTTOM SHEET) ---
   void _showLegalInfo(String title, String content) {
     showModalBottomSheet(
       context: context,
@@ -120,9 +102,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
         height: MediaQuery.of(context).size.height * 0.85,
-        decoration: const BoxDecoration(
-          color: AppColors.cardDark,
-          borderRadius: BorderRadius.only(
+        decoration: BoxDecoration(
+          color: AppColors.card(context),
+          borderRadius: const BorderRadius.only(
             topLeft: AppRadius.rLg,
             topRight: AppRadius.rLg,
           ),
@@ -135,15 +117,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 width: 50,
                 height: 5,
                 decoration: BoxDecoration(
-                  color: Colors.grey[600],
+                  color: AppColors.textSub(context).withValues(alpha: 0.4),
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
             ),
             Text(
               title,
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: AppColors.text(context),
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
               ),
@@ -151,33 +133,23 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             AppSpacing.vGapLg,
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.xxl, vertical: 10),
                 child: Text(
                   content,
-                  style: const TextStyle(
-                    color: AppColors.textGrey,
+                  style: TextStyle(
+                    color: AppColors.textSub(context),
                     fontSize: 14,
                     height: 1.6,
                   ),
                 ),
               ),
             ),
-            // Kapat Butonu
             Padding(
               padding: const EdgeInsets.all(AppSpacing.xxl),
-              child: SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryBlue,
-                    shape: const RoundedRectangleBorder(
-                      borderRadius: AppRadius.brSm,
-                    ),
-                  ),
-                  child: const Text("I Understand", style: TextStyle(color: Colors.white)),
-                ),
+              child: AuthPrimaryButton(
+                label: "I Understand",
+                onPressed: () => Navigator.pop(context),
               ),
             ),
           ],
@@ -191,265 +163,185 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     final authState = ref.watch(authProvider);
     final isLoading = authState == AuthState.loading;
 
-    Color strengthColor = _passwordStrength <= 0.25 
-        ? AppColors.accentRed 
-        : (_passwordStrength <= 0.50 
-            ? AppColors.accentOrange 
-            : (_passwordStrength <= 0.75 ? Colors.yellow : AppColors.accentGreen));
+    Color strengthColor = _passwordStrength <= 0.25
+        ? AppColors.accentRed
+        : (_passwordStrength <= 0.50
+            ? AppColors.accentOrange
+            : (_passwordStrength <= 0.75
+                ? AppColors.accentAmber
+                : AppColors.accentGreen));
 
-    String strengthText = _passwordStrength <= 0.25 
-        ? "Weak" 
-        : (_passwordStrength <= 0.50 
-            ? "Fair" 
+    String strengthText = _passwordStrength <= 0.25
+        ? "Weak"
+        : (_passwordStrength <= 0.50
+            ? "Fair"
             : (_passwordStrength <= 0.75 ? "Good" : "Strong"));
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+    return AuthScaffold(
+      showBack: true,
+      title: "Sign Up",
+      children: [
+        const SizedBox(height: 8),
+        Text(
+          "Create your\nSanctuary",
+          style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                height: 1.05,
+              ),
         ),
-        title: const Text("Sign Up", style: TextStyle(color: Colors.white)),
-        centerTitle: true,
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl, vertical: 10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // HEADER
-              const Text(
-                "Create your Sanctuary",
+        AppSpacing.vGapSm,
+        Text(
+          "Connect to your secure smart home network.",
+          style: TextStyle(color: AppColors.textSub(context), fontSize: 14),
+        ),
+        const SizedBox(height: 28),
+        AuthInput(
+          controller: _fullNameController,
+          label: "Full Name",
+          hint: "e.g., Alex Chen",
+          icon: Icons.person_outline_rounded,
+        ),
+        AppSpacing.vGapLg,
+        AuthInput(
+          controller: _emailController,
+          label: "Email Address",
+          hint: "alex@example.com",
+          icon: Icons.email_outlined,
+          keyboardType: TextInputType.emailAddress,
+        ),
+        AppSpacing.vGapLg,
+        AuthInput(
+          controller: _passwordController,
+          label: "Password",
+          hint: "••••••••",
+          icon: Icons.lock_outline_rounded,
+          obscure: _isObscured,
+          onChanged: _checkPasswordStrength,
+          suffix: IconButton(
+            icon: Icon(
+              _isObscured
+                  ? Icons.visibility_off_outlined
+                  : Icons.visibility_outlined,
+              color: AppColors.textSub(context),
+              size: 20,
+            ),
+            onPressed: () => setState(() => _isObscured = !_isObscured),
+          ),
+        ),
+        AppSpacing.vGapSm,
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: _passwordStrength),
+            duration: const Duration(milliseconds: 300),
+            builder: (context, val, _) => LinearProgressIndicator(
+              value: val,
+              backgroundColor: AppColors.borderCol(context),
+              color: strengthColor,
+              minHeight: 5,
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          strengthText,
+          style: TextStyle(
+            color: strengthColor,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        AppSpacing.vGapLg,
+        AuthInput(
+          controller: _confirmPasswordController,
+          label: "Confirm Password",
+          hint: "••••••••",
+          icon: Icons.lock_outline_rounded,
+          obscure: true,
+        ),
+        AppSpacing.vGapXxl,
+        Row(
+          children: [
+            Checkbox(
+              value: _agreedToTerms,
+              activeColor: AppColors.primaryBlue,
+              checkColor: Colors.white,
+              side: BorderSide(
+                color: AppColors.textSub(context).withValues(alpha: 0.5),
+              ),
+              onChanged: (value) =>
+                  setState(() => _agreedToTerms = value ?? false),
+            ),
+            Expanded(
+              child: Wrap(
+                children: [
+                  Text("I agree to the ",
+                      style: TextStyle(
+                          color: AppColors.textSub(context), fontSize: 13)),
+                  GestureDetector(
+                    onTap: () => _showLegalInfo(
+                      "Terms of Service",
+                      "1. Usage\nBy using this app, you agree to monitor your sensors responsibly.\n\n"
+                      "2. Liability\nWe are not responsible for missed alerts due to network failure.\n\n"
+                      "3. Hardware\nYou agree not to reverse engineer the provided Raspberry Pi kit.",
+                    ),
+                    child: Text("Terms of Service",
+                        style: TextStyle(
+                            color: AppColors.primaryBlue,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13)),
+                  ),
+                  Text(" and ",
+                      style: TextStyle(
+                          color: AppColors.textSub(context), fontSize: 13)),
+                  GestureDetector(
+                    onTap: () => _showLegalInfo(
+                      "Privacy Policy",
+                      "1. Data Collection\nWe collect sensor data to provide insights.\n\n"
+                      "2. Storage\nYour data is encrypted end-to-end.\n\n"
+                      "3. Sharing\nWe do not share your personal data with third parties.",
+                    ),
+                    child: Text("Privacy Policy",
+                        style: TextStyle(
+                            color: AppColors.primaryBlue,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13)),
+                  ),
+                  Text(".",
+                      style: TextStyle(
+                          color: AppColors.textSub(context), fontSize: 13)),
+                ],
+              ),
+            ),
+          ],
+        ),
+        AppSpacing.vGapXxl,
+        AuthPrimaryButton(
+          label: "Initialize System",
+          icon: Icons.arrow_forward_rounded,
+          loading: isLoading,
+          enabled: _agreedToTerms,
+          onPressed: _handleRegister,
+        ),
+        const SizedBox(height: 28),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text("Already have an account? ",
+                style: TextStyle(color: AppColors.textSub(context))),
+            GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Text(
+                "Log In",
                 style: TextStyle(
-                  color: AppColors.textWhite,
-                  fontSize: 26,
+                  color: AppColors.primaryBlue,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              AppSpacing.vGapSm,
-              const Text(
-                "Connect to your secure smart home network.",
-                style: TextStyle(color: AppColors.textGrey, fontSize: 14),
-              ),
-              const SizedBox(height: AppSpacing.xxxl),
-
-              // FORM ALANLARI
-              _buildLabel("Full Name"),
-              _buildInput(_fullNameController, "e.g., Alex Chen", Icons.person_outline),
-
-              AppSpacing.vGapLg,
-
-              _buildLabel("Email Address"),
-              _buildInput(_emailController, "alex@example.com", Icons.email_outlined),
-
-              AppSpacing.vGapLg,
-              
-              _buildLabel("Password"),
-              TextField(
-                controller: _passwordController,
-                obscureText: _isObscured,
-                onChanged: _checkPasswordStrength,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: AppColors.cardDark,
-                  hintText: "••••••••",
-                  hintStyle: const TextStyle(color: Colors.grey),
-                  suffixIcon: IconButton(
-                    icon: Icon(_isObscured ? Icons.visibility_off : Icons.visibility, color: Colors.grey),
-                    onPressed: () => setState(() => _isObscured = !_isObscured),
-                  ),
-                  border: const OutlineInputBorder(
-                    borderRadius: AppRadius.brSm,
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-              AppSpacing.vGapSm,
-
-              LinearProgressIndicator(
-                value: _passwordStrength,
-                backgroundColor: Colors.grey[800],
-                color: strengthColor,
-                minHeight: 4,
-                borderRadius: BorderRadius.circular(2),
-              ),
-              AppSpacing.vGapXs,
-              Text(
-                strengthText,
-                style: TextStyle(color: strengthColor, fontSize: 12),
-              ),
-
-              AppSpacing.vGapLg,
-
-              _buildLabel("Confirm Password"),
-              TextField(
-                controller: _confirmPasswordController,
-                obscureText: true,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  filled: true,
-                  fillColor: AppColors.cardDark,
-                  hintText: "••••••••",
-                  hintStyle: TextStyle(color: Colors.grey),
-                  border: OutlineInputBorder(
-                    borderRadius: AppRadius.brSm,
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-
-              AppSpacing.vGapXxl,
-
-              // LEGAL & ONAY (Checkbox ve Linkler)
-              Row(
-                children: [
-                  Checkbox(
-                    value: _agreedToTerms,
-                    activeColor: AppColors.primaryBlue,
-                    checkColor: Colors.white,
-                    side: const BorderSide(color: Colors.grey),
-                    onChanged: (value) {
-                      setState(() {
-                        _agreedToTerms = value ?? false;
-                      });
-                    },
-                  ),
-                  Expanded(
-                    child: Wrap(
-                      children: [
-                        const Text("I agree to the ", style: TextStyle(color: AppColors.textGrey, fontSize: 13)),
-                        // Terms Linki
-                        GestureDetector(
-                          onTap: () {
-                            _showLegalInfo("Terms of Service", 
-                              "1. Usage\nBy using this app, you agree to monitor your sensors responsibly.\n\n"
-                              "2. Liability\nWe are not responsible for missed alerts due to network failure.\n\n"
-                              "3. Hardware\nYou agree not to reverse engineer the provided Raspberry Pi kit."
-                            );
-                          },
-                          child: const Text("Terms of Service", style: TextStyle(color: AppColors.primaryBlue, fontWeight: FontWeight.bold, fontSize: 13)),
-                        ),
-                        const Text(" and ", style: TextStyle(color: AppColors.textGrey, fontSize: 13)),
-                        // Privacy Linki
-                        GestureDetector(
-                          onTap: () {
-                             _showLegalInfo("Privacy Policy", 
-                              "1. Data Collection\nWe collect sensor data to provide insights.\n\n"
-                              "2. Storage\nYour data is encrypted end-to-end.\n\n"
-                              "3. Sharing\nWe do not share your personal data with third parties."
-                            );
-                          },
-                          child: const Text("Privacy Policy", style: TextStyle(color: AppColors.primaryBlue, fontWeight: FontWeight.bold, fontSize: 13)),
-                        ),
-                        const Text(".", style: TextStyle(color: AppColors.textGrey, fontSize: 13)),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-
-              AppSpacing.vGapXxl,
-
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: (_agreedToTerms && !isLoading) ? _handleRegister : null,
-
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryBlue,
-                    disabledBackgroundColor: AppColors.primaryBlue.withValues(alpha: 0.3),
-                    shape: const RoundedRectangleBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(AppRadius.pill)),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      if (isLoading)
-                        const SizedBox(
-                          height: 24,
-                          width: 24,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                        )
-                      else ...[
-                        Text(
-                          "Initialize System",
-                          style: TextStyle(
-                            color: _agreedToTerms ? Colors.white : Colors.white54,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        AppSpacing.hGapSm,
-                        Icon(Icons.arrow_forward, color: _agreedToTerms ? Colors.white : Colors.white54),
-                      ]
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 30),
-
-              // ALT LINK (Login)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text("Already have an account? ", style: TextStyle(color: AppColors.textGrey)),
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: const Text(
-                      "Log In",
-                      style: TextStyle(
-                        color: AppColors.primaryBlue,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 30),
-            ],
-          ),
+            ),
+          ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildLabel(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-      child: Text(
-        text,
-        style: const TextStyle(color: AppColors.textWhite, fontWeight: FontWeight.bold),
-      ),
-    );
-  }
-
-  Widget _buildInput(TextEditingController controller, String hint, [IconData? suffixIcon]) {
-    return TextField(
-      controller: controller,
-      style: const TextStyle(color: Colors.white),
-      decoration: InputDecoration(
-        filled: true,
-        fillColor: AppColors.cardDark,
-        hintText: hint,
-        hintStyle: const TextStyle(color: Colors.grey),
-        suffixIcon: suffixIcon != null ? Icon(suffixIcon, color: Colors.grey) : null,
-        border: const OutlineInputBorder(
-          borderRadius: AppRadius.brSm,
-          borderSide: BorderSide.none,
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg,
-          vertical: AppSpacing.lg,
-        ),
-      ),
+        const SizedBox(height: 24),
+      ],
     );
   }
 }

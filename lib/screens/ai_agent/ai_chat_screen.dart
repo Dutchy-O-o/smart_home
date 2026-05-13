@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../../constants/app_colors.dart';
 import '../../providers/alert_provider.dart';
+import '../../providers/device_state_provider.dart';
 import '../../providers/home_provider.dart';
 import '../../providers/mood_provider.dart';
 import '../../services/ai_agent_service.dart';
@@ -114,41 +115,44 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
       messages: _apiMessages,
       homeId: homeId,
       onToolAction: (action) {
-        if (mounted) {
-          setState(() {
-            // Insert tool action just before the streaming bubble so the
-            // user sees what the assistant is doing, then the response
-            // streams in below.
-            _messages.insert(
-              _messages.length - 1,
-              ChatMessage(
-                  role: 'assistant',
-                  content: action,
-                  isToolAction: true),
-            );
-          });
-          _scrollToBottom();
-          // Log device-control actions to the alerts feed so the user
-          // can review what the assistant did even after closing the
-          // chat. Skip read-only / get_* tool calls.
-          if (action.startsWith('Controlling')) {
-            final now = DateTime.now();
-            final timeStr =
-                '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
-            ref.read(alertListProvider.notifier).addAlert(AlertItem(
-                  id: now.millisecondsSinceEpoch.toString(),
-                  title: 'Assistant action',
-                  description: action,
-                  time: timeStr,
-                  type: AlertType.device,
-                  level: AlertLevel.info,
-                  isRead: true,
-                ));
-          }
-        }
+        if (!mounted) return;
+        setState(() {
+          // Insert tool action just before the streaming bubble so the
+          // user sees what the assistant is doing, then the response
+          // streams in below.
+          _messages.insert(
+            _messages.length - 1,
+            ChatMessage(
+                role: 'assistant', content: action, isToolAction: true),
+          );
+        });
+        _scrollToBottom();
       },
       onSetMood: (mood, confidence) {
         ref.read(moodProvider.notifier).set(mood, confidence, source: 'chatbot');
+      },
+      onControlDevice: (deviceId, action, value) {
+        // Pi firmware only echoes `power`, so AC/oven/LED detail properties
+        // never round-trip back to the DB. Parking the assistant's
+        // intent here lets the devices screen show it as if it stuck.
+        ref.read(deviceOverridesProvider.notifier).set(deviceId, action, value);
+        // Log to the alerts feed so the user can review what the
+        // assistant touched after closing the chat. Routed off the
+        // structured callback (not a string-match on the chip label) so
+        // the entry stays accurate even when the chip text is localized.
+        final now = DateTime.now();
+        final timeStr =
+            '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+        ref.read(alertListProvider.notifier).addAlert(AlertItem(
+              id: now.millisecondsSinceEpoch.toString(),
+              title: 'Assistant action',
+              description:
+                  AiAgentService.describeControlForLog(action, value),
+              time: timeStr,
+              type: AlertType.device,
+              level: AlertLevel.info,
+              isRead: true,
+            ));
       },
       onTextDelta: (delta) {
         if (!mounted) return;
@@ -235,12 +239,24 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
               child: Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(AppSpacing.sm),
+                    width: 40,
+                    height: 40,
                     decoration: BoxDecoration(
-                      color: AppColors.primaryBlue.withValues(alpha: 0.15),
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: AppColors.brandGradient,
+                      ),
                       shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primaryBlue.withValues(alpha: 0.40),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
-                    child: const Icon(Icons.smart_toy, color: AppColors.primaryBlue, size: 22),
+                    child: const Icon(Icons.auto_awesome, color: Colors.white, size: 20),
                   ),
                   AppSpacing.hGapMd,
                   Expanded(
@@ -248,7 +264,8 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text("AI Assistant", style: Theme.of(context).textTheme.titleLarge),
-                        Text("Claude Haiku", style: Theme.of(context).textTheme.bodySmall),
+                        Text("Claude Haiku",
+                            style: Theme.of(context).textTheme.bodySmall),
                       ],
                     ),
                   ),
@@ -335,13 +352,32 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                       label: 'Send message',
                       child: IconButton(
                         onPressed: _isLoading ? null : () => _sendMessage(),
-                        icon: Container(
+                        icon: AnimatedContainer(
+                          duration: const Duration(milliseconds: 220),
                           padding: const EdgeInsets.all(AppSpacing.sm),
                           decoration: BoxDecoration(
-                            color: _isLoading ? AppColors.textSub(context) : AppColors.primaryBlue,
+                            gradient: _isLoading
+                                ? null
+                                : const LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: AppColors.brandGradient,
+                                  ),
+                            color: _isLoading ? AppColors.textSub(context) : null,
                             shape: BoxShape.circle,
+                            boxShadow: _isLoading
+                                ? null
+                                : [
+                                    BoxShadow(
+                                      color: AppColors.primaryBlue
+                                          .withValues(alpha: 0.40),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
                           ),
-                          child: const Icon(Icons.send, color: Colors.white, size: 18),
+                          child: const Icon(Icons.send_rounded,
+                              color: Colors.white, size: 18),
                         ),
                       ),
                     ),
@@ -362,17 +398,34 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
         children: [
           AppSpacing.vGapXl,
           Container(
-            padding: const EdgeInsets.all(AppSpacing.xl),
+            width: 96,
+            height: 96,
             decoration: BoxDecoration(
-              color: AppColors.primaryBlue.withValues(alpha: 0.1),
               shape: BoxShape.circle,
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: AppColors.brandGradient,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primaryBlue.withValues(alpha: 0.45),
+                  blurRadius: 30,
+                  offset: const Offset(0, 12),
+                ),
+                BoxShadow(
+                  color: AppColors.teal.withValues(alpha: 0.25),
+                  blurRadius: 36,
+                  offset: const Offset(0, 6),
+                ),
+              ],
             ),
-            child: const Icon(Icons.smart_toy, color: AppColors.primaryBlue, size: 48),
+            child: const Icon(Icons.auto_awesome, color: Colors.white, size: 44),
           ),
           AppSpacing.vGapXxl,
           Text(
             "How can I help?",
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontSize: 22),
+            style: Theme.of(context).textTheme.displayLarge,
           ),
           AppSpacing.vGapSm,
           Text(
@@ -399,23 +452,46 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
     return Semantics(
       button: true,
       label: text,
-      child: GestureDetector(
-        onTap: () => _sendMessage(text),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 14),
-          decoration: BoxDecoration(
-            color: AppColors.card(context),
-            borderRadius: AppRadius.brSm,
-            border: Border.all(color: AppColors.borderCol(context)),
-          ),
-          child: Row(
-            children: [
-              Icon(icon, color: AppColors.primaryBlue, size: 20),
-              const SizedBox(width: 14),
-              Expanded(child: Text(text, style: Theme.of(context).textTheme.bodyMedium)),
-              Icon(Icons.arrow_forward_ios, color: AppColors.textSub(context), size: 14),
-            ],
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () => _sendMessage(text),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 14),
+            decoration: BoxDecoration(
+              color: AppColors.card(context),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.borderCol(context)),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primaryBlue.withValues(alpha: 0.06),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        AppColors.primaryBlue.withValues(alpha: 0.20),
+                        AppColors.primaryViolet.withValues(alpha: 0.12),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, color: AppColors.primaryBlue, size: 18),
+                ),
+                const SizedBox(width: 12),
+                Expanded(child: Text(text, style: Theme.of(context).textTheme.bodyMedium)),
+                Icon(Icons.arrow_forward_ios_rounded, color: AppColors.textSub(context), size: 14),
+              ],
+            ),
           ),
         ),
       ),
@@ -476,27 +552,38 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                   ? const LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [Color(0xFF2196F3), Color(0xFF00BFA5)],
+                      colors: AppColors.brandGradient,
                     )
                   : null,
               color: isUser ? null : bubbleBg,
               borderRadius: BorderRadius.only(
-                topLeft: const Radius.circular(18),
-                topRight: const Radius.circular(18),
-                bottomLeft: Radius.circular(isUser ? 18 : 4),
-                bottomRight: Radius.circular(isUser ? 4 : 18),
+                topLeft: const Radius.circular(20),
+                topRight: const Radius.circular(20),
+                bottomLeft: Radius.circular(isUser ? 20 : 4),
+                bottomRight: Radius.circular(isUser ? 4 : 20),
               ),
               border:
                   isUser ? null : Border.all(color: AppColors.borderCol(context)),
               boxShadow: isUser
                   ? [
                       BoxShadow(
-                        color: AppColors.primaryBlue.withValues(alpha: 0.25),
-                        blurRadius: 10,
+                        color: AppColors.primaryBlue.withValues(alpha: 0.30),
+                        blurRadius: 14,
+                        offset: const Offset(0, 6),
+                      ),
+                      BoxShadow(
+                        color: AppColors.teal.withValues(alpha: 0.18),
+                        blurRadius: 18,
                         offset: const Offset(0, 4),
                       ),
                     ]
-                  : null,
+                  : [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
             ),
             child: isUser
                 ? SelectableText(
@@ -540,33 +627,37 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
 
   Widget _avatar(BuildContext context, {required bool isUser}) {
     return Container(
-      width: 32,
-      height: 32,
+      width: 34,
+      height: 34,
       margin: const EdgeInsets.only(top: AppSpacing.xs),
       decoration: BoxDecoration(
         gradient: isUser
             ? const LinearGradient(
-                colors: [Color(0xFF2196F3), Color(0xFF00BFA5)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: AppColors.brandGradient,
               )
             : LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
                 colors: [
-                  AppColors.primaryBlue.withValues(alpha: 0.85),
-                  Colors.deepPurpleAccent.withValues(alpha: 0.85),
+                  AppColors.primaryViolet,
+                  AppColors.primaryBlue,
                 ],
               ),
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: (isUser ? AppColors.primaryBlue : Colors.deepPurpleAccent)
-                .withValues(alpha: 0.35),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
+            color: (isUser ? AppColors.primaryBlue : AppColors.primaryViolet)
+                .withValues(alpha: 0.45),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Icon(
-        isUser ? Icons.person : Icons.smart_toy,
-        size: 16,
+        isUser ? Icons.person : Icons.auto_awesome,
+        size: 17,
         color: Colors.white,
       ),
     );
@@ -616,30 +707,118 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
   }
 
   Widget _buildTypingIndicator(BuildContext context) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
-        decoration: BoxDecoration(
-          color: AppColors.card(context),
-          borderRadius: const BorderRadius.only(
-            topLeft: AppRadius.rMd,
-            topRight: AppRadius.rMd,
-            bottomRight: AppRadius.rMd,
-            bottomLeft: Radius.circular(4),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _avatar(context, isUser: false),
+          AppSpacing.hGapSm,
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.lg, vertical: 14),
+            decoration: BoxDecoration(
+              color: AppColors.card(context),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
+                bottomRight: Radius.circular(20),
+                bottomLeft: Radius.circular(4),
+              ),
+              border: Border.all(color: AppColors.borderCol(context)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: const _TypingDots(),
           ),
-          border: Border.all(color: AppColors.borderCol(context)),
-        ),
-        child: Row(
+        ],
+      ),
+    );
+  }
+}
+
+/// Three-dot typing animation. Each dot rises and falls in sequence,
+/// 280ms apart, on a continuous loop. Same idiom used by iMessage,
+/// WhatsApp, and ChatGPT.
+class _TypingDots extends StatefulWidget {
+  const _TypingDots();
+
+  @override
+  State<_TypingDots> createState() => _TypingDotsState();
+}
+
+class _TypingDotsState extends State<_TypingDots>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  double _dotOffset(double t, double phase) {
+    // Each dot is offset by `phase` (0, 0.2, 0.4) of the cycle.
+    final local = ((t - phase) % 1.0 + 1.0) % 1.0;
+    if (local > 0.5) return 0;
+    // Smooth ease in/out — sine of the active half.
+    final s = (local / 0.5);
+    return -4 * (s * (1 - s));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (context, _) {
+        final t = _ctrl.value;
+        return Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryBlue)),
-            const SizedBox(width: 10),
-            Text("Thinking...", style: Theme.of(context).textTheme.bodySmall),
+            for (int i = 0; i < 3; i++) ...[
+              Transform.translate(
+                offset: Offset(0, _dotOffset(t, i * 0.18) * 8),
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: const LinearGradient(
+                      colors: [
+                        AppColors.primaryViolet,
+                        AppColors.primaryBlue,
+                      ],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color:
+                            AppColors.primaryBlue.withValues(alpha: 0.45),
+                        blurRadius: 6,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              if (i < 2) const SizedBox(width: 6),
+            ],
           ],
-        ),
-      ),
+        );
+      },
     );
   }
 }

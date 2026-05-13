@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/app_colors.dart';
+import '../../widgets/led_color_picker.dart';
 import '../../providers/home_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_spacing.dart';
@@ -774,7 +775,12 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
           ),
           if (isLed) ...[
             const SizedBox(height: 12),
-            _buildHueSpectrum(index, act['color']?.toString() ?? '#FFFFFF'),
+            LedColorPicker(
+              currentHex: act['color']?.toString() ?? '#FFFFFF',
+              onChanged: (hex) => setState(() {
+                _addedActions[index]['color'] = hex;
+              }),
+            ),
             const SizedBox(height: 10),
             Row(
               children: [
@@ -826,7 +832,7 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
                     value: (act['volume'] as num).toDouble(),
                     min: 0,
                     max: 100,
-                    activeColor: Colors.pinkAccent,
+                    activeColor: AppColors.accentPink,
                     onChanged: (val) => setState(() { _addedActions[index]['volume'] = val.toInt(); }),
                   ),
                 ),
@@ -913,137 +919,6 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
     );
   }
 
-  // ── Color helpers (mirror device_control_screen) ──────────────────
-
-  Color _parseHex(String hex) {
-    final h = hex.replaceFirst('#', '');
-    if (h.length != 6) return Colors.white;
-    final v = int.tryParse(h, radix: 16);
-    if (v == null) return Colors.white;
-    return Color(0xFF000000 | v);
-  }
-
-  String _hexFromColor(Color c) {
-    final argb = c.toARGB32();
-    final r = (argb >> 16) & 0xFF;
-    final g = (argb >> 8) & 0xFF;
-    final b = argb & 0xFF;
-    String two(int n) => n.toRadixString(16).padLeft(2, '0').toUpperCase();
-    return '#${two(r)}${two(g)}${two(b)}';
-  }
-
-  /// Returns hue 0..360. For grayscale (R==G==B) returns -1, meaning "white".
-  double _hueFromHex(String hex) {
-    final c = _parseHex(hex);
-    final argb = c.toARGB32();
-    final r = (argb >> 16) & 0xFF;
-    final g = (argb >> 8) & 0xFF;
-    final b = argb & 0xFF;
-    if (r == g && g == b) return -1;
-    return HSVColor.fromColor(Color.fromARGB(255, r, g, b)).hue;
-  }
-
-  void _onHuePicked(int index, double dx, double width) {
-    final t = (dx / width).clamp(0.0, 1.0);
-    final hue = t * 360.0;
-    final color = HSVColor.fromAHSV(1.0, hue, 1.0, 1.0).toColor();
-    setState(() => _addedActions[index]['color'] = _hexFromColor(color));
-  }
-
-  Widget _buildHueSpectrum(int index, String currentHex) {
-    final isWhite = _hueFromHex(currentHex) < 0;
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        const whitePillWidth = 44.0;
-        const gap = 12.0;
-        final barWidth = constraints.maxWidth - whitePillWidth - gap;
-        final hue = _hueFromHex(currentHex);
-        final indicatorX = hue < 0 ? -1.0 : (hue / 360.0) * barWidth;
-
-        return Row(
-          children: [
-            SizedBox(
-              width: barWidth,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTapDown: (d) => _onHuePicked(index, d.localPosition.dx, barWidth),
-                onPanDown: (d) => _onHuePicked(index, d.localPosition.dx, barWidth),
-                onPanUpdate: (d) => _onHuePicked(index, d.localPosition.dx, barWidth),
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  alignment: Alignment.centerLeft,
-                  children: [
-                    Container(
-                      height: 28,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(14),
-                        gradient: const LinearGradient(
-                          colors: [
-                            Color(0xFFFF0000),
-                            Color(0xFFFFFF00),
-                            Color(0xFF00FF00),
-                            Color(0xFF00FFFF),
-                            Color(0xFF0000FF),
-                            Color(0xFFFF00FF),
-                            Color(0xFFFF0000),
-                          ],
-                        ),
-                        border: Border.all(
-                            color: AppColors.borderCol(context), width: 1),
-                      ),
-                    ),
-                    if (indicatorX >= 0)
-                      Positioned(
-                        left: (indicatorX - 8).clamp(0.0, barWidth - 16),
-                        child: Container(
-                          width: 16,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: Colors.transparent,
-                            border: Border.all(
-                                color: AppColors.text(context), width: 3),
-                            borderRadius: BorderRadius.circular(AppRadius.xs),
-                            boxShadow: [
-                              BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 4),
-                            ],
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: gap),
-            GestureDetector(
-              onTap: () => setState(() => _addedActions[index]['color'] = '#FFFFFF'),
-              child: Container(
-                width: whitePillWidth,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: isWhite ? AppColors.primaryBlue : Colors.white.withValues(alpha: 0.1),
-                    width: isWhite ? 2.5 : 1,
-                  ),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  'W',
-                  style: TextStyle(
-                    color: isWhite ? AppColors.primaryBlue : Colors.grey.shade700,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   Widget _buildChannelButton(int index, IconData icon, int delta) {
     return GestureDetector(
       onTap: () {
@@ -1067,14 +942,26 @@ class _AutomationCreateScreenState extends ConsumerState<AutomationCreateScreen>
     bool isSelected = _addedActions[index]['playback'] == action;
     return GestureDetector(
       onTap: () => setState(() { _addedActions[index]['playback'] = action; }),
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.pinkAccent.withValues(alpha: 0.2) : Colors.white.withValues(alpha: 0.05),
+          color: isSelected
+              ? AppColors.accentPink.withValues(alpha: 0.20)
+              : AppColors.card(context),
           shape: BoxShape.circle,
-          border: isSelected ? Border.all(color: Colors.pinkAccent) : null,
+          border: Border.all(
+            color: isSelected
+                ? AppColors.accentPink
+                : AppColors.borderCol(context),
+            width: isSelected ? 1.5 : 1,
+          ),
         ),
-        child: Icon(icon, color: isSelected ? Colors.pinkAccent : Colors.grey, size: 20),
+        child: Icon(icon,
+            color: isSelected
+                ? AppColors.accentPink
+                : AppColors.textSub(context),
+            size: 20),
       ),
     );
   }
@@ -1102,14 +989,26 @@ class _SegBtn extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(vertical: 9),
+          duration: const Duration(milliseconds: 220),
+          padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
             gradient: active
                 ? const LinearGradient(
-                    colors: [Color(0xFF2196F3), Color(0xFF00BFA5)])
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: AppColors.brandGradient,
+                  )
                 : null,
             borderRadius: BorderRadius.circular(AppRadius.xs),
+            boxShadow: active
+                ? [
+                    BoxShadow(
+                      color: AppColors.primaryBlue.withValues(alpha: 0.30),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ]
+                : null,
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -1162,13 +1061,18 @@ class _SaveButton extends StatelessWidget {
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [Color(0xFF2196F3), Color(0xFF00BFA5)],
+                colors: AppColors.brandGradient,
               ),
               borderRadius: BorderRadius.circular(AppRadius.sm),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.primaryBlue.withValues(alpha: 0.3),
-                  blurRadius: 10,
+                  color: AppColors.primaryBlue.withValues(alpha: 0.40),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+                BoxShadow(
+                  color: AppColors.teal.withValues(alpha: 0.20),
+                  blurRadius: 18,
                   offset: const Offset(0, 4),
                 ),
               ],

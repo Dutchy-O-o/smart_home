@@ -164,16 +164,89 @@ class _EmotionHubScreenState extends ConsumerState<EmotionHubScreen> {
       ref.read(moodProvider.notifier)
           .set(result.mood, result.confidence, source: 'scan');
       setState(() => _isScanning = false);
+
+      // Explicit success feedback — without this, a stale cached mood
+      // shown in the card can be mistaken for a "successful" scan that
+      // actually silently failed. The new snackbar makes success
+      // unambiguous and shows what the model detected.
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.face_retouching_natural,
+                color: Colors.white, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Detected: ${result.mood} · ${(result.confidence * 100).round()}%',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: AppColors.accentGreen,
+        duration: const Duration(seconds: 2),
+      ));
     } catch (e) {
       if (!mounted) return;
       setState(() => _isScanning = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Scan error: $e'),
-          backgroundColor: AppColors.accentRed,
-          duration: const Duration(seconds: 3),
+
+      // Detect the most common cause — Pi unreachable because the phone
+      // and Pi aren't on the same LAN (mDNS-only endpoint). Surface a
+      // friendly explanation + an actionable fallback CTA instead of the
+      // raw exception that nobody can decode.
+      final msg = e.toString();
+      final isNetwork = msg.contains('Failed host lookup') ||
+          msg.contains('SocketException') ||
+          msg.contains('TimeoutException') ||
+          msg.contains('Connection refused');
+
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        // Soft amber rather than red: this isn't an error so much as a
+        // privacy-design trade-off. The phrasing reinforces the on-device
+        // story instead of looking like a bug.
+        backgroundColor:
+            isNetwork ? AppColors.accentAmber : AppColors.accentRed,
+        duration: const Duration(seconds: 6),
+        content: Row(
+          children: [
+            Icon(
+              isNetwork ? Icons.shield_rounded : Icons.error_outline_rounded,
+              color: Colors.white,
+              size: 20,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    isNetwork
+                        ? 'Face scan needs same WiFi as Pi'
+                        : 'Scan failed',
+                    style: const TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.w800),
+                  ),
+                  Text(
+                    isNetwork
+                        ? 'On-device privacy: photos never leave your LAN.'
+                        : msg,
+                    style: const TextStyle(
+                        color: Colors.white, fontSize: 12),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
-      );
+        action: SnackBarAction(
+          label: 'Pick manually',
+          textColor: Colors.white,
+          onPressed: _openMoodPicker,
+        ),
+      ));
     }
   }
 
@@ -234,7 +307,14 @@ class _EmotionHubScreenState extends ConsumerState<EmotionHubScreen> {
                 physics: const BouncingScrollPhysics(),
                 child: Column(
                   children: [
-                    const SizedBox(height: AppSpacing.xxxl),
+                    const SizedBox(height: 12),
+                    // Privacy/architecture explainer. The face scan endpoint
+                    // is intentionally LAN-only (Pi mDNS) so photos never
+                    // leave the home network — not even for model training.
+                    // Surface this as a feature pill so a connection error
+                    // reads as a privacy guarantee rather than a bug.
+                    const _PrivacyBadge(),
+                    const SizedBox(height: 20),
                     ScanArea(
                       moodEmoji: moodEmoji,
                       moodColor: moodColor,
@@ -296,16 +376,56 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.lg),
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xl, vertical: AppSpacing.lg),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            'Emotion Hub',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontSize: 22,
-                  letterSpacing: -0.5,
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: AppColors.brandGradient,
+              ),
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primaryBlue.withValues(alpha: 0.40),
+                  blurRadius: 14,
+                  offset: const Offset(0, 5),
                 ),
+              ],
+            ),
+            child: const Icon(Icons.sentiment_satisfied_alt_rounded,
+                color: Colors.white, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Emotion Hub',
+                  style: TextStyle(
+                    color: AppColors.text(context),
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.4,
+                    height: 1.05,
+                  ),
+                ),
+                Text(
+                  'Scan · pick · soundtrack',
+                  style: TextStyle(
+                    color: AppColors.textSub(context),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
           ),
           _HeaderIcon(
             icon: isConnected ? Icons.link : Icons.link_off,
@@ -386,6 +506,257 @@ class _PickManuallyButton extends StatelessWidget {
             fontWeight: FontWeight.w600,
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// "Edge AI · On-device privacy" explainer pill. Sits above the scan area
+/// so users (and demo viewers) see the privacy promise BEFORE they tap
+/// scan. Tapping it expands an info sheet that breaks down exactly what
+/// the system does and doesn't do with face photos.
+///
+/// This is also why the face scan endpoint stays LAN-only: routing JPEGs
+/// through AWS would invalidate the "photos never leave your home"
+/// guarantee that the rest of the product is built around.
+class _PrivacyBadge extends StatelessWidget {
+  const _PrivacyBadge();
+
+  void _showInfo(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => Container(
+        decoration: BoxDecoration(
+          color: AppColors.bg(ctx),
+          borderRadius:
+              const BorderRadius.vertical(top: Radius.circular(28)),
+          border: Border(
+            top: BorderSide(
+              color: AppColors.borderCol(ctx).withValues(alpha: 0.6),
+            ),
+          ),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 44,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 18),
+                decoration: BoxDecoration(
+                  color: AppColors.textSub(ctx).withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: AppColors.brandGradient,
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Icon(Icons.shield_rounded,
+                      color: Colors.white, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Edge AI · On-device privacy',
+                          style: TextStyle(
+                            color: AppColors.text(ctx),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.2,
+                          )),
+                      Text(
+                        'Face scan never leaves your home network',
+                        style: TextStyle(
+                          color: AppColors.textSub(ctx),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 22),
+            _PrivacyRow(
+              icon: Icons.memory_rounded,
+              title: 'Inference on Raspberry Pi',
+              body:
+                  'TensorFlow model runs locally on the Pi. Cloud GPUs are never involved.',
+            ),
+            _PrivacyRow(
+              icon: Icons.wifi_lock_rounded,
+              title: 'Photos stay on your LAN',
+              body:
+                  'The phone sends the photo directly to the Pi over your WiFi. No AWS, no third-party hop.',
+            ),
+            _PrivacyRow(
+              icon: Icons.delete_sweep_rounded,
+              title: 'Single-use, never stored',
+              body:
+                  'After the mood is predicted the JPEG is dropped from memory. Not saved, not logged, not used for training.',
+            ),
+            _PrivacyRow(
+              icon: Icons.cloud_off_rounded,
+              title: 'LAN required (by design)',
+              body:
+                  "If the phone and Pi aren't on the same WiFi, face scan won't work — that's the trade-off for the privacy guarantee. Use the manual mood picker as fallback.",
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.primaryBlue,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                child: const Text(
+                  'Got it',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w800, fontSize: 14),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () => _showInfo(context),
+          child: Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [
+                  AppColors.primaryBlue.withValues(alpha: 0.18),
+                  AppColors.primaryViolet.withValues(alpha: 0.14),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: AppColors.primaryBlue.withValues(alpha: 0.35),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.shield_rounded,
+                    color: AppColors.primaryBlue, size: 14),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    'Edge AI · Photos never leave your network',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: AppColors.primaryBlue,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.1,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Icon(Icons.info_outline_rounded,
+                    color: AppColors.primaryBlue.withValues(alpha: 0.7),
+                    size: 13),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One row in the privacy info sheet. Icon + bold title + descriptive body.
+class _PrivacyRow extends StatelessWidget {
+  const _PrivacyRow({
+    required this.icon,
+    required this.title,
+    required this.body,
+  });
+
+  final IconData icon;
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: AppColors.primaryBlue.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: AppColors.primaryBlue.withValues(alpha: 0.30),
+              ),
+            ),
+            child: Icon(icon, color: AppColors.primaryBlue, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: AppColors.text(context),
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  body,
+                  style: TextStyle(
+                    color: AppColors.textSub(context),
+                    fontSize: 12.5,
+                    height: 1.45,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

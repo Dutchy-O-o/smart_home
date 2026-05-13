@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../config/env.dart';
 import 'spotify_logger.dart';
 
 /// OAuth 2.0 PKCE flow + access/refresh token lifecycle.
@@ -14,8 +14,8 @@ class SpotifyAuth {
   static const String _tokenUrl = 'https://accounts.spotify.com/api/token';
   static const String _redirectUri = 'akilliev://callback';
 
-  static String get _clientId => dotenv.env['SPOTIFY_CLIENT_ID'] ?? '';
-  static String get _clientSecret => dotenv.env['SPOTIFY_CLIENT_SECRET'] ?? '';
+  static String get _clientId => Env.spotifyClientId;
+  static String get _clientSecret => Env.spotifyClientSecret;
 
   static String? _accessToken;
   static String? _refreshToken;

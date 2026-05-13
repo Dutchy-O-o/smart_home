@@ -14,6 +14,7 @@ import '../../services/usage_stats_service.dart';
 import '../auth/login_screen.dart';
 import '../../theme/app_motion.dart';
 import '../../theme/app_spacing.dart';
+import 'guest_management_screen.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -342,6 +343,9 @@ These terms may be updated. Continued use after an update constitutes acceptance
         ? givenName
         : (email.isNotEmpty ? email.split('@').first : 'User');
     final themeMode = ref.watch(themeProvider);
+    final selectedHome = ref.watch(selectedHomeProvider);
+    final isAdmin =
+        (selectedHome?['role']?.toString().toLowerCase() ?? '') == 'admin';
 
     return Scaffold(
       backgroundColor: AppColors.bg(context),
@@ -354,53 +358,202 @@ These terms may be updated. Continued use after an update constitutes acceptance
               // Header
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Text(
-                  'Profile & Settings',
-                  style: TextStyle(
-                    color: AppColors.text(context),
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.5,
-                  ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: AppColors.brandGradient,
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primaryBlue.withValues(alpha: 0.40),
+                            blurRadius: 14,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(Icons.person_rounded,
+                          color: Colors.white, size: 22),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Profile & Settings',
+                            style: TextStyle(
+                              color: AppColors.text(context),
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.4,
+                              height: 1.05,
+                            ),
+                          ),
+                          Text(
+                            'Account · preferences · about',
+                            style: TextStyle(
+                              color: AppColors.textSub(context),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 20),
 
-              // Avatar initial + name + email
+              // Hero avatar block — gradient orb with soft halo, name, email,
+              // and a subtle verified pill so the profile feels like *yours*
+              // rather than an account form.
               Center(
                 child: Column(
                   children: [
-                    CircleAvatar(
-                      radius: 48,
-                      backgroundColor: AppColors.primaryBlue.withValues(alpha: 0.15),
-                      child: Text(
-                        displayName.isNotEmpty
-                            ? displayName[0].toUpperCase()
-                            : '?',
-                        style: const TextStyle(
-                          color: AppColors.primaryBlue,
-                          fontSize: 36,
-                          fontWeight: FontWeight.bold,
+                    Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Soft outer halo
+                        Container(
+                          width: 132,
+                          height: 132,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: RadialGradient(
+                              colors: [
+                                AppColors.primaryBlue.withValues(alpha: 0.35),
+                                AppColors.primaryBlue.withValues(alpha: 0),
+                              ],
+                            ),
+                          ),
                         ),
-                      ),
+                        // Gradient avatar orb
+                        Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: const LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: AppColors.brandGradient,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.primaryBlue
+                                    .withValues(alpha: 0.45),
+                                blurRadius: 24,
+                                offset: const Offset(0, 10),
+                              ),
+                              BoxShadow(
+                                color: AppColors.teal.withValues(alpha: 0.25),
+                                blurRadius: 30,
+                                offset: const Offset(0, 6),
+                              ),
+                            ],
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            displayName.isNotEmpty
+                                ? displayName[0].toUpperCase()
+                                : '?',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 44,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -1,
+                            ),
+                          ),
+                        ),
+                        // Verified badge
+                        Positioned(
+                          right: 18,
+                          bottom: 8,
+                          child: Container(
+                            padding: const EdgeInsets.all(3),
+                            decoration: BoxDecoration(
+                              color: AppColors.bg(context),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Container(
+                              width: 22,
+                              height: 22,
+                              decoration: const BoxDecoration(
+                                color: AppColors.accentGreen,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.check_rounded,
+                                size: 14,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 16),
                     Text(
                       displayName,
                       style: TextStyle(
                         color: AppColors.text(context),
                         fontSize: 22,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.4,
                       ),
                     ),
-                    if (email.isNotEmpty)
+                    if (email.isNotEmpty) ...[
+                      const SizedBox(height: 2),
                       Text(
                         email,
                         style: TextStyle(
                           color: AppColors.textSub(context),
-                          fontSize: 14,
+                          fontSize: 13.5,
                         ),
                       ),
+                    ],
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            AppColors.primaryBlue.withValues(alpha: 0.20),
+                            AppColors.primaryViolet.withValues(alpha: 0.14),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: AppColors.primaryBlue.withValues(alpha: 0.35),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.workspace_premium_rounded,
+                              color: AppColors.primaryBlue, size: 13),
+                          const SizedBox(width: 4),
+                          Text(
+                            'SMART HOME MEMBER',
+                            style: TextStyle(
+                              color: AppColors.primaryBlue,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.0,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -425,16 +578,24 @@ These terms may be updated. Continued use after an update constitutes acceptance
                 ),
               ]),
 
+              if (isAdmin) ...[
+                const SizedBox(height: 24),
+                _sectionLabel('HOME ACCESS'),
+                _card([
+                  _GuestManagementTile(home: selectedHome ?? const {}),
+                ]),
+              ],
+
               const SizedBox(height: 24),
 
               _sectionLabel('PREFERENCES'),
               _card([
                 SwitchListTile(
-                  activeColor: AppColors.primaryBlue,
+                  activeThumbColor: AppColors.primaryBlue,
                   contentPadding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   secondary: _iconBadge(
-                      Icons.notifications_active, Colors.purple),
+                      Icons.notifications_active, AppColors.primaryViolet),
                   title: Text(
                     'Push Notifications',
                     style: TextStyle(
@@ -494,6 +655,7 @@ These terms may be updated. Continued use after an update constitutes acceptance
               const SizedBox(height: 24),
 
               _sectionLabel('YOUR SMART HOME'),
+              const SizedBox(height: 10),
               const _UsageStatsPanel(),
               const SizedBox(height: 8),
               _card([
@@ -654,16 +816,18 @@ class _ThemeSegmented extends StatelessWidget {
           decoration: BoxDecoration(
             gradient: active
                 ? const LinearGradient(
-                    colors: [Color(0xFF2196F3), Color(0xFF00BFA5)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: AppColors.brandGradient,
                   )
                 : null,
             borderRadius: BorderRadius.circular(AppRadius.xs),
             boxShadow: active
                 ? [
                     BoxShadow(
-                      color: AppColors.primaryBlue.withValues(alpha: 0.35),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
+                      color: AppColors.primaryBlue.withValues(alpha: 0.40),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
                     ),
                   ]
                 : null,
@@ -703,7 +867,6 @@ class _UsageStatsPanel extends ConsumerStatefulWidget {
 class _UsageStatsPanelState extends ConsumerState<_UsageStatsPanel> {
   int _deviceCount = 0;
   int _daysActive = 1;
-  int _chatTurns = 0;
   String _topScene = '—';
 
   @override
@@ -721,7 +884,6 @@ class _UsageStatsPanelState extends ConsumerState<_UsageStatsPanel> {
 
     final results = await Future.wait([
       UsageStatsService.daysActive(),
-      UsageStatsService.chatTurns(),
       UsageStatsService.sceneCounts(),
       if (homeId != null && homeId.isNotEmpty)
         ApiService.fetchDevices(homeId)
@@ -732,9 +894,8 @@ class _UsageStatsPanelState extends ConsumerState<_UsageStatsPanel> {
     if (!mounted) return;
 
     final days = results[0] as int;
-    final chat = results[1] as int;
-    final counts = results[2] as Map<String, int>;
-    final devices = (results[3] as List?) ?? const [];
+    final counts = results[1] as Map<String, int>;
+    final devices = (results[2] as List?) ?? const [];
 
     String topKey = '';
     int topVal = 0;
@@ -751,7 +912,6 @@ class _UsageStatsPanelState extends ConsumerState<_UsageStatsPanel> {
     setState(() {
       _deviceCount = devices.length;
       _daysActive = days;
-      _chatTurns = chat;
       _topScene = topLabel;
     });
   }
@@ -759,40 +919,38 @@ class _UsageStatsPanelState extends ConsumerState<_UsageStatsPanel> {
   @override
   Widget build(BuildContext context) {
     return GridView.count(
-      crossAxisCount: 2,
+      crossAxisCount: 3,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       mainAxisSpacing: 10,
       crossAxisSpacing: 10,
-      childAspectRatio: 2.4,
+      childAspectRatio: 0.95,
       children: [
         _statTile(
           context,
-          icon: Icons.devices_other,
+          icon: Icons.devices_rounded,
           color: AppColors.primaryBlue,
+          color2: AppColors.primaryViolet,
           label: 'Devices',
-          value: '$_deviceCount',
+          value: _deviceCount.toString(),
+          numeric: _deviceCount,
         ),
         _statTile(
           context,
-          icon: Icons.calendar_today,
+          icon: Icons.calendar_today_rounded,
           color: AppColors.accentGreen,
+          color2: AppColors.teal,
           label: 'Days active',
-          value: '$_daysActive',
+          value: _daysActive.toString(),
+          numeric: _daysActive,
         ),
         _statTile(
           context,
-          icon: Icons.auto_awesome,
-          color: Colors.amber.shade700,
+          icon: Icons.auto_awesome_rounded,
+          color: AppColors.accentAmber,
+          color2: AppColors.accentOrange,
           label: 'Top scene',
           value: _topScene,
-        ),
-        _statTile(
-          context,
-          icon: Icons.smart_toy,
-          color: Colors.deepPurpleAccent,
-          label: 'AI chats',
-          value: '$_chatTurns',
         ),
       ],
     );
@@ -802,57 +960,232 @@ class _UsageStatsPanelState extends ConsumerState<_UsageStatsPanel> {
     BuildContext context, {
     required IconData icon,
     required Color color,
+    required Color color2,
     required String label,
     required String value,
+    int? numeric,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
       decoration: BoxDecoration(
-        color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: AppColors.borderCol(context)),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.card(context),
+            Color.alphaBlend(
+              color.withValues(alpha: isDark ? 0.18 : 0.10),
+              AppColors.card(context),
+            ),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: color.withValues(alpha: 0.30),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.18),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Container(
-            width: 32,
-            height: 32,
+            width: 34,
+            height: 34,
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.16),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [color, color2],
+              ),
               borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: color, size: 16),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: AppColors.text(context),
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    height: 1.0,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: AppColors.textSub(context),
-                    fontSize: 11,
-                    height: 1.0,
-                  ),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.50),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
+            child: Icon(icon, color: Colors.white, size: 18),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              numeric != null
+                  ? TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0, end: numeric.toDouble()),
+                      duration: const Duration(milliseconds: 750),
+                      curve: Curves.easeOutCubic,
+                      builder: (context, v, _) => Text(
+                        v.round().toString(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: AppColors.text(context),
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
+                          height: 1.0,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                    )
+                  : Text(
+                      value,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: AppColors.text(context),
+                        fontSize: 19,
+                        fontWeight: FontWeight.w800,
+                        height: 1.0,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: AppColors.textSub(context),
+                  fontSize: 11,
+                  height: 1.0,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Profile tile that opens [GuestManagementScreen]. Pre-fetches the
+/// member count for the currently-selected home so the subtitle can show
+/// "X guests" — discoverable without entering the screen.
+class _GuestManagementTile extends ConsumerStatefulWidget {
+  const _GuestManagementTile({required this.home});
+
+  final Map<String, dynamic> home;
+
+  @override
+  ConsumerState<_GuestManagementTile> createState() =>
+      _GuestManagementTileState();
+}
+
+class _GuestManagementTileState extends ConsumerState<_GuestManagementTile> {
+  int? _guestCount;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _fetchCount());
+  }
+
+  Future<void> _fetchCount() async {
+    final homeId = (widget.home['home_id'] ??
+            widget.home['id'] ??
+            widget.home['homeid'])
+        ?.toString();
+    if (homeId == null) {
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
+    final members = await ApiService.fetchHomeMembers(homeId);
+    if (!mounted) return;
+    setState(() {
+      _loading = false;
+      _guestCount = members
+          ?.where((m) => (m['role'] ?? '').toString().toLowerCase() != 'admin')
+          .length;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    String subtitle;
+    if (_loading) {
+      subtitle = 'Loading members…';
+    } else if (_guestCount == null) {
+      subtitle = 'See who has access · revoke guests';
+    } else if (_guestCount == 0) {
+      subtitle = 'No guests yet · invite via QR';
+    } else if (_guestCount == 1) {
+      subtitle = '1 guest · tap to manage';
+    } else {
+      subtitle = '$_guestCount guests · tap to manage';
+    }
+
+    return ListTile(
+      onTap: () {
+        Navigator.push(
+          context,
+          AppMotion.fadeSlideRoute(const GuestManagementScreen()),
+        ).then((_) => _fetchCount());
+      },
+      leading: Container(
+        padding: const EdgeInsets.all(AppSpacing.sm),
+        decoration: BoxDecoration(
+          color: AppColors.primaryViolet.withValues(alpha: 0.2),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(Icons.group_rounded,
+            color: AppColors.primaryViolet, size: 20),
+      ),
+      title: Text(
+        'Guest Management',
+        style: TextStyle(
+          color: AppColors.text(context),
+          fontWeight: FontWeight.bold,
+          fontSize: 14,
+        ),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: TextStyle(
+          color: AppColors.textSub(context),
+          fontSize: 12,
+        ),
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_guestCount != null && _guestCount! > 0)
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: AppColors.primaryViolet.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: AppColors.primaryViolet.withValues(alpha: 0.40),
+                ),
+              ),
+              child: Text(
+                '$_guestCount',
+                style: TextStyle(
+                  color: AppColors.primaryViolet,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          const SizedBox(width: 4),
+          Icon(
+            Icons.arrow_forward_ios,
+            color: AppColors.textSub(context),
+            size: 14,
           ),
         ],
       ),

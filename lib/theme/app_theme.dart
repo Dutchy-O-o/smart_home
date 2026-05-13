@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_colors.dart';
 import 'app_spacing.dart';
 
 /// Centralized theme for the app. Material 3 + a shared TextTheme so
 /// individual widgets stop hard-coding fontSize/fontWeight everywhere.
+///
+/// Typography uses Plus Jakarta Sans (Google Fonts) — a modern geometric
+/// sans that reads as premium SaaS rather than the platform default.
 ///
 /// Naming intent:
 ///  - displayLarge       → screen hero numbers (e.g. dashboard greeting)
@@ -13,32 +17,32 @@ import 'app_spacing.dart';
 ///  - bodySmall          → secondary/sub text
 ///  - labelSmall         → captions, ranges, helper text
 class AppTheme {
-  static const _fontFamily = null; // pick up platform default for now
-
   static TextTheme _buildTextTheme(Color text, Color sub) {
-    return TextTheme(
+    final base = TextTheme(
       displayLarge: TextStyle(
         color: text,
-        fontSize: 28,
+        fontSize: 30,
         fontWeight: FontWeight.w800,
-        letterSpacing: -0.6,
-        height: 1.1,
+        letterSpacing: -0.8,
+        height: 1.05,
       ),
       headlineSmall: TextStyle(
         color: text,
         fontSize: 20,
         fontWeight: FontWeight.w700,
-        letterSpacing: -0.2,
+        letterSpacing: -0.3,
       ),
       titleLarge: TextStyle(
         color: text,
         fontSize: 18,
-        fontWeight: FontWeight.bold,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.2,
       ),
       titleMedium: TextStyle(
         color: text,
         fontSize: 16,
-        fontWeight: FontWeight.bold,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.1,
       ),
       titleSmall: TextStyle(
         color: text,
@@ -76,12 +80,12 @@ class AppTheme {
         height: 1.25,
       ),
     );
+    return GoogleFonts.plusJakartaSansTextTheme(base);
   }
 
   static ThemeData darkTheme = ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,
-    fontFamily: _fontFamily,
     scaffoldBackgroundColor: AppColors.background,
     primaryColor: AppColors.primaryBlue,
     colorScheme: const ColorScheme.dark(
@@ -91,14 +95,20 @@ class AppTheme {
       error: AppColors.accentRed,
       surface: AppColors.cardDark,
     ),
-    appBarTheme: const AppBarTheme(
+    appBarTheme: AppBarTheme(
       backgroundColor: Colors.transparent,
       foregroundColor: Colors.white,
       elevation: 0,
       scrolledUnderElevation: 0,
       centerTitle: false,
+      titleTextStyle: GoogleFonts.plusJakartaSans(
+        color: Colors.white,
+        fontSize: 18,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.2,
+      ),
     ),
-    textTheme: _buildTextTheme(Colors.white, const Color(0xFFB0B8D4)),
+    textTheme: _buildTextTheme(Colors.white, const Color(0xFFA9B0CC)),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         backgroundColor: AppColors.primaryBlue,
@@ -109,7 +119,11 @@ class AppTheme {
           vertical: AppSpacing.md,
         ),
         shape: const RoundedRectangleBorder(borderRadius: AppRadius.brMd),
-        textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+        textStyle: GoogleFonts.plusJakartaSans(
+          fontSize: 14,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.1,
+        ),
       ),
     ),
     cardTheme: const CardThemeData(
@@ -117,11 +131,14 @@ class AppTheme {
       elevation: 0,
       margin: EdgeInsets.zero,
     ),
-    dividerColor: const Color(0xFF2A3654),
+    dividerColor: const Color(0xFF252B45),
     iconTheme: const IconThemeData(color: Colors.white),
     snackBarTheme: SnackBarThemeData(
       backgroundColor: AppColors.cardDark,
-      contentTextStyle: const TextStyle(color: Colors.white),
+      contentTextStyle: GoogleFonts.plusJakartaSans(
+        color: Colors.white,
+        fontSize: 14,
+      ),
       shape: const RoundedRectangleBorder(borderRadius: AppRadius.brSm),
       behavior: SnackBarBehavior.floating,
     ),
@@ -130,8 +147,7 @@ class AppTheme {
   static ThemeData lightTheme = ThemeData(
     useMaterial3: true,
     brightness: Brightness.light,
-    fontFamily: _fontFamily,
-    scaffoldBackgroundColor: const Color(0xFFF5F6FA),
+    scaffoldBackgroundColor: const Color(0xFFF6F7FB),
     primaryColor: AppColors.primaryBlue,
     colorScheme: const ColorScheme.light(
       primary: AppColors.primaryBlue,
@@ -140,16 +156,22 @@ class AppTheme {
       error: AppColors.accentRed,
       surface: Colors.white,
     ),
-    appBarTheme: const AppBarTheme(
+    appBarTheme: AppBarTheme(
       backgroundColor: Colors.transparent,
-      foregroundColor: Color(0xFF1A1D2E),
+      foregroundColor: const Color(0xFF13172A),
       elevation: 0,
       scrolledUnderElevation: 0,
       centerTitle: false,
+      titleTextStyle: GoogleFonts.plusJakartaSans(
+        color: const Color(0xFF13172A),
+        fontSize: 18,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.2,
+      ),
     ),
     textTheme: _buildTextTheme(
-      const Color(0xFF1A1D2E),
-      const Color(0xFF6B7288),
+      const Color(0xFF13172A),
+      const Color(0xFF6B7188),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
@@ -161,7 +183,11 @@ class AppTheme {
           vertical: AppSpacing.md,
         ),
         shape: const RoundedRectangleBorder(borderRadius: AppRadius.brMd),
-        textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+        textStyle: GoogleFonts.plusJakartaSans(
+          fontSize: 14,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.1,
+        ),
       ),
     ),
     cardTheme: const CardThemeData(
@@ -169,11 +195,14 @@ class AppTheme {
       elevation: 0,
       margin: EdgeInsets.zero,
     ),
-    dividerColor: const Color(0xFFE1E4EC),
-    iconTheme: const IconThemeData(color: Color(0xFF1A1D2E)),
+    dividerColor: const Color(0xFFE5E8F0),
+    iconTheme: const IconThemeData(color: Color(0xFF13172A)),
     snackBarTheme: SnackBarThemeData(
       backgroundColor: Colors.white,
-      contentTextStyle: const TextStyle(color: Color(0xFF1A1D2E)),
+      contentTextStyle: GoogleFonts.plusJakartaSans(
+        color: const Color(0xFF13172A),
+        fontSize: 14,
+      ),
       shape: const RoundedRectangleBorder(borderRadius: AppRadius.brSm),
       behavior: SnackBarBehavior.floating,
     ),

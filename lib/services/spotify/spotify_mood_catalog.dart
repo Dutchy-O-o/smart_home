@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import 'spotify_api_client.dart';
 import 'spotify_logger.dart';
 
@@ -101,6 +103,47 @@ class SpotifyMoodCatalog {
     ],
   };
 
+  /// Word-boundary regex matcher for a single mood's keyword list,
+  /// scoring a track's name/album/artist text. Pulled out as a public
+  /// helper so unit tests can hammer the regex layer without spinning
+  /// up Spotify API mocks. Name=10, artist=5, album=3 — same weights
+  /// the production `recommend()` uses internally.
+  ///
+  /// Implementation note: Dart's `caseSensitive: false` is unreliable
+  /// for Unicode case-folding (e.g. Turkish `Ö` ↔ `ö`), so we lowercase
+  /// both sides ourselves and match case-sensitively. Keywords in the
+  /// table are already lowercase.
+  @visibleForTesting
+  static int scoreTrackForMood({
+    required String mood,
+    required Map<String, dynamic> track,
+  }) {
+    final keywords = _moodKeywords[mood.toLowerCase()] ?? const <String>[];
+    if (keywords.isEmpty) return 0;
+    // Word boundary built from Unicode "letter" category negation. `\b`
+    // alone is ASCII-only on Dart's ECMA-262 RegExp engine, so a Turkish
+    // keyword like "ölmek" never matched at a string boundary because
+    // `ö` doesn't count as a `\w` character. Look-behind/look-ahead
+    // against `[^\p{L}]` (anything that isn't a Unicode letter) gives
+    // the same intent and works for both Latin and Turkish text.
+    final patterns = keywords
+        .map((kw) => RegExp(
+              r'(?<![\p{L}])' + RegExp.escape(kw) + r'(?![\p{L}])',
+              unicode: true,
+            ))
+        .toList();
+    final name = (track['name'] ?? '').toString().toLowerCase();
+    final album = (track['album'] ?? '').toString().toLowerCase();
+    final artist = (track['artist'] ?? '').toString().toLowerCase();
+    var s = 0;
+    for (final p in patterns) {
+      if (p.hasMatch(name)) s += 10;
+      if (p.hasMatch(album)) s += 3;
+      if (p.hasMatch(artist)) s += 5;
+    }
+    return s;
+  }
+
   /// Build a personalized mood-matched list from the user's own catalog.
   /// Returns { success, tracks, diagnostics }.
   static Future<Map<String, dynamic>> recommend({
@@ -108,7 +151,6 @@ class SpotifyMoodCatalog {
     int limit = 10,
   }) async {
     final diag = <String, dynamic>{'mood': mood};
-    final keywords = _moodKeywords[mood.toLowerCase()] ?? const <String>[];
 
     // 1. Pool the user's top tracks across short/medium/long ranges.
     final pool = <Map<String, dynamic>>[];
@@ -130,30 +172,13 @@ class SpotifyMoodCatalog {
         limit: 50, timeRange: 'long_term'));
     diag['top_tracks_pool'] = pool.length;
 
-    // 2. Score each track via word-boundary keyword matching.
-    final patterns = keywords
-        .map((kw) => RegExp(
-              r'\b' + RegExp.escape(kw) + r'\b',
-              caseSensitive: false,
-              unicode: true,
-            ))
-        .toList();
-
-    int scoreOf(Map<String, dynamic> t) {
-      if (patterns.isEmpty) return 0;
-      final name = (t['name'] ?? '').toString();
-      final album = (t['album'] ?? '').toString();
-      final artist = (t['artist'] ?? '').toString();
-      var s = 0;
-      for (final p in patterns) {
-        if (p.hasMatch(name)) s += 10;
-        if (p.hasMatch(album)) s += 3;
-        if (p.hasMatch(artist)) s += 5;
-      }
-      return s;
-    }
-
-    final scored = pool.map((t) => {...t, '_score': scoreOf(t)}).toList()
+    // 2. Score each track via the same regex matcher unit tests cover.
+    final scored = pool
+        .map((t) => {
+              ...t,
+              '_score': scoreTrackForMood(mood: mood, track: t),
+            })
+        .toList()
       ..sort((a, b) => (b['_score'] as int).compareTo(a['_score'] as int));
 
     final matched = scored.where((t) => (t['_score'] as int) > 0).toList();
